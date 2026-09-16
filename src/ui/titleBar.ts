@@ -388,36 +388,65 @@ export class TitleBarComponent {
       }
     });
 
-    // Check initial maximized state
+    // Default to maximized on start since config specifies "maximize": true
+    this.updateMaximizedVisual(true);
+
+    // Check initial maximized state from native API
     this.checkMaximizedState();
+
+    // Listen to resize events to react when user snaps or resizes the window
+    window.addEventListener('resize', () => {
+      this.checkMaximizedState();
+    });
+
+    // Listen to native Neutralino window state events if available
+    if ((window as any).Neutralino?.events) {
+      (window as any).Neutralino.events.on('windowMaximize', () => {
+        this.updateMaximizedVisual(true);
+      });
+      (window as any).Neutralino.events.on('windowRestore', () => {
+        this.updateMaximizedVisual(false);
+      });
+    }
   }
 
   private async checkMaximizedState() {
     if (isNative()) {
       try {
-        await window.Neutralino?.window?.maximize();
         const isMax = await window.Neutralino?.window?.isMaximized();
         this.updateMaximizedVisual(isMax ?? true);
       } catch (e) {
         // Ignore in web preview
       }
+    } else {
+      const isMax = window.innerWidth >= (window.screen?.availWidth || 0) && window.innerHeight >= (window.screen?.availHeight || 0);
+      this.updateMaximizedVisual(isMax);
     }
   }
 
   private updateMaximizedVisual(isMaximized: boolean) {
     this.isMaximizedState = isMaximized;
-    const maxIcon = this.maxRestoreBtn.querySelector('.icon-maximize') as HTMLElement;
-    const restoreIcon = this.maxRestoreBtn.querySelector('.icon-restore') as HTMLElement;
 
-    if (maxIcon && restoreIcon) {
-      if (isMaximized) {
-        maxIcon.style.display = 'none';
-        restoreIcon.style.display = 'block';
-        this.maxRestoreBtn.title = 'Restore Down';
-      } else {
-        maxIcon.style.display = 'block';
-        restoreIcon.style.display = 'none';
-        this.maxRestoreBtn.title = 'Maximize';
+    if (isMaximized) {
+      document.body.classList.add('window-maximized');
+    } else {
+      document.body.classList.remove('window-maximized');
+    }
+
+    if (this.maxRestoreBtn) {
+      const maxIcon = this.maxRestoreBtn.querySelector('.icon-maximize') as HTMLElement;
+      const restoreIcon = this.maxRestoreBtn.querySelector('.icon-restore') as HTMLElement;
+
+      if (maxIcon && restoreIcon) {
+        if (isMaximized) {
+          maxIcon.style.display = 'none';
+          restoreIcon.style.display = 'block';
+          this.maxRestoreBtn.title = 'Restore Down';
+        } else {
+          maxIcon.style.display = 'block';
+          restoreIcon.style.display = 'none';
+          this.maxRestoreBtn.title = 'Maximize';
+        }
       }
     }
   }

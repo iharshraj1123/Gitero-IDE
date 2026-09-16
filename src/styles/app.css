@@ -74,6 +74,15 @@ body, html {
   flex-direction: column;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
+}
+
+/* On Windows, borderless windows when maximized extend by ~8px (invisible DWM borders)
+   outside the monitor work area. This padding prevents the bottom status bar, title bar,
+   and side panels from being clipped by the Windows taskbar or monitor edges. */
+body.window-maximized #app {
+  padding: 8px;
+  box-sizing: border-box;
 }
 
 .ide-workspace {
@@ -904,6 +913,7 @@ body, html {
 
 .status-bar {
   height: 24px;
+  min-height: 24px;
   background-color: var(--status-bg);
   color: var(--status-fg);
   display: flex;
@@ -913,6 +923,7 @@ body, html {
   font-size: 12px;
   border-top: 1px solid var(--border-color);
   z-index: 20;
+  box-sizing: border-box;
 }
 
 .status-left, .status-right {
