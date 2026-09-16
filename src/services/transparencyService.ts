@@ -133,20 +133,20 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     id: 'subtle-glass',
     name: 'Subtle Glass',
     description: 'Gentle transparency with smooth frosted backdrop blur',
-    blur: 14,
-    masterBg: 85,
+    blur: 12,
+    masterBg: 100,
     masterText: 100,
     atmosphereMood: 'deep-space',
-    atmosphereIntensity: 55,
+    atmosphereIntensity: 65,
     sections: {
-      titleBar: { bg: 85, text: 100 },
-      activityBar: { bg: 80, text: 100 },
-      sidebar: { bg: 85, text: 100 },
-      tabBar: { bg: 85, text: 100 },
-      editor: { bg: 92, text: 100 },
-      terminal: { bg: 85, text: 100 },
-      statusBar: { bg: 80, text: 100 },
-      overlays: { bg: 90, text: 100 }
+      titleBar: { bg: 60, text: 100 },
+      activityBar: { bg: 50, text: 100 },
+      sidebar: { bg: 55, text: 100 },
+      tabBar: { bg: 60, text: 100 },
+      editor: { bg: 85, text: 100 },
+      terminal: { bg: 65, text: 100 },
+      statusBar: { bg: 50, text: 100 },
+      overlays: { bg: 80, text: 100 }
     }
   },
   {
@@ -154,19 +154,19 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     name: 'Frosted Acrylic',
     description: 'Modern Windows Acrylic aesthetic with rich 20px blur and luminous glass chrome',
     blur: 20,
-    masterBg: 70,
+    masterBg: 100,
     masterText: 100,
     atmosphereMood: 'aurora',
-    atmosphereIntensity: 75,
+    atmosphereIntensity: 85,
     sections: {
-      titleBar: { bg: 70, text: 100 },
-      activityBar: { bg: 60, text: 100 },
-      sidebar: { bg: 68, text: 100 },
-      tabBar: { bg: 70, text: 100 },
-      editor: { bg: 80, text: 100 },
-      terminal: { bg: 72, text: 100 },
-      statusBar: { bg: 60, text: 100 },
-      overlays: { bg: 78, text: 100 }
+      titleBar: { bg: 35, text: 100 },
+      activityBar: { bg: 30, text: 100 },
+      sidebar: { bg: 35, text: 100 },
+      tabBar: { bg: 40, text: 100 },
+      editor: { bg: 65, text: 100 },
+      terminal: { bg: 45, text: 100 },
+      statusBar: { bg: 30, text: 100 },
+      overlays: { bg: 75, text: 100 }
     }
   },
   {
@@ -174,19 +174,19 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     name: 'Code Focus',
     description: 'Translucent sidebars and chrome with 100% solid, distraction-free code canvas',
     blur: 16,
-    masterBg: 80,
+    masterBg: 100,
     masterText: 100,
-    atmosphereMood: 'monochrome',
-    atmosphereIntensity: 45,
+    atmosphereMood: 'deep-space',
+    atmosphereIntensity: 80,
     sections: {
-      titleBar: { bg: 60, text: 100 },
-      activityBar: { bg: 55, text: 100 },
-      sidebar: { bg: 65, text: 100 },
-      tabBar: { bg: 70, text: 100 },
+      titleBar: { bg: 40, text: 100 },
+      activityBar: { bg: 35, text: 100 },
+      sidebar: { bg: 40, text: 100 },
+      tabBar: { bg: 45, text: 100 },
       editor: { bg: 100, text: 100 },
-      terminal: { bg: 80, text: 100 },
-      statusBar: { bg: 60, text: 100 },
-      overlays: { bg: 85, text: 100 }
+      terminal: { bg: 50, text: 100 },
+      statusBar: { bg: 35, text: 100 },
+      overlays: { bg: 78, text: 100 }
     }
   }
 ];
