@@ -305,7 +305,7 @@ export class SettingsModalComponent {
                 <div class="update-meta-grid">
                   <div class="update-meta-card">
                     <span class="meta-label">Installed Version</span>
-                    <span class="meta-val" id="update-cur-ver">0.0.4-alpha</span>
+                    <span class="meta-val" id="update-cur-ver">0.1.0-beta</span>
                   </div>
                   <div class="update-meta-card">
                     <span class="meta-label">Current Branch</span>
@@ -401,18 +401,12 @@ export class SettingsModalComponent {
 
   private setupUpdateListeners() {
     const branchSelect = this.overlay.querySelector('#update-branch-select') as HTMLSelectElement;
-    const refreshBtn = this.overlay.querySelector('#btn-refresh-branches') as HTMLButtonElement;
     const checkBtn = this.overlay.querySelector('#btn-check-update') as HTMLButtonElement;
     const applyBtn = this.overlay.querySelector('#btn-apply-update') as HTMLButtonElement;
     const statusMsg = this.overlay.querySelector('#update-status-msg') as HTMLElement;
 
-    refreshBtn.addEventListener('click', async () => {
-      refreshBtn.disabled = true;
-      refreshBtn.textContent = 'Refreshing...';
-      await this.loadBranches();
-      refreshBtn.disabled = false;
-      refreshBtn.textContent = 'Refresh';
-    });
+    // Populate branch list on startup
+    this.loadBranches();
 
     checkBtn.addEventListener('click', async () => {
       const branch = branchSelect.value;
