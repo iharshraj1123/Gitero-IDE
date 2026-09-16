@@ -38,6 +38,7 @@ export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'editor.action.indentLines', name: 'Indent Line', category: 'Editor' },
   { id: 'editor.action.outdentLines', name: 'Outdent Line', category: 'Editor' },
   { id: 'editor.action.selectLine', name: 'Select Current Line', category: 'Editor' },
+  { id: 'editor.action.cycleCursorStyle', name: 'Cycle Cursor Style (Line, Block, Underline)', category: 'Editor' },
   { id: 'markdown.showPreview', name: 'Toggle Markdown Preview / Raw Editor', category: 'Markdown' },
   { id: 'workbench.action.openSettings', name: 'Open Settings & Custom CSS', category: 'Preferences' },
   { id: 'workbench.action.openShortcuts', name: 'Keyboard Shortcuts Reference', category: 'Help' },

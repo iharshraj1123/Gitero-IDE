@@ -23,6 +23,7 @@ import { WindowResizer } from './ui/windowResizer';
 import { SNIPPETS } from './editor/snippets';
 import { fileAssociationService } from './services/fileAssociation';
 import { persistentStorage } from './services/storage';
+import { transparencyService } from './services/transparencyService';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -36,8 +37,9 @@ async function bootstrap() {
   editorState.reloadPersistedTabs();
   new WindowResizer();
 
-  // 2. Initialize Themes and User CSS
+  // 2. Initialize Themes, User CSS, and Transparency Engine
   themeManager.init();
+  transparencyService.init();
 
   // Initialize Typography from preferences
   const applyTypography = () => {
@@ -1247,7 +1249,7 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       {
         id: 'preferences.cursor.cycle',
         title: 'Preferences: Cycle Cursor Style (Line / Block / Underline)',
-        detail: 'Num 0 / Insert or Alt+0',
+        detail: 'Alt+0',
         category: 'Preferences',
         action: () => {
           const style = editorManager.cycleCursorStyle();
@@ -1655,8 +1657,8 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       return;
     }
 
-    // Num 0 (with NumLock off / emitting Insert) or Insert or Alt+0 -> Cycle cursor style and persist choice
-    if (e.key === 'Insert' || (e.code === 'Numpad0' && e.key === 'Insert') || (e.altKey && (e.key === '0' || e.code === 'Numpad0'))) {
+    // Cycle Cursor Style (Alt+0)
+    if (matchAction('editor.action.cycleCursorStyle') || (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey && (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0'))) {
       e.preventDefault();
       const style = editorManager.cycleCursorStyle();
       statusBar.showMessage(`Cursor Style: ${style.toUpperCase()} (Saved as preference)`);

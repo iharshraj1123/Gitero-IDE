@@ -150,7 +150,7 @@ export class TitleBarComponent {
           },
           { label: '', divider: true },
           { label: 'Switch Color Theme...', action: this.options.onOpenThemePicker },
-          { label: 'Cycle Cursor Style', shortcut: 'Num 0', action: this.options.onCycleCursor }
+          { label: 'Cycle Cursor Style', shortcut: 'Alt+0', action: this.options.onCycleCursor }
         ]
       },
       {

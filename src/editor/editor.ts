@@ -179,9 +179,6 @@ export class EditorManager {
     preferencesService.subscribe('editor.cursorStyle', (style) => {
       if (this.view) {
         this.view.dom.setAttribute('data-cursor-style', style);
-        if (vimIntegration.isEnabled()) {
-          vimIntegration.applyCursorStyle(this.view, style);
-        }
       }
     });
 
@@ -354,9 +351,6 @@ export class EditorManager {
     preferencesService.set('editor.cursorStyle', style);
     if (this.view) {
       this.view.dom.setAttribute('data-cursor-style', style);
-      if (vimIntegration.isEnabled()) {
-        vimIntegration.applyCursorStyle(this.view, style);
-      }
     }
   }
 

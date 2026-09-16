@@ -1015,6 +1015,19 @@ html.init-sidebar-collapsed .sidebar {
   opacity: 1 !important;
 }
 
+/* Vim Modal Fat Cursor Styling */
+.cm-fat-cursor {
+  background: var(--editor-cursor, #58a6ff) !important;
+  color: var(--editor-bg, #1e1e1e) !important;
+  opacity: 0.8 !important;
+}
+
+.cm-editor:not(.cm-focused) .cm-fat-cursor {
+  background: none !important;
+  outline: 1px solid var(--editor-cursor, #58a6ff) !important;
+  color: inherit !important;
+}
+
 .editor-empty-state {
   display: flex;
   flex-direction: column;
@@ -1116,6 +1129,7 @@ html.init-sidebar-collapsed .sidebar {
 .mode-normal { background: #3b82f6; color: #fff; }
 .mode-insert { background: #10b981; color: #fff; }
 .mode-visual, .mode-v-line, .mode-v-block { background: #f59e0b; color: #000; }
+.mode-replace { background: #ec4899; color: #fff; }
 .mode-command { background: #ef4444; color: #fff; }
 .mode-disabled { background: var(--bg-hover); color: var(--fg-muted); }
 

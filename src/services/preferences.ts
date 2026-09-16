@@ -43,6 +43,28 @@ export interface GiteroPreferences {
   // Software Updates
   'updater.githubToken': string;
 
+  // Transparency & Glassmorphism
+  'transparency.enabled': boolean;
+  'transparency.blur': number;
+  'transparency.master.bgOpacity': number;
+  'transparency.master.textOpacity': number;
+  'transparency.titleBar.bgOpacity': number;
+  'transparency.titleBar.textOpacity': number;
+  'transparency.activityBar.bgOpacity': number;
+  'transparency.activityBar.textOpacity': number;
+  'transparency.sidebar.bgOpacity': number;
+  'transparency.sidebar.textOpacity': number;
+  'transparency.tabBar.bgOpacity': number;
+  'transparency.tabBar.textOpacity': number;
+  'transparency.editor.bgOpacity': number;
+  'transparency.editor.textOpacity': number;
+  'transparency.terminal.bgOpacity': number;
+  'transparency.terminal.textOpacity': number;
+  'transparency.statusBar.bgOpacity': number;
+  'transparency.statusBar.textOpacity': number;
+  'transparency.overlays.bgOpacity': number;
+  'transparency.overlays.textOpacity': number;
+
   // Keybindings
   'keybindings': Record<string, string>;
 }
@@ -81,7 +103,8 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'workbench.action.openShortcuts': 'Ctrl+K Ctrl+S',
   'workbench.action.toggleFullScreen': 'F11',
   'workbench.action.toggleDevTools': 'F12',
-  'workbench.action.explorerHotkey': 'Ctrl+.'
+  'workbench.action.explorerHotkey': 'Ctrl+.',
+  'editor.action.cycleCursorStyle': 'Alt+0'
 };
 
 export const DEFAULT_PREFERENCES: GiteroPreferences = {
@@ -113,6 +136,26 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'search.matchWholeWord': false,
   'search.useRegex': false,
   'updater.githubToken': '',
+  'transparency.enabled': false,
+  'transparency.blur': 12,
+  'transparency.master.bgOpacity': 100,
+  'transparency.master.textOpacity': 100,
+  'transparency.titleBar.bgOpacity': 100,
+  'transparency.titleBar.textOpacity': 100,
+  'transparency.activityBar.bgOpacity': 100,
+  'transparency.activityBar.textOpacity': 100,
+  'transparency.sidebar.bgOpacity': 100,
+  'transparency.sidebar.textOpacity': 100,
+  'transparency.tabBar.bgOpacity': 100,
+  'transparency.tabBar.textOpacity': 100,
+  'transparency.editor.bgOpacity': 100,
+  'transparency.editor.textOpacity': 100,
+  'transparency.terminal.bgOpacity': 100,
+  'transparency.terminal.textOpacity': 100,
+  'transparency.statusBar.bgOpacity': 100,
+  'transparency.statusBar.textOpacity': 100,
+  'transparency.overlays.bgOpacity': 100,
+  'transparency.overlays.textOpacity': 100,
   'keybindings': { ...DEFAULT_KEYBINDINGS }
 };
 

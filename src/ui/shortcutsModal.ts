@@ -35,7 +35,7 @@ export class ShortcutsModalComponent {
     { command: 'Undo', keys: ['Ctrl', 'Z'], category: 'Editing' },
     { command: 'Redo', keys: ['Ctrl', 'Y'], category: 'Editing' },
     { command: 'Select All', keys: ['Ctrl', 'A'], category: 'Editing' },
-    { command: 'Cycle Cursor Style (Line / Block / Underline)', keys: ['Num 0', 'or', 'Alt+0'], category: 'Editing' },
+    { command: 'Cycle Cursor Style (Line / Block / Underline)', keys: ['Alt', '0'], category: 'Editing' },
 
     // Panels
     { command: 'Show Global Search in Files', keys: ['Ctrl', 'Shift', 'F'], category: 'Panels' },
