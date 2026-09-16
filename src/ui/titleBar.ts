@@ -417,10 +417,10 @@ export class TitleBarComponent {
       }
     });
 
-    // Default to maximized on start since config specifies "maximize": true
-    this.updateMaximizedVisual(true);
+    // Start with non-maximized visual until the native API confirms state
+    this.updateMaximizedVisual(false);
 
-    // Check initial maximized state from native API
+    // Check initial maximized state from native API (fires after JS maximize() resolves)
     this.checkMaximizedState();
 
     // Listen to resize events to react when user snaps or resizes the window

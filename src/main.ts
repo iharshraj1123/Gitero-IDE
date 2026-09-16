@@ -693,6 +693,8 @@ async function bootstrap() {
             console.warn('Failed to open file via openedFile event:', e);
           }
         }
+        // Collapse sidebar so the editor takes full focus when opening from outside the app
+        sidebarEl.classList.add('collapsed');
       }
     });
   }
@@ -703,6 +705,11 @@ async function bootstrap() {
   if (!openedWorkspace) {
     const initialWorkspace = fsService.getWorkspace() || '.';
     await loadWorkspace(initialWorkspace);
+  }
+
+  // Collapse sidebar when launched with an external file so the editor gets full focus
+  if (openedFile) {
+    sidebarEl.classList.add('collapsed');
   }
 
   // If no tabs are open and no external file was opened, open a friendly README welcome

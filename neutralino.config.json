@@ -36,7 +36,7 @@
       "enableInspector": true,
       "openInspectorOnStartup": false,
       "borderless": true,
-      "maximize": true,
+      "maximize": false,
       "hidden": false,
       "resizable": true,
       "exitProcessOnClose": true

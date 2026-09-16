@@ -197,10 +197,18 @@ export class ThemeManager {
         fontSize: 'var(--editor-font-size, 14px)',
         fontFamily: 'var(--editor-font-family, "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace)'
       },
+      '.cm-scroller': {
+        // Override global * { user-select: none } so the editor can register text selections
+        userSelect: 'text',
+        WebkitUserSelect: 'text'
+      } as any,
       '.cm-content': {
         caretColor: c.editorCursor,
-        padding: '8px 0'
-      },
+        padding: '8px 0',
+        // Must be selectable for Ctrl+A and drawSelection to work on all lines
+        userSelect: 'text',
+        WebkitUserSelect: 'text'
+      } as any,
       '.cm-cursor, .cm-dropCursor': {
         borderLeftColor: c.editorCursor,
         borderLeftWidth: '2px'
@@ -208,8 +216,15 @@ export class ThemeManager {
       '&.cm-focused .cm-cursor': {
         borderLeftColor: c.editorCursor
       },
-      '.cm-selectionBackground, ::selection': {
+      // Selection highlight: apply both focused and unfocused states
+      '&.cm-focused .cm-selectionBackground': {
         backgroundColor: `${c.editorSelection} !important`
+      },
+      '.cm-selectionBackground': {
+        backgroundColor: `${c.editorSelection} !important`
+      },
+      '&.cm-focused': {
+        outline: 'none'
       },
       '.cm-activeLine': {
         backgroundColor: c.editorActiveLine
