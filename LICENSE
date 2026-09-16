@@ -1,0 +1,59 @@
+Gitero IDE Source-Available License
+Version 1.0 (Non-Commercial, No-Derivatives, Attribution Required)
+
+Copyright (c) 2026 Harsh Raj (iharshraj1123@gmail.com)
+Repository: https://github.com/iharshraj1123/Glitero-IDE
+
+================================================================================
+TERMS AND CONDITIONS
+================================================================================
+
+1. GRANT OF PERMISSION FOR PERSONAL & COLLABORATIVE USE
+Permission is hereby granted to any person obtaining a copy of this software and
+associated documentation files (the "Software") to view, download, fork, branch,
+compile, run, and modify the Software solely for:
+  (a) Personal, non-commercial, private study and educational purposes; and
+  (b) Submitting bug fixes, improvements, or contributions back to the official
+      upstream repository of Gitero IDE.
+
+2. PROHIBITION OF DERIVATIVE APPLICATIONS
+You may NOT build, package, publish, redistribute, rebrand, or release another
+application, code editor, software product, or tool derived from or incorporating
+this Software or any substantial portion of its source code, architecture, or
+assets, whether in source or binary form, modified or unmodified. Forking for
+the purpose of distributing a separate, competing, or alternative software
+application is strictly prohibited.
+
+3. PROHIBITION OF COMMERCIAL USE
+Under no circumstances may the Software, or any portion thereof, be used for any
+commercial purpose whatsoever. Prohibited commercial use includes, without
+limitation:
+  (a) Selling, leasing, licensing, sublicensing, or distributing the Software for
+      a fee;
+  (b) Packaging or bundling the Software within commercial products, paid
+      services, subscription offerings, or paid distributions;
+  (c) Hosting the Software as a paid or ad-supported software-as-a-service (SaaS)
+      or cloud-hosted platform;
+  (d) Using the Software or its derived works to generate direct or indirect
+      commercial revenue.
+
+4. MANDATORY ATTRIBUTION & CREDITS
+Any permitted copy, fork, or reference to any portion of the source code or
+architecture must retain the original copyright notice, author attribution, and
+this entire license text without modification. Explicit and prominent credit must
+be given to Harsh Raj and the Gitero IDE project (linking to
+https://github.com/iharshraj1123/Glitero-IDE) in all documentation, repository
+readmes, and user-facing notices.
+
+5. RESERVATION OF RIGHTS
+All rights not expressly granted herein are reserved by the original copyright
+holder. Any use of the Software outside the terms of this license requires prior
+written permission from the author.
+
+6. DISCLAIMER OF WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

@@ -7,7 +7,7 @@
 [![Editor Engine](https://img.shields.io/badge/editor-CodeMirror%206-d97706.svg?style=flat-square)](https://codemirror.net/)
 [![Language](https://img.shields.io/badge/language-TypeScript%205-3178c6.svg?style=flat-square)](https://www.typescriptlang.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4.svg?style=flat-square)](https://github.com/iharshraj1123/Glitero-IDE)
-[![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-Custom%20(Non--Commercial)-red.svg?style=flat-square)](LICENSE)
 [![Design](https://img.shields.io/badge/style-Zero%20Emojis-10b981.svg?style=flat-square)](https://github.com/iharshraj1123/Glitero-IDE)
 
 ---
@@ -172,4 +172,11 @@ Gitero IDE
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+Copyright (c) 2026 Harsh Raj.
+
+This project is licensed under a **Source-Available Non-Commercial, No-Derivatives License**. See the full [`LICENSE`](LICENSE) file for complete terms:
+
+- **Forks & Branches**: You are welcome to view, fork, branch, modify, and study the code for personal, educational, and evaluation purposes, or to contribute pull requests back to Gitero IDE.
+- **No Derivative Applications**: You may not build, package, rebrand, or redistribute another application, editor, software tool, or competing product derived from this codebase.
+- **No Commercial Use**: Any commercial use, monetization, sale, paid distribution, or SaaS hosting is strictly prohibited without prior written authorization.
+- **Mandatory Attribution**: All forks, copies, and permitted extracts must retain original copyright notices and prominent attribution to Harsh Raj and the Gitero IDE project.
