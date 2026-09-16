@@ -3,19 +3,44 @@ export type CursorBlinking = 'blink' | 'smooth' | 'solid';
 export type IconTheme = 'badges' | 'lucide' | 'material' | 'custom';
 
 export interface GiteroPreferences {
+  // Editor
   'editor.cursorStyle': CursorStyle;
   'editor.cursorBlinking': CursorBlinking;
   'editor.fontFamily': string;
   'editor.fontSize': number;
+  'editor.lineHeight': number;
   'editor.theme': string;
   'editor.vimEnabled': boolean;
   'editor.customCss': string;
   'editor.tabSize': number;
+  'editor.insertSpaces': boolean;
   'editor.wordWrap': boolean;
+  'editor.lineNumbers': boolean;
+  'editor.trimTrailingWhitespace': boolean;
+  'editor.insertFinalNewline': boolean;
+
+  // Files
   'files.autoSave': boolean;
   'files.autoSaveDelay': number;
+
+  // Workbench / UI
   'workbench.iconTheme': IconTheme;
   'workbench.customIconPackage': string;
+  'workbench.sidebarVisible': boolean;
+  'workbench.activeSidebarPane': 'explorer' | 'search' | 'git';
+  'workbench.bottomPanelHeight': number;
+  'workbench.recentWorkspaces': string[];
+
+  // Terminal
+  'terminal.fontSize': number;
+  'terminal.fontFamily': string;
+
+  // Search
+  'search.matchCase': boolean;
+  'search.matchWholeWord': boolean;
+  'search.useRegex': boolean;
+
+  // Keybindings
   'keybindings': Record<string, string>;
 }
 
@@ -50,6 +75,7 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'markdown.showPreview': 'Ctrl+Shift+V',
   'workbench.action.openSettings': 'Ctrl+,',
   'workbench.action.openShortcuts': 'Ctrl+K Ctrl+S',
+  'workbench.action.toggleFullScreen': 'F11',
   'workbench.action.toggleDevTools': 'F12'
 };
 
@@ -58,15 +84,29 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.cursorBlinking': 'blink',
   'editor.fontFamily': '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace',
   'editor.fontSize': 14,
+  'editor.lineHeight': 1.5,
   'editor.theme': 'github-dark',
   'editor.vimEnabled': true,
   'editor.customCss': '',
   'editor.tabSize': 2,
+  'editor.insertSpaces': true,
   'editor.wordWrap': false,
+  'editor.lineNumbers': true,
+  'editor.trimTrailingWhitespace': false,
+  'editor.insertFinalNewline': false,
   'files.autoSave': false,
   'files.autoSaveDelay': 1000,
-  'workbench.iconTheme': 'badges',
+  'workbench.iconTheme': 'lucide',
   'workbench.customIconPackage': '',
+  'workbench.sidebarVisible': true,
+  'workbench.activeSidebarPane': 'explorer',
+  'workbench.bottomPanelHeight': 220,
+  'workbench.recentWorkspaces': [],
+  'terminal.fontSize': 13,
+  'terminal.fontFamily': '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace',
+  'search.matchCase': false,
+  'search.matchWholeWord': false,
+  'search.useRegex': false,
   'keybindings': { ...DEFAULT_KEYBINDINGS }
 };
 
@@ -85,11 +125,13 @@ export class PreferencesService {
   private loadPreferences(): GiteroPreferences {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      const legacyIconTheme = localStorage.getItem('gitero_icon_theme') as IconTheme | null;
       if (raw) {
         const parsed = JSON.parse(raw);
         return {
           ...DEFAULT_PREFERENCES,
-          ...parsed
+          ...parsed,
+          ...(legacyIconTheme ? { 'workbench.iconTheme': legacyIconTheme } : {})
         };
       }
     } catch (e) {
@@ -125,6 +167,9 @@ export class PreferencesService {
 
       const legacyCss = localStorage.getItem('gitero_custom_css');
       if (legacyCss) prefs['editor.customCss'] = legacyCss;
+
+      const legacyIcon = localStorage.getItem('gitero_icon_theme');
+      if (legacyIcon) prefs['workbench.iconTheme'] = legacyIcon as any;
 
       // Save migrated settings
       this.savePreferences(prefs);
@@ -230,6 +275,10 @@ export class PreferencesService {
         localStorage.setItem('gitero_vim_enabled', value ? 'true' : 'false');
       } else if (key === 'editor.customCss') {
         localStorage.setItem('gitero_custom_css', String(value));
+      } else if (key === 'workbench.iconTheme') {
+        localStorage.setItem('gitero_icon_theme', String(value));
+      } else if (key === 'workbench.customIconPackage') {
+        localStorage.setItem('gitero_custom_icon_package', String(value));
       }
     } catch (e) {
       // Ignore storage errors

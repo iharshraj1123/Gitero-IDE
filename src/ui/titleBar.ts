@@ -20,6 +20,7 @@ export interface TitleBarOptions {
   onNewFile?: () => void;
   onOpenFile?: () => void;
   onOpenFolder?: () => void;
+  onOpenRecent?: () => void;
   onSave?: () => void;
   onSaveAs?: () => void;
   onToggleAutoSave?: () => void;
@@ -40,6 +41,7 @@ export interface TitleBarOptions {
   onOpenSearch?: () => void;
   onOpenGit?: () => void;
   onOpenShortcuts?: () => void;
+  onToggleFullScreen?: () => void;
   onToggleDevTools?: () => void;
   onCheckUpdates?: () => void;
   onAbout?: () => void;
@@ -73,6 +75,7 @@ export class TitleBarComponent {
           { label: 'New File', shortcut: 'Ctrl+N', action: this.options.onNewFile },
           { label: 'Open File...', shortcut: 'Ctrl+O', action: this.options.onOpenFile },
           { label: 'Open Folder...', shortcut: 'Ctrl+K Ctrl+O', action: this.options.onOpenFolder },
+          { label: 'Open Recent...', action: this.options.onOpenRecent },
           { label: '', divider: true },
           { label: 'Save', shortcut: 'Ctrl+S', action: this.options.onSave },
           { label: 'Save As...', shortcut: 'Ctrl+Shift+S', action: this.options.onSaveAs },
@@ -130,6 +133,11 @@ export class TitleBarComponent {
             shortcut: 'Alt+Z',
             checked: () => preferencesService.get('editor.wordWrap'),
             action: this.options.onToggleWordWrap
+          },
+          {
+            label: 'Toggle Full Screen',
+            shortcut: 'F11',
+            action: this.options.onToggleFullScreen
           },
           { label: '', divider: true },
           { label: 'Switch Color Theme...', action: this.options.onOpenThemePicker },
@@ -437,18 +445,17 @@ export class TitleBarComponent {
       (window as any).Neutralino.events.on('windowRestore', () => {
         this.updateMaximizedVisual(false);
       });
+      (window as any).Neutralino.events.on('windowUnmaximize', () => {
+        this.updateMaximizedVisual(false);
+      });
     }
   }
 
   private async checkMaximizedState() {
-    if (isNative()) {
+    if (isNative() && window.Neutralino?.window?.isMaximized) {
       try {
-        const size = await window.Neutralino?.window?.getSize();
-        const availW = window.screen?.availWidth || window.screen?.width || 0;
-        const availH = window.screen?.availHeight || window.screen?.height || 0;
-        // Window is considered maximized if width and height match the available screen work area
-        const isMax = !!(size && size.width >= availW - 6 && size.height >= availH - 8);
-        this.updateMaximizedVisual(isMax);
+        const isMax = await window.Neutralino.window.isMaximized();
+        this.updateMaximizedVisual(Boolean(isMax));
       } catch (e) {
         this.updateMaximizedVisual(false);
       }
@@ -486,40 +493,14 @@ export class TitleBarComponent {
   }
 
   private async toggleMaximize() {
-    if (isNative()) {
+    if (isNative() && window.Neutralino?.window) {
       try {
-        if (this.isMaximizedState) {
-          // Restore to pre-maximized bounds
-          const b = this.savedBounds || { x: 100, y: 100, width: 1360, height: 860 };
-          await window.Neutralino?.window?.move(b.x, b.y);
-          await window.Neutralino?.window?.setSize({ width: b.width, height: b.height });
+        const isMax = await window.Neutralino.window.isMaximized();
+        if (isMax) {
+          await window.Neutralino.window.unmaximize();
           this.updateMaximizedVisual(false);
         } else {
-          // Save current bounds before maximizing
-          try {
-            const pos = await window.Neutralino?.window?.getPosition();
-            const size = await window.Neutralino?.window?.getSize();
-            if (pos && size && size.width > 200 && size.height > 200) {
-              this.savedBounds = { x: pos.x, y: pos.y, width: size.width, height: size.height };
-            }
-          } catch {
-            // ignore
-          }
-
-          // Work-area maximize:
-          // Sized to the available screen work area, starting at (0, 0)
-          // When auto-hide taskbar is active (availHeight === screenHeight), leave 2px at the bottom
-          // so Windows Shell detects mouse hover at the bottom monitor edge and pops up the taskbar!
-          const availX = (window.screen as any)?.availLeft ?? 0;
-          const availY = (window.screen as any)?.availTop ?? 0;
-          const availW = window.screen?.availWidth || window.screen?.width || window.innerWidth;
-          const screenH = window.screen?.height || window.innerHeight;
-          const availH = window.screen?.availHeight || screenH;
-          const isAutoHide = availH >= screenH;
-          const targetH = isAutoHide ? (availH - 2) : availH;
-
-          await window.Neutralino?.window?.move(availX, availY);
-          await window.Neutralino?.window?.setSize({ width: availW, height: targetH });
+          await window.Neutralino.window.maximize();
           this.updateMaximizedVisual(true);
         }
       } catch (e) {

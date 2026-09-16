@@ -1,5 +1,6 @@
 import { EditorTab, editorState } from '../state/editorState';
 import { getFileIconSvg } from './icons';
+import { preferencesService } from '../services/preferences';
 
 export class TabBarComponent {
   private container: HTMLElement;
@@ -10,6 +11,14 @@ export class TabBarComponent {
 
     editorState.onChange((tabs, activeTab) => {
       this.render(tabs, activeTab);
+    });
+
+    preferencesService.subscribe('workbench.iconTheme', () => {
+      this.render(editorState.getTabs(), editorState.getActiveTab());
+    });
+
+    preferencesService.subscribe('workbench.customIconPackage', () => {
+      this.render(editorState.getTabs(), editorState.getActiveTab());
     });
   }
 

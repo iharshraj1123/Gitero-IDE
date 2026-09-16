@@ -1,6 +1,7 @@
 import { fsService } from '../services/fs';
 import { editorState } from '../state/editorState';
 import { editorManager } from '../editor/editor';
+import { preferencesService } from '../services/preferences';
 import { getFileIconSvg, getFolderChevronSvg } from './icons';
 
 export interface SearchMatchItem {
@@ -18,9 +19,9 @@ export interface SearchGroup {
 
 export class SearchPanelComponent {
   private container: HTMLElement;
-  private isCaseSensitive: boolean = false;
-  private isWholeWord: boolean = false;
-  private isRegex: boolean = false;
+  private isCaseSensitive: boolean = preferencesService.get('search.matchCase');
+  private isWholeWord: boolean = preferencesService.get('search.matchWholeWord');
+  private isRegex: boolean = preferencesService.get('search.useRegex');
   private isReplaceOpen: boolean = false;
   private groups: SearchGroup[] = [];
   private isSearching: boolean = false;
@@ -107,22 +108,28 @@ export class SearchPanelComponent {
     });
 
     const caseBtn = this.container.querySelector('#btn-mod-case') as HTMLElement;
+    caseBtn.classList.toggle('active', this.isCaseSensitive);
     caseBtn.addEventListener('click', () => {
       this.isCaseSensitive = !this.isCaseSensitive;
+      preferencesService.set('search.matchCase', this.isCaseSensitive);
       caseBtn.classList.toggle('active', this.isCaseSensitive);
       if (this.searchInput.value) this.executeSearch();
     });
 
     const wordBtn = this.container.querySelector('#btn-mod-word') as HTMLElement;
+    wordBtn.classList.toggle('active', this.isWholeWord);
     wordBtn.addEventListener('click', () => {
       this.isWholeWord = !this.isWholeWord;
+      preferencesService.set('search.matchWholeWord', this.isWholeWord);
       wordBtn.classList.toggle('active', this.isWholeWord);
       if (this.searchInput.value) this.executeSearch();
     });
 
     const regexBtn = this.container.querySelector('#btn-mod-regex') as HTMLElement;
+    regexBtn.classList.toggle('active', this.isRegex);
     regexBtn.addEventListener('click', () => {
       this.isRegex = !this.isRegex;
+      preferencesService.set('search.useRegex', this.isRegex);
       regexBtn.classList.toggle('active', this.isRegex);
       if (this.searchInput.value) this.executeSearch();
     });
@@ -176,6 +183,7 @@ export class SearchPanelComponent {
       return;
     }
 
+    const startTime = performance.now();
     this.isSearching = true;
     this.statusContainer.textContent = 'Searching workspace files...';
     this.resultsContainer.innerHTML = '';
@@ -186,6 +194,7 @@ export class SearchPanelComponent {
         caseSensitive: this.isCaseSensitive,
         wholeWord: this.isWholeWord
       });
+      const duration = Math.round(performance.now() - startTime);
 
       // Group matches by file
       const map = new Map<string, SearchMatchItem[]>();
@@ -210,9 +219,9 @@ export class SearchPanelComponent {
       const totalFiles = this.groups.length;
 
       if (totalMatches === 0) {
-        this.statusContainer.textContent = `No results found for "${query}".`;
+        this.statusContainer.textContent = `No results found for "${query}" (${duration}ms).`;
       } else {
-        this.statusContainer.textContent = `${totalMatches} result${totalMatches === 1 ? '' : 's'} in ${totalFiles} file${totalFiles === 1 ? '' : 's'}`;
+        this.statusContainer.textContent = `${totalMatches} result${totalMatches === 1 ? '' : 's'} in ${totalFiles} file${totalFiles === 1 ? '' : 's'} (${duration}ms)`;
       }
 
       this.renderResults();

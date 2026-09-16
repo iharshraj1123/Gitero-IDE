@@ -1,4 +1,4 @@
-﻿import { preferencesService, IconTheme } from '../services/preferences';
+import { preferencesService, IconTheme } from '../services/preferences';
 import {
   Folder,
   FolderOpen,
@@ -112,33 +112,39 @@ function renderBadge(text: string, bg: string, fg: string): string {
   return `<span class="icon-badge" style="background-color: ${bg}; color: ${fg};">${text}</span>`;
 }
 
+export function getCleanExtension(fileName: string): string {
+  if (!fileName) return '';
+  const trimmed = fileName.trim();
+  const lastDot = trimmed.lastIndexOf('.');
+  if (lastDot === -1 || lastDot === trimmed.length - 1) return '';
+  return trimmed.slice(lastDot + 1).toLowerCase();
+}
+
 function getBadgesIcon(fileName: string, isDirectory: boolean, isOpen: boolean): string {
   if (isDirectory) {
     return getLucideFolderSvg(isOpen, '#dcb67a');
   }
 
-  const nameLower = fileName.toLowerCase();
+  const ext = getCleanExtension(fileName);
+  if (!ext) {
+    // Special dotfiles without standard extension (e.g. .gitignore, .env, dockerfile)
+    const nameLower = fileName.trim().toLowerCase();
+    if (nameLower === '.gitignore' || nameLower === '.gitattributes') {
+      return renderBadge('GIT', '#f05032', '#fff');
+    }
+    if (nameLower.startsWith('.env')) {
+      return renderBadge('ENV', '#ecd53f', '#000');
+    }
+    if (nameLower === 'dockerfile') {
+      return renderBadge('DOC', '#2496ed', '#fff');
+    }
+    if (nameLower === 'license') {
+      return renderLucideNode(Lock, '#bf616a');
+    }
+    return renderLucideNode(File, 'var(--fg-muted, #8b949e)');
+  }
 
-  // Named file badges
-  if (nameLower === 'dockerfile' || nameLower === 'docker-compose.yml') {
-    return renderBadge('DOC', '#2496ed', '#fff');
-  }
-  if (nameLower === '.gitignore' || nameLower === '.gitattributes') {
-    return renderBadge('GIT', '#f05032', '#fff');
-  }
-  if (nameLower.startsWith('.env')) {
-    return renderBadge('ENV', '#ecd53f', '#000');
-  }
-  if (nameLower === 'license' || nameLower === 'license.md') {
-    return renderLucideNode(Lock, '#bf616a');
-  }
-  if (nameLower.includes('lock')) {
-    return renderLucideNode(Lock, '#bf616a');
-  }
-
-  const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() ?? '' : '';
-
-  // Language code badge
+  // Strictly determined by the extension after the dot
   const badge = BADGE_MAP[ext];
   if (badge) {
     return renderBadge(badge.text, badge.bg, badge.fg);
@@ -352,18 +358,18 @@ export function getFileIconSvg(
   isOpen: boolean = false,
   overrideTheme?: IconTheme
 ): string {
-  const activeTheme = overrideTheme || preferencesService.get('workbench.iconTheme') || 'badges';
+  const activeTheme = overrideTheme || preferencesService.get('workbench.iconTheme') || 'lucide';
 
   switch (activeTheme) {
-    case 'lucide':
-      return getLucideIcon(fileName, isDirectory, isOpen);
+    case 'badges':
+      return getBadgesIcon(fileName, isDirectory, isOpen);
     case 'material':
       return getMaterialIcon(fileName, isDirectory, isOpen);
     case 'custom':
       return getCustomIcon(fileName, isDirectory, isOpen);
-    case 'badges':
+    case 'lucide':
     default:
-      return getBadgesIcon(fileName, isDirectory, isOpen);
+      return getLucideIcon(fileName, isDirectory, isOpen);
   }
 }
 

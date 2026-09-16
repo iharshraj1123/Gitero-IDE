@@ -2,7 +2,9 @@ import { themeManager } from '../themes/themeManager';
 import { ThemeDefinition } from '../themes/themes';
 import { vimIntegration } from '../editor/vim';
 import { updaterService } from '../services/updater';
-import { preferencesService, CursorStyle } from '../services/preferences';
+import { preferencesService, CursorStyle, IconTheme } from '../services/preferences';
+import { renderIconPreview } from './icons';
+import { fileAssociationService } from '../services/fileAssociation';
 
 export interface KeybindingDefinition {
   id: string;
@@ -38,6 +40,7 @@ export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'markdown.showPreview', name: 'Toggle Markdown Preview / Raw Editor', category: 'Markdown' },
   { id: 'workbench.action.openSettings', name: 'Open Settings & Custom CSS', category: 'Preferences' },
   { id: 'workbench.action.openShortcuts', name: 'Keyboard Shortcuts Reference', category: 'Help' },
+  { id: 'workbench.action.toggleFullScreen', name: 'Toggle Full Screen', category: 'View' },
   { id: 'workbench.action.toggleDevTools', name: 'Toggle Developer Tools', category: 'Developer' }
 ];
 
@@ -80,6 +83,10 @@ export class SettingsModalComponent {
             <button class="settings-tab-btn" data-target="appearance">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
               <span>Appearance</span>
+            </button>
+            <button class="settings-tab-btn" data-target="terminal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
+              <span>Terminal</span>
             </button>
             <button class="settings-tab-btn" data-target="shortcuts">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
@@ -148,6 +155,30 @@ export class SettingsModalComponent {
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
+                    <span class="setting-title">Line Height</span>
+                    <span class="setting-desc">Line spacing multiplier in the editor (e.g. 1.5)</span>
+                  </div>
+                  <input type="number" id="setting-line-height" class="setting-input-small" min="1.1" max="2.6" step="0.1" value="1.5" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Line Numbers</span>
+                    <span class="setting-desc">Render line numbers in the gutter margin</span>
+                  </div>
+                  <input type="checkbox" id="setting-line-numbers" class="setting-checkbox" checked />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Indentation Characters</span>
+                    <span class="setting-desc">Insert spaces (soft tabs) or hard tab characters when pressing Tab</span>
+                  </div>
+                  <select id="setting-insert-spaces" class="setting-select">
+                    <option value="true">Insert Spaces (Soft Tabs) [Default]</option>
+                    <option value="false">Tab Characters (\t)</option>
+                  </select>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
                     <span class="setting-title">Tab Size (Spaces)</span>
                     <span class="setting-desc">Number of spaces rendered per indentation level</span>
                   </div>
@@ -159,6 +190,24 @@ export class SettingsModalComponent {
                     <span class="setting-desc">Wrap long lines to fit viewport width</span>
                   </div>
                   <input type="checkbox" id="setting-word-wrap" class="setting-checkbox" />
+                </div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">Save Actions & Cleanups</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Trim Trailing Whitespace</span>
+                    <span class="setting-desc">Automatically strip unnecessary spaces and tabs at the ends of lines when saving</span>
+                  </div>
+                  <input type="checkbox" id="setting-trim-whitespace" class="setting-checkbox" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Insert Final Newline</span>
+                    <span class="setting-desc">Ensure saved documents terminate with a POSIX standard newline character</span>
+                  </div>
+                  <input type="checkbox" id="setting-final-newline" class="setting-checkbox" />
                 </div>
               </div>
 
@@ -198,6 +247,40 @@ export class SettingsModalComponent {
                   <input type="number" id="setting-auto-save-delay" class="setting-input-small" min="100" max="10000" step="100" value="1000" />
                 </div>
               </div>
+
+              <!-- Windows File Associations & Document Icons -->
+              <div class="setting-card">
+                <div class="setting-card-title">Windows File Associations & Document Icons</div>
+                <div style="font-size: 12px; color: var(--fg-muted, #8b949e); margin-bottom: 12px; line-height: 1.5;">
+                  Configure Windows file associations so that files opened by Gitero display dedicated document icons in Windows Explorer representing what each file actually is, rather than the Gitero application executable logo.
+                </div>
+
+                <div class="setting-row" style="align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid var(--border-color, #30363d);">
+                  <div class="setting-label">
+                    <span class="setting-title">Markdown Documents (.md, .markdown)</span>
+                    <span class="setting-desc">Registers Gitero as the default Markdown reader with the official M&darr; document icon.</span>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-assoc-register-md">Register Markdown (.md)</button>
+                </div>
+
+                <div class="setting-row" style="align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid var(--border-color, #30363d); margin-top: 10px;">
+                  <div class="setting-label">
+                    <span class="setting-title">All Supported Types (Code, Web, Data, Text)</span>
+                    <span class="setting-desc">Registers ProgIDs and document icons for TS, JS, Python, HTML, CSS, JSON, YAML, Shell, and Plain Text.</span>
+                  </div>
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-assoc-register-all">Register All Supported Types</button>
+                </div>
+
+                <div class="setting-row" style="align-items: flex-start; margin-top: 10px;">
+                  <div class="setting-label">
+                    <span class="setting-title">Windows Explorer Icon Cache</span>
+                    <span class="setting-desc">Forces Windows Explorer to flush its shell icon cache so file icons update immediately.</span>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-assoc-refresh-cache">Refresh Icon Cache</button>
+                </div>
+
+                <div id="assoc-status-message" style="margin-top: 12px; font-size: 12px; display: none; padding: 8px 12px; border-radius: 4px;"></div>
+              </div>
             </div>
 
             <!-- 3. Appearance Tab Pane -->
@@ -205,6 +288,44 @@ export class SettingsModalComponent {
               <div class="settings-section-header">
                 <div class="settings-section-title">Appearance & Theme Studio</div>
                 <div class="settings-section-subtitle">Customize workspace chrome, editor surfaces, and syntax highlighting tokens, or create and export your own custom themes.</div>
+              </div>
+
+              <!-- File & Folder Icons Package -->
+              <div class="setting-card">
+                <div class="setting-card-title">File & Folder Icons Package</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Icon Theme Package</span>
+                    <span class="setting-desc">Select from available icon packages (badges, lucide, material, or custom upload)</span>
+                  </div>
+                  <select id="setting-icon-theme-select" class="setting-select">
+                    <option value="lucide">Lucide Icons (Pure Vector Line Outlines) [Default]</option>
+                    <option value="badges">Compact Badges (Classic Badges + Vector Folders)</option>
+                    <option value="material">Material Icons (Colored Glyphs)</option>
+                    <option value="custom">Custom Package (JSON / Uploaded Package)</option>
+                  </select>
+                </div>
+
+                <div class="setting-label" style="margin-top: 10px;">
+                  <span class="setting-title">Package Live Preview</span>
+                </div>
+                <div id="icon-theme-preview-box"></div>
+
+                <!-- Custom Package Upload / Editor Section -->
+                <div id="custom-icon-section" style="display: none; margin-top: 14px;">
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="setting-title">Custom Icon JSON Package</span>
+                      <span class="setting-desc">Paste JSON or upload a custom icon definition package file</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-icon-upload-json">Upload JSON</button>
+                      <input type="file" id="input-icon-upload-json" accept=".json" style="display: none;" />
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-icon-apply-custom">Apply Package</button>
+                    </div>
+                  </div>
+                  <textarea id="setting-custom-icon-json" class="setting-textarea" rows="6" placeholder='{\n  "extensions": {\n    "ts": { "type": "badge", "text": "TS", "bg": "#3178c6", "fg": "#fff" }\n  }\n}' style="font-family: monospace; font-size: 11px;"></textarea>
+                </div>
               </div>
 
               <!-- Theme Toolbar -->
@@ -261,6 +382,43 @@ export class SettingsModalComponent {
               <div class="setting-card">
                 <div class="setting-card-title">Syntax Token Highlighting Colors</div>
                 <div class="color-picker-grid" id="theme-colors-syntax"></div>
+              </div>
+            </div>
+
+            <!-- Integrated Terminal Tab Pane -->
+            <div class="settings-tab-pane" id="tab-pane-terminal" data-tab="terminal">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Integrated Terminal</div>
+                <div class="settings-section-subtitle">Configure typography, viewport dimensions, and execution parameters for the integrated shell.</div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">Typography & Display</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Terminal Font Size (px)</span>
+                    <span class="setting-desc">Font size rendered in the integrated terminal viewport</span>
+                  </div>
+                  <input type="number" id="setting-terminal-font-size" class="setting-input-small" min="10" max="28" value="13" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Terminal Font Family</span>
+                    <span class="setting-desc">Monospace font family used for terminal output</span>
+                  </div>
+                  <input type="text" id="setting-terminal-font-family" class="setting-input" style="width: 250px;" value="Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace" />
+                </div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">History & Buffers</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Clear Command History</span>
+                    <span class="setting-desc">Remove stored shell command history recalled by arrow keys</span>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-terminal-history">Clear History</button>
+                </div>
               </div>
             </div>
 
@@ -397,6 +555,156 @@ export class SettingsModalComponent {
     this.setupUpdateListeners();
     this.setupKeybindingsListeners();
     this.setupThemeStudioListeners();
+    this.setupIconThemeListeners();
+    this.setupTerminalSettingsListeners();
+    this.setupFileAssociationListeners();
+  }
+
+  private setupFileAssociationListeners() {
+    const registerMdBtn = this.overlay.querySelector('#btn-assoc-register-md') as HTMLButtonElement;
+    const registerAllBtn = this.overlay.querySelector('#btn-assoc-register-all') as HTMLButtonElement;
+    const refreshCacheBtn = this.overlay.querySelector('#btn-assoc-refresh-cache') as HTMLButtonElement;
+    const statusMsg = this.overlay.querySelector('#assoc-status-message') as HTMLElement;
+
+    const showStatus = (msg: string, isError = false) => {
+      if (!statusMsg) return;
+      statusMsg.style.display = 'block';
+      statusMsg.style.backgroundColor = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)';
+      statusMsg.style.color = isError ? '#f87171' : '#4ade80';
+      statusMsg.style.border = `1px solid ${isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`;
+      statusMsg.textContent = msg;
+    };
+
+    registerMdBtn?.addEventListener('click', async () => {
+      registerMdBtn.disabled = true;
+      registerMdBtn.textContent = 'Registering...';
+      try {
+        const res = await fileAssociationService.registerMarkdownAsDefault();
+        if (res.success) {
+          showStatus('Gitero successfully registered as default reader for Markdown files (.md, .markdown) with dedicated Markdown document icon.');
+        } else {
+          showStatus(`Failed to register Markdown association: ${res.error}`, true);
+        }
+      } catch (err: any) {
+        showStatus(`Error registering Markdown association: ${err?.message || err}`, true);
+      } finally {
+        registerMdBtn.disabled = false;
+        registerMdBtn.textContent = 'Register Markdown (.md)';
+      }
+    });
+
+    registerAllBtn?.addEventListener('click', async () => {
+      registerAllBtn.disabled = true;
+      registerAllBtn.textContent = 'Registering all...';
+      try {
+        const res = await fileAssociationService.registerAll();
+        if (res.success) {
+          showStatus(`Registered document icons for ${res.registered} file extensions across all supported formats.`);
+        } else {
+          showStatus(`Failed to register associations: ${res.error}`, true);
+        }
+      } catch (err: any) {
+        showStatus(`Error registering associations: ${err?.message || err}`, true);
+      } finally {
+        registerAllBtn.disabled = false;
+        registerAllBtn.textContent = 'Register All Supported Types';
+      }
+    });
+
+    refreshCacheBtn?.addEventListener('click', async () => {
+      refreshCacheBtn.disabled = true;
+      refreshCacheBtn.textContent = 'Refreshing...';
+      try {
+        const ok = await fileAssociationService.refreshWindowsIconCache();
+        if (ok) {
+          showStatus('Windows Explorer icon cache refresh signal sent successfully.');
+        } else {
+          showStatus('Windows icon refresh is only supported on Windows desktop.', true);
+        }
+      } finally {
+        refreshCacheBtn.disabled = false;
+        refreshCacheBtn.textContent = 'Refresh Icon Cache';
+      }
+    });
+  }
+
+  private setupTerminalSettingsListeners() {
+    const clearHistBtn = this.overlay.querySelector('#btn-clear-terminal-history') as HTMLButtonElement;
+    clearHistBtn?.addEventListener('click', () => {
+      try {
+        localStorage.removeItem('gitero_terminal_history');
+        alert('Terminal command history cleared.');
+      } catch (e) {
+        console.warn('Failed to clear terminal history', e);
+      }
+    });
+  }
+
+  private setupIconThemeListeners() {
+    const iconSelect = this.overlay.querySelector('#setting-icon-theme-select') as HTMLSelectElement;
+    const previewBox = this.overlay.querySelector('#icon-theme-preview-box') as HTMLElement;
+    const customSection = this.overlay.querySelector('#custom-icon-section') as HTMLElement;
+    const customTextarea = this.overlay.querySelector('#setting-custom-icon-json') as HTMLTextAreaElement;
+    const uploadBtn = this.overlay.querySelector('#btn-icon-upload-json') as HTMLButtonElement;
+    const uploadInput = this.overlay.querySelector('#input-icon-upload-json') as HTMLInputElement;
+    const applyBtn = this.overlay.querySelector('#btn-icon-apply-custom') as HTMLButtonElement;
+
+    const updatePreview = (theme: IconTheme) => {
+      if (previewBox) {
+        previewBox.innerHTML = renderIconPreview(theme);
+      }
+      if (customSection) {
+        customSection.style.display = theme === 'custom' ? 'block' : 'none';
+      }
+    };
+
+    iconSelect?.addEventListener('change', () => {
+      const theme = (iconSelect.value as IconTheme) || 'lucide';
+      updatePreview(theme);
+      preferencesService.set('workbench.iconTheme', theme);
+      try {
+        localStorage.setItem('gitero_icon_theme', theme);
+      } catch {}
+    });
+
+    uploadBtn?.addEventListener('click', () => {
+      uploadInput?.click();
+    });
+
+    uploadInput?.addEventListener('change', (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const text = reader.result as string;
+          JSON.parse(text); // validate
+          if (customTextarea) customTextarea.value = text;
+          preferencesService.set('workbench.customIconPackage', text);
+          preferencesService.set('workbench.iconTheme', 'custom');
+          if (iconSelect) iconSelect.value = 'custom';
+          updatePreview('custom');
+          alert('Custom icon package loaded successfully!');
+        } catch {
+          alert('Invalid JSON in uploaded package file.');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    applyBtn?.addEventListener('click', () => {
+      try {
+        const val = customTextarea?.value.trim() || '{}';
+        JSON.parse(val);
+        preferencesService.set('workbench.customIconPackage', val);
+        preferencesService.set('workbench.iconTheme', 'custom');
+        if (iconSelect) iconSelect.value = 'custom';
+        updatePreview('custom');
+        alert('Custom icon package applied!');
+      } catch {
+        alert('Invalid JSON in custom package field.');
+      }
+    });
   }
 
   private setupUpdateListeners() {
@@ -1073,6 +1381,41 @@ export class SettingsModalComponent {
       tabSizeInput.value = String(preferencesService.get('editor.tabSize') || 2);
     }
 
+    const lineHeightInput = this.overlay.querySelector('#setting-line-height') as HTMLInputElement;
+    if (lineHeightInput) {
+      lineHeightInput.value = String(preferencesService.get('editor.lineHeight') || 1.5);
+    }
+
+    const lineNumbersToggle = this.overlay.querySelector('#setting-line-numbers') as HTMLInputElement;
+    if (lineNumbersToggle) {
+      lineNumbersToggle.checked = preferencesService.get('editor.lineNumbers');
+    }
+
+    const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;
+    if (insertSpacesSelect) {
+      insertSpacesSelect.value = String(preferencesService.get('editor.insertSpaces'));
+    }
+
+    const trimWhitespaceToggle = this.overlay.querySelector('#setting-trim-whitespace') as HTMLInputElement;
+    if (trimWhitespaceToggle) {
+      trimWhitespaceToggle.checked = preferencesService.get('editor.trimTrailingWhitespace');
+    }
+
+    const finalNewlineToggle = this.overlay.querySelector('#setting-final-newline') as HTMLInputElement;
+    if (finalNewlineToggle) {
+      finalNewlineToggle.checked = preferencesService.get('editor.insertFinalNewline');
+    }
+
+    const termSizeInput = this.overlay.querySelector('#setting-terminal-font-size') as HTMLInputElement;
+    if (termSizeInput) {
+      termSizeInput.value = String(preferencesService.get('terminal.fontSize') || 13);
+    }
+
+    const termFontInput = this.overlay.querySelector('#setting-terminal-font-family') as HTMLInputElement;
+    if (termFontInput) {
+      termFontInput.value = preferencesService.get('terminal.fontFamily') || '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace';
+    }
+
     const wrapToggle = (this.overlay.querySelector('#setting-word-wrap') || this.overlay.querySelector('#setting-word-wrap-toggle')) as HTMLInputElement;
     if (wrapToggle) {
       wrapToggle.checked = preferencesService.get('editor.wordWrap');
@@ -1080,6 +1423,18 @@ export class SettingsModalComponent {
 
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
     cssText.value = themeManager.getCustomCss();
+
+    // Load Icon Theme & Preview
+    const iconSelect = this.overlay.querySelector('#setting-icon-theme-select') as HTMLSelectElement;
+    const previewBox = this.overlay.querySelector('#icon-theme-preview-box') as HTMLElement;
+    const customSection = this.overlay.querySelector('#custom-icon-section') as HTMLElement;
+    const customTextarea = this.overlay.querySelector('#setting-custom-icon-json') as HTMLTextAreaElement;
+
+    const currentIconTheme = preferencesService.get('workbench.iconTheme') || (localStorage.getItem('gitero_icon_theme') as IconTheme) || 'lucide';
+    if (iconSelect) iconSelect.value = currentIconTheme;
+    if (previewBox) previewBox.innerHTML = renderIconPreview(currentIconTheme);
+    if (customSection) customSection.style.display = currentIconTheme === 'custom' ? 'block' : 'none';
+    if (customTextarea) customTextarea.value = preferencesService.get('workbench.customIconPackage') || '';
   }
 
   close() {
@@ -1107,6 +1462,47 @@ export class SettingsModalComponent {
     }
     if (wrapToggle) {
       preferencesService.set('editor.wordWrap', wrapToggle.checked);
+    }
+
+    const lineHeightInput = this.overlay.querySelector('#setting-line-height') as HTMLInputElement;
+    if (lineHeightInput) {
+      const lh = parseFloat(lineHeightInput.value) || 1.5;
+      preferencesService.set('editor.lineHeight', lh);
+      document.documentElement.style.setProperty('--editor-line-height', String(lh));
+    }
+
+    const lineNumbersToggle = this.overlay.querySelector('#setting-line-numbers') as HTMLInputElement;
+    if (lineNumbersToggle) {
+      preferencesService.set('editor.lineNumbers', lineNumbersToggle.checked);
+    }
+
+    const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;
+    if (insertSpacesSelect) {
+      preferencesService.set('editor.insertSpaces', insertSpacesSelect.value === 'true');
+    }
+
+    const trimWhitespaceToggle = this.overlay.querySelector('#setting-trim-whitespace') as HTMLInputElement;
+    if (trimWhitespaceToggle) {
+      preferencesService.set('editor.trimTrailingWhitespace', trimWhitespaceToggle.checked);
+    }
+
+    const finalNewlineToggle = this.overlay.querySelector('#setting-final-newline') as HTMLInputElement;
+    if (finalNewlineToggle) {
+      preferencesService.set('editor.insertFinalNewline', finalNewlineToggle.checked);
+    }
+
+    const termSizeInput = this.overlay.querySelector('#setting-terminal-font-size') as HTMLInputElement;
+    if (termSizeInput) {
+      const termSize = parseInt(termSizeInput.value, 10) || 13;
+      preferencesService.set('terminal.fontSize', termSize);
+      document.documentElement.style.setProperty('--terminal-font-size', `${termSize}px`);
+    }
+
+    const termFontInput = this.overlay.querySelector('#setting-terminal-font-family') as HTMLInputElement;
+    if (termFontInput) {
+      const termFont = termFontInput.value.trim() || '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace';
+      preferencesService.set('terminal.fontFamily', termFont);
+      document.documentElement.style.setProperty('--terminal-font-family', termFont);
     }
 
     // Save Auto Save
@@ -1149,6 +1545,20 @@ export class SettingsModalComponent {
 
     // Save Custom CSS
     themeManager.applyCustomCss(cssText.value);
+
+    // Save Icon Theme
+    const iconSelect = this.overlay.querySelector('#setting-icon-theme-select') as HTMLSelectElement;
+    if (iconSelect) {
+      const selectedTheme = (iconSelect.value as IconTheme) || 'lucide';
+      preferencesService.set('workbench.iconTheme', selectedTheme);
+      try {
+        localStorage.setItem('gitero_icon_theme', selectedTheme);
+      } catch {}
+    }
+    const customTextarea = this.overlay.querySelector('#setting-custom-icon-json') as HTMLTextAreaElement;
+    if (customTextarea && customTextarea.value.trim()) {
+      preferencesService.set('workbench.customIconPackage', customTextarea.value.trim());
+    }
 
     this.close();
   }

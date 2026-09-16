@@ -10,6 +10,7 @@ import {
   closeSearchPanel,
   openSearchPanel
 } from '@codemirror/search';
+import { preferencesService } from '../services/preferences';
 
 let activeFindWidget: FindWidgetPanel | null = null;
 
@@ -50,7 +51,17 @@ export class FindWidgetPanel implements Panel {
   private query: SearchQuery;
 
   constructor(private readonly view: EditorView) {
-    this.query = getSearchQuery(view.state);
+    const defaultQuery = getSearchQuery(view.state);
+    const isCase = preferencesService.get('search.matchCase');
+    const isWord = preferencesService.get('search.matchWholeWord');
+    const isRegex = preferencesService.get('search.useRegex');
+    this.query = new SearchQuery({
+      search: defaultQuery.search,
+      replace: defaultQuery.replace,
+      caseSensitive: isCase,
+      wholeWord: isWord,
+      regexp: isRegex
+    });
     this.dom = this.buildDom();
     this.bindEvents();
     this.syncFromQuery(this.query);
@@ -275,16 +286,19 @@ export class FindWidgetPanel implements Panel {
 
   private toggleCase() {
     this.caseBtn.classList.toggle('active');
+    preferencesService.set('search.matchCase', this.caseBtn.classList.contains('active'));
     this.commit();
   }
 
   private toggleWord() {
     this.wordBtn.classList.toggle('active');
+    preferencesService.set('search.matchWholeWord', this.wordBtn.classList.contains('active'));
     this.commit();
   }
 
   private toggleRegex() {
     this.regexBtn.classList.toggle('active');
+    preferencesService.set('search.useRegex', this.regexBtn.classList.contains('active'));
     this.commit();
   }
 

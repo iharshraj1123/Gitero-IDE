@@ -18,9 +18,25 @@ const mockFiles: Record<string, string> = {
 
 export class FileSystemService {
   private currentWorkspace: string | null = null;
+  private activeWatcherId: number | null = null;
+  private watcherListeners: Set<() => void> = new Set();
+  private watcherDebounceTimer: any = null;
+  private workspaceFilesCache: { path: string; files: string[]; timestamp: number } | null = null;
 
   constructor() {
     this.currentWorkspace = localStorage.getItem('gitero_workspace_path') || null;
+    this.setupWatcherListener();
+    if (this.currentWorkspace) {
+      this.watchWorkspace(this.currentWorkspace);
+    }
+  }
+
+  private setupWatcherListener() {
+    if (typeof window !== 'undefined' && window.Neutralino?.events) {
+      window.Neutralino.events.on('watchFile', () => {
+        this.notifyWorkspaceChanged();
+      });
+    }
   }
 
   getWorkspace(): string | null {
@@ -29,11 +45,64 @@ export class FileSystemService {
 
   setWorkspace(path: string | null) {
     this.currentWorkspace = path;
+    this.invalidateFilesCache();
     if (path) {
       localStorage.setItem('gitero_workspace_path', path);
+      this.watchWorkspace(path);
     } else {
       localStorage.removeItem('gitero_workspace_path');
+      this.stopWorkspaceWatcher();
     }
+  }
+
+  onWorkspaceChanged(listener: () => void): () => void {
+    this.watcherListeners.add(listener);
+    return () => {
+      this.watcherListeners.delete(listener);
+    };
+  }
+
+  private notifyWorkspaceChanged() {
+    clearTimeout(this.watcherDebounceTimer);
+    this.watcherDebounceTimer = setTimeout(() => {
+      this.invalidateFilesCache();
+      this.watcherListeners.forEach(fn => {
+        try {
+          fn();
+        } catch (err) {
+          console.error('[fsService] Watcher listener error:', err);
+        }
+      });
+    }, 300);
+  }
+
+  async watchWorkspace(dirPath: string): Promise<void> {
+    if (!isNative()) return;
+    await this.stopWorkspaceWatcher();
+
+    try {
+      const watcher = await window.Neutralino.filesystem.createWatcher(dirPath);
+      if (watcher && typeof watcher.id === 'number') {
+        this.activeWatcherId = watcher.id;
+        console.log(`[fsService] Workspace watcher registered with ID ${this.activeWatcherId}`);
+      }
+    } catch (err) {
+      console.warn('[fsService] Failed to create workspace watcher:', err);
+    }
+  }
+
+  async stopWorkspaceWatcher(): Promise<void> {
+    if (!isNative() || this.activeWatcherId === null) return;
+    try {
+      await window.Neutralino.filesystem.removeWatcher(this.activeWatcherId);
+    } catch (err) {
+      console.warn('[fsService] Failed to remove workspace watcher:', err);
+    }
+    this.activeWatcherId = null;
+  }
+
+  invalidateFilesCache() {
+    this.workspaceFilesCache = null;
   }
 
   async selectFolder(): Promise<string | null> {
@@ -264,6 +333,35 @@ export class FileSystemService {
     return result;
   }
 
+  async getWorkspaceFiles(dirPath: string, forceRefresh: boolean = false): Promise<string[]> {
+    if (!forceRefresh && this.workspaceFilesCache && this.workspaceFilesCache.path === dirPath) {
+      if (Date.now() - this.workspaceFilesCache.timestamp < 30000) {
+        return this.workspaceFilesCache.files;
+      }
+    }
+
+    if (isNative()) {
+      try {
+        const cmd = `cd /d "${dirPath}" && git ls-files --cached --others --exclude-standard`;
+        const res = await window.Neutralino.os.execCommand(cmd);
+        if (res.exitCode === 0 && res.stdOut && res.stdOut.trim()) {
+          const rawLines: string[] = res.stdOut.split(/\r?\n/).filter((l: string) => l.trim().length > 0);
+          const sep = dirPath.includes('/') ? '/' : '\\';
+          const cleanDir = dirPath.replace(/[/\\]$/, '');
+          const files: string[] = rawLines.map((rel: string) => `${cleanDir}${sep}${rel.replace(/\//g, sep)}`);
+          this.workspaceFilesCache = { path: dirPath, files, timestamp: Date.now() };
+          return files;
+        }
+      } catch (e) {
+        console.warn('[fsService] git ls-files fallback to scanAllFiles:', e);
+      }
+    }
+
+    const files = await this.scanAllFiles(dirPath, 3000);
+    this.workspaceFilesCache = { path: dirPath, files, timestamp: Date.now() };
+    return files;
+  }
+
   async searchInFiles(
     dirPath: string,
     query: string,
@@ -272,6 +370,56 @@ export class FileSystemService {
     const matches: Array<{ file: string; line: number; text: string }> = [];
     if (!query.trim()) return matches;
 
+    if (isNative()) {
+      // 1. High-performance native search via git grep
+      try {
+        const isGitCmd = `cd /d "${dirPath}" && git rev-parse --is-inside-work-tree`;
+        const gitCheck = await window.Neutralino.os.execCommand(isGitCmd);
+        if (gitCheck.exitCode === 0 && gitCheck.stdOut.trim() === 'true') {
+          const flags: string[] = ['-n', '-I', '--untracked'];
+          if (!options.caseSensitive) flags.push('-i');
+          if (options.wholeWord) flags.push('-w');
+          if (options.isRegex) flags.push('-E');
+          else flags.push('-F');
+
+          // Escape double quotes for cmd / powershell invocation
+          const escapedQuery = query.replace(/"/g, '""');
+          const gitGrepCmd = `cd /d "${dirPath}" && git grep ${flags.join(' ')} -- "${escapedQuery}"`;
+          const res = await window.Neutralino.os.execCommand(gitGrepCmd);
+
+          if (res.exitCode === 0 && res.stdOut) {
+            const rawLines = res.stdOut.split(/\r?\n/);
+            const sep = dirPath.includes('/') ? '/' : '\\';
+            const cleanDir = dirPath.replace(/[/\\]$/, '');
+
+            for (const line of rawLines) {
+              if (!line) continue;
+              const match = line.match(/^([^:]+):(\d+):(.*)$/);
+              if (match) {
+                const relPath = match[1].replace(/\//g, sep);
+                const lineNum = parseInt(match[2], 10);
+                const text = match[3];
+                const fullPath = relPath.includes(':') ? relPath : `${cleanDir}${sep}${relPath}`;
+                matches.push({
+                  file: fullPath,
+                  line: lineNum,
+                  text: text.trim()
+                });
+                if (matches.length >= 1000) break;
+              }
+            }
+            return matches;
+          } else if (res.exitCode === 1) {
+            // Exit code 1 means 0 matches
+            return matches;
+          }
+        }
+      } catch (err) {
+        console.warn('[fsService] git grep failed, falling back to file scan:', err);
+      }
+    }
+
+    // 2. Fallback: file scan
     const allFiles = await this.scanAllFiles(dirPath, 1000);
     let regex: RegExp;
     try {

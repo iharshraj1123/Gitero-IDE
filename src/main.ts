@@ -21,6 +21,7 @@ import { MediaViewerComponent } from './ui/mediaViewer';
 import { gitService } from './services/git';
 import { WindowResizer } from './ui/windowResizer';
 import { SNIPPETS } from './editor/snippets';
+import { fileAssociationService } from './services/fileAssociation';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -93,17 +94,20 @@ async function bootstrap() {
   const gitPanel = new GitPanelComponent(gitPane);
   const terminalPanel = new TerminalPanelComponent(bottomPanelEl);
 
-  let activeSidebarPane: 'explorer' | 'search' | 'git' = 'explorer';
+  let activeSidebarPane: 'explorer' | 'search' | 'git' = (preferencesService.get('workbench.activeSidebarPane') as 'explorer' | 'search' | 'git') || 'explorer';
 
   function showSidebarPane(pane: 'explorer' | 'search' | 'git') {
     if (sidebarEl.classList.contains('collapsed')) {
       sidebarEl.classList.remove('collapsed');
+      preferencesService.set('workbench.sidebarVisible', true);
     } else if (activeSidebarPane === pane) {
       sidebarEl.classList.add('collapsed');
+      preferencesService.set('workbench.sidebarVisible', false);
       return;
     }
 
     activeSidebarPane = pane;
+    preferencesService.set('workbench.activeSidebarPane', pane);
     explorerPane.style.display = pane === 'explorer' ? 'flex' : 'none';
     searchPane.style.display = pane === 'search' ? 'flex' : 'none';
     gitPane.style.display = pane === 'git' ? 'flex' : 'none';
@@ -117,6 +121,16 @@ async function bootstrap() {
     } else if (pane === 'git') {
       gitPanel.refresh();
     }
+  }
+
+  // Restore sidebar visibility & active pane from preferences
+  if (!preferencesService.get('workbench.sidebarVisible')) {
+    sidebarEl.classList.add('collapsed');
+  } else {
+    sidebarEl.classList.remove('collapsed');
+  }
+  if (activeSidebarPane !== 'explorer') {
+    showSidebarPane(activeSidebarPane);
   }
 
   // Quick Pickers
@@ -255,6 +269,20 @@ async function bootstrap() {
   // 7. Initialize Tab Bar
   new TabBarComponent(tabBarContainer);
 
+  // Formatting on save helper
+  function formatContentForSave(rawContent: string): string {
+    let content = rawContent;
+    if (preferencesService.get('editor.trimTrailingWhitespace')) {
+      content = content.replace(/[ \t]+$/gm, '');
+    }
+    if (preferencesService.get('editor.insertFinalNewline')) {
+      if (content.length > 0 && !content.endsWith('\n')) {
+        content += '\n';
+      }
+    }
+    return content;
+  }
+
   // Auto-Save Engine
   let autoSaveTimer: any = null;
   function triggerAutoSave() {
@@ -270,7 +298,12 @@ async function bootstrap() {
       const activeTab = editorState.getActiveTab();
       if (activeTab && activeTab.isDirty && !activeTab.path.startsWith('Untitled-')) {
         try {
-          const content = editorManager.getContent();
+          let content = editorManager.getContent();
+          const formatted = formatContentForSave(content);
+          if (formatted !== content) {
+            editorManager.setContent(formatted);
+            content = formatted;
+          }
           await fsService.writeFile(activeTab.path, content);
           editorState.markSaved(activeTab.id, content);
           statusBar.showMessage(`Auto-saved ${activeTab.name}`);
@@ -292,7 +325,12 @@ async function bootstrap() {
     }
 
     try {
-      const currentContent = editorManager.getContent();
+      let currentContent = editorManager.getContent();
+      const formatted = formatContentForSave(currentContent);
+      if (formatted !== currentContent) {
+        editorManager.setContent(formatted);
+        currentContent = formatted;
+      }
       await fsService.writeFile(activeTab.path, currentContent);
       editorState.markSaved(activeTab.id, currentContent);
       statusBar.showMessage(`Saved ${activeTab.name}`);
@@ -305,7 +343,12 @@ async function bootstrap() {
   // Save As Active File handler
   async function saveAsActiveFile() {
     const activeTab = editorState.getActiveTab();
-    const currentContent = editorManager.getContent();
+    let currentContent = editorManager.getContent();
+    const formatted = formatContentForSave(currentContent);
+    if (formatted !== currentContent) {
+      editorManager.setContent(formatted);
+      currentContent = formatted;
+    }
     const defaultPath = activeTab && !activeTab.path.startsWith('Untitled-') ? activeTab.path : (fsService.getWorkspace() || '');
 
     const newPath = await fsService.saveFileDialog(defaultPath);
@@ -358,6 +401,32 @@ async function bootstrap() {
     });
   }
 
+  // Full Screen Toggle handler
+  async function toggleFullScreen() {
+    if (isNative() && window.Neutralino?.window) {
+      try {
+        const isFull = await window.Neutralino.window.isFullScreen();
+        if (isFull) {
+          await window.Neutralino.window.exitFullScreen();
+          document.body.classList.remove('window-fullscreen');
+        } else {
+          await window.Neutralino.window.setFullScreen();
+          document.body.classList.add('window-fullscreen');
+        }
+      } catch (e) {
+        console.warn('Failed to toggle fullscreen in native mode:', e);
+      }
+    } else {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen?.().catch(() => {});
+        document.body.classList.add('window-fullscreen');
+      } else {
+        await document.exitFullscreen?.().catch(() => {});
+        document.body.classList.remove('window-fullscreen');
+      }
+    }
+  }
+
   // 7. Initialize Title Bar & Top Nav
   const titleBar = new TitleBarComponent(titleBarContainer, {
     onNewFile: () => {
@@ -369,6 +438,9 @@ async function bootstrap() {
     onOpenFolder: async () => {
       const folder = await fsService.selectFolder();
       if (folder) await loadWorkspace(folder);
+    },
+    onOpenRecent: () => {
+      openRecentWorkspacesPicker();
     },
     onSave: () => {
       saveActiveFile();
@@ -395,6 +467,7 @@ async function bootstrap() {
     },
     onToggleSidebar: () => {
       sidebarEl.classList.toggle('collapsed');
+      preferencesService.set('workbench.sidebarVisible', !sidebarEl.classList.contains('collapsed'));
     },
     onCycleCursor: () => {
       const style = editorManager.cycleCursorStyle();
@@ -433,6 +506,9 @@ async function bootstrap() {
     },
     onOpenShortcuts: () => {
       shortcutsModal.open();
+    },
+    onToggleFullScreen: () => {
+      toggleFullScreen();
     },
     onToggleDevTools: () => {
       statusBar.showMessage('Developer Tools: Press F12 or Ctrl+Shift+I (or right-click -> Inspect)');
@@ -578,6 +654,41 @@ async function bootstrap() {
     gitService.refresh();
     gitPanel.refresh();
     statusBar.showMessage(`Opened folder: ${folderName}`);
+
+    // Update recent workspaces list
+    try {
+      if (dirPath && dirPath !== '.') {
+        const recent = preferencesService.get('workbench.recentWorkspaces') || [];
+        const filtered = recent.filter(p => p.toLowerCase() !== dirPath.toLowerCase());
+        preferencesService.set('workbench.recentWorkspaces', [dirPath, ...filtered].slice(0, 10));
+      }
+    } catch (e) {
+      console.warn('Failed to update recent workspaces:', e);
+    }
+  }
+
+  // Auto-refresh Git status when file watcher detects external changes on disk
+  fsService.onWorkspaceChanged(() => {
+    gitService.refresh();
+    gitPanel.refresh();
+  });
+
+  function openRecentWorkspacesPicker() {
+    const recent = preferencesService.get('workbench.recentWorkspaces') || [];
+    if (recent.length === 0) {
+      statusBar.showMessage('No recent workspaces found');
+      return;
+    }
+    const items: PaletteItem[] = recent.map(dir => ({
+      id: dir,
+      title: dir.split(/[/\\]/).filter(Boolean).pop() || dir,
+      detail: dir,
+      category: 'Recent Workspaces',
+      action: async () => {
+        await loadWorkspace(dir);
+      }
+    }));
+    commandPalette.open(items);
   }
 
   function getParentFolder(filePath: string): string {
@@ -806,7 +917,7 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
     const ws = fsService.getWorkspace();
     if (ws) {
       try {
-        const allFiles = await fsService.scanAllFiles(ws, 1500);
+        const allFiles = await fsService.getWorkspaceFiles(ws);
         for (const file of allFiles) {
           if (openTabPaths.has(file)) continue;
           const fileName = file.split(/[/\\]/).pop() || file;
@@ -949,6 +1060,12 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         }
       },
       {
+        id: 'file.openRecent',
+        title: 'File: Open Recent Workspace...',
+        category: 'File',
+        action: () => openRecentWorkspacesPicker()
+      },
+      {
         id: 'file.save',
         title: 'File: Save',
         detail: 'Ctrl+S or :w',
@@ -973,6 +1090,44 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         }
       },
       {
+        id: 'preferences.registerMarkdownAssoc',
+        title: 'Preferences: Register Gitero as Default Markdown Reader (.md)',
+        category: 'Preferences',
+        action: async () => {
+          statusBar.showMessage('Registering Gitero as default Markdown reader...');
+          const res = await fileAssociationService.registerMarkdownAsDefault();
+          if (res.success) {
+            statusBar.showMessage('Gitero registered as default Markdown reader with dedicated Markdown icon.');
+          } else {
+            statusBar.showMessage(`Failed to register Markdown association: ${res.error}`);
+          }
+        }
+      },
+      {
+        id: 'preferences.registerAllFileAssoc',
+        title: 'Preferences: Register All File Associations (with Document Icons)',
+        category: 'Preferences',
+        action: async () => {
+          statusBar.showMessage('Registering all file associations with document icons...');
+          const res = await fileAssociationService.registerAll();
+          if (res.success) {
+            statusBar.showMessage(`Registered document icons for ${res.registered} file extensions.`);
+          } else {
+            statusBar.showMessage(`Failed to register file associations: ${res.error}`);
+          }
+        }
+      },
+      {
+        id: 'preferences.refreshWindowsIconCache',
+        title: 'Preferences: Refresh Windows File Icon Cache',
+        category: 'Preferences',
+        action: async () => {
+          statusBar.showMessage('Refreshing Windows Explorer icon cache...');
+          const ok = await fileAssociationService.refreshWindowsIconCache();
+          statusBar.showMessage(ok ? 'Windows Explorer icon cache refresh signal sent.' : 'Icon cache refresh not supported on this OS.');
+        }
+      },
+      {
         id: 'file.close',
         title: 'View: Close Active Editor',
         detail: 'Ctrl+W or :q',
@@ -987,7 +1142,10 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         title: 'View: Toggle Sidebar Visibility',
         detail: 'Ctrl+B',
         category: 'View',
-        action: () => sidebarEl.classList.toggle('collapsed')
+        action: () => {
+          sidebarEl.classList.toggle('collapsed');
+          preferencesService.set('workbench.sidebarVisible', !sidebarEl.classList.contains('collapsed'));
+        }
       },
       {
         id: 'view.toggleWordWrap',
@@ -1129,6 +1287,13 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         detail: 'Ctrl+K Ctrl+S',
         category: 'Help',
         action: () => shortcutsModal.open()
+      },
+      {
+        id: 'workbench.action.toggleFullScreen',
+        title: 'View: Toggle Full Screen',
+        detail: 'F11',
+        category: 'View',
+        action: () => toggleFullScreen()
       },
       {
         id: 'developer.toggleDevTools',
@@ -1394,6 +1559,13 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         e.preventDefault();
         editorState.closeTab(activeTab.id);
       }
+      return;
+    }
+
+    // Toggle Full Screen (F11)
+    if (matchAction('workbench.action.toggleFullScreen') || e.key === 'F11') {
+      e.preventDefault();
+      toggleFullScreen();
       return;
     }
 

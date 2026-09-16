@@ -26,6 +26,7 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ChangesEnvironment=yes
+ChangesAssociations=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -34,6 +35,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "contextmenu"; Description: "Add 'Open with Gitero' to Windows Explorer context menu"; GroupDescription: "Windows Explorer Integration:"
 Name: "addtopath"; Description: "Add Gitero to PATH (allows 'gcode .' from Terminal / CMD / PowerShell)"; GroupDescription: "Terminal Integration:"
+Name: "assoc_md"; Description: "Register Gitero as default viewer for Markdown files (.md, .markdown)"; GroupDescription: "File Associations:"; Flags: checkedonce
+Name: "assoc_code"; Description: "Register Gitero for source code and script files (.js, .ts, .py, .html, .css, .json, etc.)"; GroupDescription: "File Associations:"; Flags: unchecked
+Name: "assoc_txt"; Description: "Register Gitero for plain text files (.txt, .log)"; GroupDescription: "File Associations:"; Flags: unchecked
 
 [Files]
 ; Primary application executable and packaged resources
@@ -41,6 +45,9 @@ Source: "..\dist\gitero\gitero-win_x64.exe"; DestDir: "{app}"; DestName: "{#MyAp
 Source: "..\dist\gitero\resources.neu"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\neutralino.config.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\public\icons\appIcon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\public\icons\markdown.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
+Source: "..\public\icons\document.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
+Source: "..\public\icons\file-types\*.ico"; DestDir: "{app}\icons\file-types"; Flags: ignoreversion
 ; CLI Terminal Launcher scripts
 Source: "..\bin\gcode.cmd"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\bin\gcode"; DestDir: "{app}\bin"; Flags: ignoreversion
@@ -70,10 +77,137 @@ Root: HKCU; Subkey: "Software\Classes\Drive\shell\GiteroIDE"; ValueType: string;
 Root: HKCU; Subkey: "Software\Classes\Drive\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Drive\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: contextmenu
 
-; 5. Windows Official "Open With" Application List
-Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "{#MyAppName}"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".*"; ValueData: ""; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: contextmenu
+; 5. Windows Official "Open With" Application List & Default Document Icon
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "{#MyAppName}"
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\icons\file-types\document.ico"""
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".*"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+; 6. Dedicated Document ProgIDs & File Type Associations
+; Markdown
+Root: HKCU; Subkey: "Software\Classes\Gitero.Markdown"; ValueType: string; ValueData: "Markdown Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Markdown"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Markdown Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Markdown\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-markdown.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.Markdown\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\md_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-markdown.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.md\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Markdown"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.markdown\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Markdown"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.md"; ValueType: string; ValueData: "Gitero.Markdown"; Tasks: assoc_md
+Root: HKCU; Subkey: "Software\Classes\.markdown"; ValueType: string; ValueData: "Gitero.Markdown"; Tasks: assoc_md
+
+; TypeScript
+Root: HKCU; Subkey: "Software\Classes\Gitero.TypeScript"; ValueType: string; ValueData: "TypeScript Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.TypeScript"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "TypeScript Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.TypeScript\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-typescript.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.TypeScript\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\ts_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-typescript.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\tsx_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-typescript.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.ts\OpenWithProgids"; ValueType: string; ValueName: "Gitero.TypeScript"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.tsx\OpenWithProgids"; ValueType: string; ValueName: "Gitero.TypeScript"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.ts"; ValueType: string; ValueData: "Gitero.TypeScript"; Tasks: assoc_code
+Root: HKCU; Subkey: "Software\Classes\.tsx"; ValueType: string; ValueData: "Gitero.TypeScript"; Tasks: assoc_code
+
+; JavaScript
+Root: HKCU; Subkey: "Software\Classes\Gitero.JavaScript"; ValueType: string; ValueData: "JavaScript Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.JavaScript"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "JavaScript Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.JavaScript\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-javascript.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.JavaScript\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\js_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-javascript.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\jsx_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-javascript.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.js\OpenWithProgids"; ValueType: string; ValueName: "Gitero.JavaScript"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.jsx\OpenWithProgids"; ValueType: string; ValueName: "Gitero.JavaScript"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.js"; ValueType: string; ValueData: "Gitero.JavaScript"; Tasks: assoc_code
+Root: HKCU; Subkey: "Software\Classes\.jsx"; ValueType: string; ValueData: "Gitero.JavaScript"; Tasks: assoc_code
+
+; Python
+Root: HKCU; Subkey: "Software\Classes\Gitero.Python"; ValueType: string; ValueData: "Python Script File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Python"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Python Script File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Python\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-python.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.Python\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\py_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-python.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.py\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Python"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.py"; ValueType: string; ValueData: "Gitero.Python"; Tasks: assoc_code
+
+; HTML
+Root: HKCU; Subkey: "Software\Classes\Gitero.HTML"; ValueType: string; ValueData: "HTML Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.HTML"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "HTML Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.HTML\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-html.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.HTML\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.html\OpenWithProgids"; ValueType: string; ValueName: "Gitero.HTML"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.htm\OpenWithProgids"; ValueType: string; ValueName: "Gitero.HTML"; ValueData: ""
+
+; CSS
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSS"; ValueType: string; ValueData: "Cascading Style Sheet"
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSS"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Cascading Style Sheet"
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSS\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-css.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSS\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.css\OpenWithProgids"; ValueType: string; ValueName: "Gitero.CSS"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.scss\OpenWithProgids"; ValueType: string; ValueName: "Gitero.CSS"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.css"; ValueType: string; ValueData: "Gitero.CSS"; Tasks: assoc_code
+
+; JSON
+Root: HKCU; Subkey: "Software\Classes\Gitero.JSON"; ValueType: string; ValueData: "JSON Configuration File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.JSON"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "JSON Configuration File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.JSON\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-json.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.JSON\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\json_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-json.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.json\OpenWithProgids"; ValueType: string; ValueName: "Gitero.JSON"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.json"; ValueType: string; ValueData: "Gitero.JSON"; Tasks: assoc_code
+
+; YAML
+Root: HKCU; Subkey: "Software\Classes\Gitero.YAML"; ValueType: string; ValueData: "YAML Configuration File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.YAML"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "YAML Configuration File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.YAML\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-yaml.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.YAML\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\yaml_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-yaml.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.yaml\OpenWithProgids"; ValueType: string; ValueName: "Gitero.YAML"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.yml\OpenWithProgids"; ValueType: string; ValueName: "Gitero.YAML"; ValueData: ""
+
+; Shell
+Root: HKCU; Subkey: "Software\Classes\Gitero.Shell"; ValueType: string; ValueData: "Shell Script File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Shell"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Shell Script File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Shell\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-shell.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.Shell\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.sh\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Shell"; ValueData: ""
+
+; Generic Code
+Root: HKCU; Subkey: "Software\Classes\Gitero.Code"; ValueType: string; ValueData: "Source Code File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Code"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Source Code File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Code\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-code.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.Code\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.c\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Code"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.cpp\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Code"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.rs\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Code"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.go\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Code"; ValueData: ""
+
+; Plain Text
+Root: HKCU; Subkey: "Software\Classes\Gitero.Text"; ValueType: string; ValueData: "Plain Text Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Text"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Plain Text Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Text\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-text.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.Text\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\txtfile_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-text.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.txt\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Text"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.log\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Text"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.txt"; ValueType: string; ValueData: "Gitero.Text"; Tasks: assoc_txt
+
+; Default Document Fallback
+Root: HKCU; Subkey: "Software\Classes\Gitero.Document"; ValueType: string; ValueData: "Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Document"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Document"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Document\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.Document\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+; 7. Windows Default Programs Registered Capabilities
+Root: HKCU; Subkey: "Software\Gitero\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "Gitero IDE - Modern High-Performance Code & Markdown Editor"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "{#MyAppName}"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".md"; ValueData: "Gitero.Markdown"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".markdown"; ValueData: "Gitero.Markdown"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".txt"; ValueData: "Gitero.Text"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".js"; ValueData: "Gitero.JavaScript"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ts"; ValueData: "Gitero.TypeScript"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".py"; ValueData: "Gitero.Python"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".json"; ValueData: "Gitero.JSON"
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Gitero"; ValueData: "Software\Gitero\Capabilities"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

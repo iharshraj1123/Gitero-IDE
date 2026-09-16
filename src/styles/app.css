@@ -546,6 +546,41 @@ body.window-maximized #app {
   flex: 1;
 }
 
+/* VS Code style inline file/folder creator row */
+.tree-inline-creator {
+  width: 100%;
+}
+
+.tree-input-row {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  min-height: 26px;
+  background-color: var(--bg-active, #21262d) !important;
+  box-sizing: border-box;
+}
+
+.tree-inline-input {
+  flex: 1;
+  background-color: var(--bg-primary, #0d1117);
+  color: var(--fg-primary, #c9d1d9);
+  border: 1px solid var(--accent-color, #58a6ff);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  height: 22px;
+  margin-right: 8px;
+  box-sizing: border-box;
+  box-shadow: 0 0 0 1px var(--accent-color, #58a6ff);
+}
+
+.tree-inline-input::placeholder {
+  color: var(--fg-muted, #8b949e);
+  opacity: 0.6;
+}
+
 /* File & folder icons and badges */
 .tree-icon {
   width: 16px;
@@ -2489,8 +2524,8 @@ body.window-maximized #app {
   flex-direction: column;
   padding: 6px 12px;
   overflow: hidden;
-  font-family: var(--editor-font-family);
-  font-size: 12px;
+  font-family: var(--terminal-font-family, var(--editor-font-family));
+  font-size: var(--terminal-font-size, 13px);
 }
 
 .terminal-output-area {
@@ -2514,6 +2549,57 @@ body.window-maximized #app {
   color: var(--accent-color);
   font-weight: 600;
 }
+
+.terminal-line.line-info {
+  color: #7aa2f7;
+}
+
+.panel-action-btn.btn-stop-active {
+  color: #f7768e;
+}
+
+.panel-action-btn.btn-stop-active:hover {
+  background: rgba(247, 118, 142, 0.2);
+  color: #ff9e64;
+}
+
+.terminal-badge-running {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #9ece6a;
+  margin-left: 6px;
+  box-shadow: 0 0 6px #9ece6a;
+  animation: pulse-badge 1.5s infinite;
+}
+
+@keyframes pulse-badge {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* ANSI Terminal Colors */
+.ansi-black { color: #545c7e; }
+.ansi-red { color: #f7768e; }
+.ansi-green { color: #9ece6a; }
+.ansi-yellow { color: #e0af68; }
+.ansi-blue { color: #7aa2f7; }
+.ansi-magenta { color: #bb9af7; }
+.ansi-cyan { color: #7dcfff; }
+.ansi-white { color: #c0caf5; }
+.ansi-bright-black { color: #565f89; }
+.ansi-bright-red { color: #ff9e64; }
+.ansi-bright-green { color: #73daca; }
+.ansi-bright-yellow { color: #e0af68; }
+.ansi-bright-blue { color: #2ac3de; }
+.ansi-bright-magenta { color: #bb9af7; }
+.ansi-bright-cyan { color: #b4f9f8; }
+.ansi-bright-white { color: #cfc9c2; }
+.ansi-bold { font-weight: bold; }
+.ansi-dim { opacity: 0.65; }
+.ansi-underline { text-decoration: underline; }
 
 .terminal-input-row {
   display: flex;
@@ -2543,8 +2629,8 @@ body.window-maximized #app {
   flex: 1;
   padding: 6px 12px;
   overflow-y: auto;
-  font-family: var(--editor-font-family);
-  font-size: 12px;
+  font-family: var(--terminal-font-family, var(--editor-font-family));
+  font-size: var(--terminal-font-size, 13px);
 }
 
 .output-log-line {

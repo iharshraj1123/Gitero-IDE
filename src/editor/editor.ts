@@ -60,6 +60,7 @@ export class EditorManager {
   private container: HTMLElement | null = null;
   
   // Compartments for dynamic reconfiguration
+  private lineNumbersCompartment = new Compartment();
   private languageCompartment = new Compartment();
   private themeCompartment = new Compartment();
   private vimCompartment = new Compartment();
@@ -72,9 +73,10 @@ export class EditorManager {
   private createExtensions(langExtension: any) {
     const tabSize = preferencesService.get('editor.tabSize') || 2;
     const wordWrap = preferencesService.get('editor.wordWrap');
+    const showLineNumbers = preferencesService.get('editor.lineNumbers');
 
     return [
-      lineNumbers(),
+      this.lineNumbersCompartment.of(showLineNumbers ? lineNumbers() : []),
       highlightActiveLineGutter(),
       highlightSpecialChars(),
       history(),
@@ -198,6 +200,11 @@ export class EditorManager {
     preferencesService.subscribe('editor.wordWrap', (wrap) => {
       this.setWordWrap(wrap);
     });
+
+    // React to line numbers changes
+    preferencesService.subscribe('editor.lineNumbers', (enabled) => {
+      this.setLineNumbers(enabled);
+    });
   }
 
   loadDocument(content: string, filePath: string) {
@@ -259,6 +266,13 @@ export class EditorManager {
     if (!this.view) return;
     this.view.dispatch({
       effects: this.wordWrapCompartment.reconfigure(wrap ? EditorView.lineWrapping : [])
+    });
+  }
+
+  setLineNumbers(show: boolean) {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: this.lineNumbersCompartment.reconfigure(show ? lineNumbers() : [])
     });
   }
 

@@ -4,6 +4,7 @@ import { getFileIconSvg, getFolderChevronSvg } from './icons';
 import { gitService } from '../services/git';
 import { diffModal } from './diffModal';
 import { isImageFile, isBinaryFile } from '../editor/languages';
+import { preferencesService } from '../services/preferences';
 
 export interface ContextMenuItem {
   label: string;
@@ -26,6 +27,7 @@ export class FileTreeComponent {
   private onFindInFolder?: (folderPath: string) => void;
   private activeContextMenu: HTMLElement | null = null;
   private openDirectoryPaths: Set<string> = new Set();
+  private activeInlineCreator: HTMLElement | null = null;
 
   constructor(
     container: HTMLElement, 
@@ -49,16 +51,55 @@ export class FileTreeComponent {
         this.render();
       }
     });
+
+    preferencesService.subscribe('workbench.iconTheme', () => {
+      if (this.rootNodes.length > 0) {
+        this.render();
+      }
+    });
+
+    preferencesService.subscribe('workbench.customIconPackage', () => {
+      if (this.rootNodes.length > 0) {
+        this.render();
+      }
+    });
   }
 
   async loadWorkspace(dirPath: string) {
     this.container.innerHTML = `<div class="sidebar-loading">Scanning files...</div>`;
     try {
+      this.loadExpandedDirectories(dirPath);
       this.rootNodes = await fsService.readDirectory(dirPath);
       await this.restoreExpandedChildren(this.rootNodes);
       this.render();
     } catch (err) {
       this.container.innerHTML = `<div class="sidebar-empty">Failed to load directory</div>`;
+    }
+  }
+
+  private loadExpandedDirectories(dirPath: string) {
+    try {
+      const storageKey = `gitero_expanded_folders_${encodeURIComponent(dirPath)}`;
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          this.openDirectoryPaths = new Set(arr);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load expanded directory state', e);
+    }
+  }
+
+  private saveExpandedDirectories() {
+    const ws = fsService.getWorkspace();
+    if (!ws) return;
+    try {
+      const storageKey = `gitero_expanded_folders_${encodeURIComponent(ws)}`;
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(this.openDirectoryPaths)));
+    } catch (e) {
+      console.warn('Failed to persist expanded directory state', e);
     }
   }
 
@@ -96,6 +137,8 @@ export class FileTreeComponent {
   private createNodeElement(node: FileNode, depth: number): HTMLElement {
     const itemContainer = document.createElement('div');
     itemContainer.className = 'tree-item-container';
+    itemContainer.setAttribute('data-path', node.path);
+    itemContainer.setAttribute('data-depth', String(depth));
 
     const row = document.createElement('div');
     row.className = `tree-row ${this.selectedNode?.path === node.path ? 'selected' : ''}`;
@@ -162,6 +205,7 @@ export class FileTreeComponent {
         } else {
           this.openDirectoryPaths.delete(node.path);
         }
+        this.saveExpandedDirectories();
 
         chevron.innerHTML = getFolderChevronSvg(node.isOpen);
         iconSpan.innerHTML = getFileIconSvg(node.name, node.isDirectory, node.isOpen);
@@ -470,44 +514,196 @@ export class FileTreeComponent {
     return itemPath;
   }
 
-  async promptCreateFile(parentDir: string) {
-    const fileName = prompt('Enter new file name:');
-    if (!fileName) return;
-
-    const sep = parentDir.includes('/') ? '/' : '\\';
-    const filePath = parentDir.endsWith(sep) ? `${parentDir}${fileName}` : `${parentDir}${sep}${fileName}`;
-
-    try {
-      await fsService.createFile(filePath);
-      this.openDirectoryPaths.add(parentDir);
-      await this.loadWorkspace(fsService.getWorkspace() || '.');
-      const content = await fsService.readFile(filePath);
-      // Open new file in raw editing mode
-      if (this.onFileOpen) {
-        this.onFileOpen(filePath, content, { viewMode: 'raw' });
-      } else {
-        editorState.openFile(filePath, content, { viewMode: 'raw' });
-      }
-    } catch (err) {
-      alert(`Failed to create file: ${err}`);
-    }
+  async promptCreateFile(parentDir?: string) {
+    this.startInlineCreation(parentDir, false);
   }
 
-  async promptCreateFolder(parentDir: string) {
-    const folderName = prompt('Enter new folder name:');
-    if (!folderName) return;
+  async promptCreateFolder(parentDir?: string) {
+    this.startInlineCreation(parentDir, true);
+  }
 
-    const sep = parentDir.includes('/') ? '/' : '\\';
-    const folderPath = parentDir.endsWith(sep) ? `${parentDir}${folderName}` : `${parentDir}${sep}${folderName}`;
-
-    try {
-      await fsService.createFolder(folderPath);
-      this.openDirectoryPaths.add(parentDir);
-      this.openDirectoryPaths.add(folderPath);
-      await this.loadWorkspace(fsService.getWorkspace() || '.');
-    } catch (err) {
-      alert(`Failed to create folder: ${err}`);
+  private startInlineCreation(targetParentDir?: string, isFolder: boolean = false) {
+    // 1. Remove existing inline creator if one is already active
+    if (this.activeInlineCreator) {
+      this.activeInlineCreator.remove();
+      this.activeInlineCreator = null;
     }
+
+    const ws = fsService.getWorkspace() || '.';
+    let resolvedDir = targetParentDir;
+
+    // If targetParentDir was not provided or is root, check selected node
+    if (!resolvedDir) {
+      if (this.selectedNode) {
+        resolvedDir = this.selectedNode.isDirectory
+          ? this.selectedNode.path
+          : this.getParentDir(this.selectedNode.path);
+      } else {
+        resolvedDir = ws;
+      }
+    }
+
+    // Determine insertion container and depth
+    let targetContainer: HTMLElement | null = null;
+    let depth = 0;
+
+    const normResolved = resolvedDir.replace(/\\/g, '/').replace(/\/$/, '');
+    const normWs = ws.replace(/\\/g, '/').replace(/\/$/, '');
+
+    if (normResolved === normWs) {
+      targetContainer = this.container.querySelector('.file-tree-list');
+      depth = 0;
+    } else {
+      // Find parent folder DOM node
+      const allContainers = Array.from(this.container.querySelectorAll('.tree-item-container'));
+      const parentContainer = allContainers.find(el => {
+        const p = el.getAttribute('data-path')?.replace(/\\/g, '/').replace(/\/$/, '');
+        return p === normResolved;
+      }) as HTMLElement | null;
+
+      if (parentContainer) {
+        const parentDepth = parseInt(parentContainer.getAttribute('data-depth') || '0', 10);
+        depth = parentDepth + 1;
+
+        // Ensure parent folder is visually expanded
+        const childrenContainer = parentContainer.querySelector('.tree-children') as HTMLElement;
+        const chevron = parentContainer.querySelector('.tree-chevron') as HTMLElement;
+        const folderIcon = parentContainer.querySelector('.tree-icon') as HTMLElement;
+
+        if (childrenContainer) {
+          childrenContainer.style.display = 'block';
+          if (chevron) chevron.innerHTML = getFolderChevronSvg(true);
+          const folderName = resolvedDir.split(/[/\\]/).pop() || resolvedDir;
+          if (folderIcon) folderIcon.innerHTML = getFileIconSvg(folderName, true, true);
+          this.openDirectoryPaths.add(resolvedDir);
+          targetContainer = childrenContainer;
+        }
+      }
+    }
+
+    if (!targetContainer) {
+      targetContainer = this.container.querySelector('.file-tree-list') || this.container;
+      depth = 0;
+    }
+
+    // Build the inline creator element
+    const creatorContainer = document.createElement('div');
+    creatorContainer.className = 'tree-item-container tree-inline-creator';
+
+    const row = document.createElement('div');
+    row.className = 'tree-row tree-input-row';
+    row.style.paddingLeft = `${depth * 14 + 10}px`;
+
+    const chevron = document.createElement('span');
+    chevron.className = 'tree-chevron';
+    chevron.innerHTML = isFolder ? getFolderChevronSvg(false) : '<span class="chevron-spacer"></span>';
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'tree-icon';
+    iconSpan.innerHTML = isFolder ? getFileIconSvg('folder', true, false) : getFileIconSvg('', false, false);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tree-inline-input';
+    input.placeholder = isFolder ? 'Folder name...' : 'File name...';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+
+    row.appendChild(chevron);
+    row.appendChild(iconSpan);
+    row.appendChild(input);
+    creatorContainer.appendChild(row);
+
+    // Insert at top of targetContainer
+    if (targetContainer.firstChild) {
+      targetContainer.insertBefore(creatorContainer, targetContainer.firstChild);
+    } else {
+      targetContainer.appendChild(creatorContainer);
+    }
+
+    this.activeInlineCreator = creatorContainer;
+
+    // Dynamic badge/icon update on EVERY keystroke!
+    input.addEventListener('input', () => {
+      const val = input.value.trim();
+      if (isFolder) {
+        iconSpan.innerHTML = getFileIconSvg(val || 'folder', true, false);
+      } else {
+        iconSpan.innerHTML = getFileIconSvg(val, false, false);
+      }
+    });
+
+    let isCommitting = false;
+
+    const commit = async () => {
+      if (isCommitting) return;
+      isCommitting = true;
+
+      const rawName = input.value.trim();
+      creatorContainer.remove();
+      this.activeInlineCreator = null;
+
+      if (!rawName) return;
+
+      const cleanName = rawName.replace(/[\/\\]/g, '');
+      if (!cleanName) return;
+
+      const sep = resolvedDir.includes('/') ? '/' : '\\';
+      const targetPath = resolvedDir.endsWith(sep) ? `${resolvedDir}${cleanName}` : `${resolvedDir}${sep}${cleanName}`;
+
+      try {
+        if (isFolder) {
+          await fsService.createFolder(targetPath);
+          this.openDirectoryPaths.add(resolvedDir);
+          this.openDirectoryPaths.add(targetPath);
+          await this.loadWorkspace(fsService.getWorkspace() || '.');
+        } else {
+          await fsService.createFile(targetPath);
+          this.openDirectoryPaths.add(resolvedDir);
+          await this.loadWorkspace(fsService.getWorkspace() || '.');
+          const content = await fsService.readFile(targetPath);
+          if (this.onFileOpen) {
+            this.onFileOpen(targetPath, content, { viewMode: 'raw' });
+          } else {
+            editorState.openFile(targetPath, content, { viewMode: 'raw' });
+          }
+        }
+      } catch (err) {
+        alert(`Failed to create ${isFolder ? 'folder' : 'file'}: ${err}`);
+      }
+    };
+
+    const cancel = () => {
+      if (isCommitting) return;
+      isCommitting = true;
+      creatorContainer.remove();
+      this.activeInlineCreator = null;
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        commit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        cancel();
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!isCommitting) {
+          cancel();
+        }
+      }, 120);
+    });
+
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 20);
   }
 
   async promptRenameItem(node: FileNode) {
