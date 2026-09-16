@@ -20,6 +20,7 @@ export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'workbench.action.files.newUntitledFile', name: 'New Untitled File', category: 'File' },
   { id: 'workbench.action.files.openFile', name: 'Open File...', category: 'File' },
   { id: 'workbench.action.closeActiveEditor', name: 'Close Active Editor', category: 'View' },
+  { id: 'workbench.action.reopenClosedEditor', name: 'Reopen Closed Editor', category: 'File' },
   { id: 'workbench.action.toggleSidebarVisibility', name: 'Toggle Sidebar Visibility', category: 'View' },
   { id: 'workbench.action.terminal.toggleTerminal', name: 'Toggle Integrated Terminal', category: 'Terminal' },
   { id: 'workbench.action.findInFiles', name: 'Find in Files (Global Search)', category: 'Search' },

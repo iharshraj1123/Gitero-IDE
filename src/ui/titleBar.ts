@@ -8,6 +8,7 @@ export interface MenuItem {
   disabled?: boolean;
   action?: () => void;
   divider?: boolean;
+  submenu?: MenuItem[] | (() => MenuItem[]);
 }
 
 export interface MenuGroup {
@@ -21,6 +22,10 @@ export interface TitleBarOptions {
   onOpenFile?: () => void;
   onOpenFolder?: () => void;
   onOpenRecent?: () => void;
+  onOpenWorkspace?: (dirPath: string) => void;
+  onClearRecentWorkspaces?: () => void;
+  onReopenClosedEditor?: () => void;
+  canReopenClosedEditor?: () => boolean;
   onSave?: () => void;
   onSaveAs?: () => void;
   onToggleAutoSave?: () => void;
@@ -75,7 +80,11 @@ export class TitleBarComponent {
           { label: 'New File', shortcut: 'Ctrl+N', action: this.options.onNewFile },
           { label: 'Open File...', shortcut: 'Ctrl+O', action: this.options.onOpenFile },
           { label: 'Open Folder...', shortcut: 'Ctrl+K Ctrl+O', action: this.options.onOpenFolder },
-          { label: 'Open Recent...', action: this.options.onOpenRecent },
+          {
+            label: 'Open Recent',
+            submenu: () => this.getOpenRecentSubmenu(),
+            action: this.options.onOpenRecent
+          },
           { label: '', divider: true },
           { label: 'Save', shortcut: 'Ctrl+S', action: this.options.onSave },
           { label: 'Save As...', shortcut: 'Ctrl+Shift+S', action: this.options.onSaveAs },
@@ -190,6 +199,55 @@ export class TitleBarComponent {
     ];
   }
 
+  private getOpenRecentSubmenu(): MenuItem[] {
+    const items: MenuItem[] = [];
+
+    items.push({
+      label: 'Reopen Closed Editor',
+      shortcut: 'Ctrl+Shift+T',
+      action: () => {
+        this.options.onReopenClosedEditor?.();
+      },
+      disabled: !this.options.canReopenClosedEditor?.()
+    });
+
+    items.push({ label: '', divider: true });
+
+    const recent: string[] = preferencesService.get('workbench.recentWorkspaces') || [];
+    if (recent.length > 0) {
+      for (const dir of recent) {
+        items.push({
+          label: dir,
+          action: () => {
+            this.options.onOpenWorkspace?.(dir);
+          }
+        });
+      }
+    } else {
+      items.push({
+        label: 'No Recent Workspaces',
+        disabled: true
+      });
+    }
+
+    items.push({ label: '', divider: true });
+
+    items.push({
+      label: 'More...',
+      shortcut: 'Ctrl+R',
+      action: this.options.onOpenRecent
+    });
+
+    items.push({
+      label: 'Clear Recently Opened...',
+      action: () => {
+        this.options.onClearRecentWorkspaces?.();
+      }
+    });
+
+    return items;
+  }
+
   private render() {
     this.container.innerHTML = `
       <div class="titlebar-left">
@@ -289,10 +347,14 @@ export class TitleBarComponent {
   }
 
   private createDropdown(group: MenuGroup): HTMLElement {
-    const dropdown = document.createElement('div');
-    dropdown.className = 'titlebar-dropdown-menu';
+    return this.createMenuContainer(group.items);
+  }
 
-    for (const item of group.items) {
+  private createMenuContainer(items: MenuItem[], isSubmenu = false): HTMLElement {
+    const dropdown = document.createElement('div');
+    dropdown.className = isSubmenu ? 'titlebar-dropdown-menu titlebar-submenu' : 'titlebar-dropdown-menu';
+
+    for (const item of items) {
       if (item.divider) {
         const divider = document.createElement('div');
         divider.className = 'dropdown-divider';
@@ -300,8 +362,12 @@ export class TitleBarComponent {
         continue;
       }
 
+      const hasSubmenu = !!item.submenu;
       const row = document.createElement('div');
-      row.className = `dropdown-item ${item.disabled ? 'disabled' : ''}`;
+      row.className = `dropdown-item ${item.disabled ? 'disabled' : ''} ${hasSubmenu ? 'has-submenu' : ''}`;
+      if (item.label && item.label.length > 25) {
+        row.title = item.label;
+      }
 
       const checkSlot = document.createElement('span');
       checkSlot.className = 'dropdown-check-slot';
@@ -313,22 +379,68 @@ export class TitleBarComponent {
       label.className = 'dropdown-item-label';
       label.textContent = item.label;
 
-      const shortcut = document.createElement('span');
-      shortcut.className = 'dropdown-item-shortcut';
-      if (item.shortcut) {
-        shortcut.textContent = item.shortcut;
-      }
-
       row.appendChild(checkSlot);
       row.appendChild(label);
-      row.appendChild(shortcut);
 
-      if (!item.disabled) {
+      if (hasSubmenu) {
+        const arrow = document.createElement('span');
+        arrow.className = 'dropdown-item-arrow';
+        arrow.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+        row.appendChild(arrow);
+
+        let submenuEl: HTMLElement | null = null;
+        let openTimer: any = null;
+        let closeTimer: any = null;
+
+        const openSub = () => {
+          clearTimeout(closeTimer);
+          if (submenuEl) return;
+          const subItems = typeof item.submenu === 'function' ? item.submenu() : (item.submenu || []);
+          submenuEl = this.createMenuContainer(subItems, true);
+          row.appendChild(submenuEl);
+          row.classList.add('submenu-active');
+        };
+
+        const closeSub = () => {
+          clearTimeout(openTimer);
+          if (submenuEl) {
+            submenuEl.remove();
+            submenuEl = null;
+            row.classList.remove('submenu-active');
+          }
+        };
+
+        row.addEventListener('mouseenter', () => {
+          clearTimeout(closeTimer);
+          openTimer = setTimeout(openSub, 60);
+        });
+
+        row.addEventListener('mouseleave', () => {
+          clearTimeout(openTimer);
+          closeTimer = setTimeout(closeSub, 150);
+        });
+
         row.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('.titlebar-submenu')) return;
           e.stopPropagation();
           this.closeMenu();
           item.action?.();
         });
+      } else {
+        const shortcut = document.createElement('span');
+        shortcut.className = 'dropdown-item-shortcut';
+        if (item.shortcut) {
+          shortcut.textContent = item.shortcut;
+        }
+        row.appendChild(shortcut);
+
+        if (!item.disabled) {
+          row.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.closeMenu();
+            item.action?.();
+          });
+        }
       }
 
       dropdown.appendChild(row);

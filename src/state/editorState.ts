@@ -20,6 +20,7 @@ export class EditorStateManager {
   private tabs: EditorTab[] = [];
   private activeTabId: string | null = null;
   private listeners: StateChangeListener[] = [];
+  private closedTabsHistory: EditorTab[] = [];
 
   constructor() {
     this.loadPersistedTabs();
@@ -187,7 +188,13 @@ export class EditorStateManager {
       if (!confirmClose) return false;
     }
 
-    this.tabs.splice(index, 1);
+    const [closedTab] = this.tabs.splice(index, 1);
+    if (closedTab && !closedTab.name.startsWith('Untitled-')) {
+      this.closedTabsHistory.push({ ...closedTab, isDirty: false });
+      if (this.closedTabsHistory.length > 20) {
+        this.closedTabsHistory.shift();
+      }
+    }
 
     if (this.activeTabId === id) {
       if (this.tabs.length > 0) {
@@ -201,6 +208,20 @@ export class EditorStateManager {
     this.persist();
     this.notify();
     return true;
+  }
+
+  canReopenClosedTab(): boolean {
+    return this.closedTabsHistory.length > 0;
+  }
+
+  reopenClosedTab(): EditorTab | null {
+    const tab = this.closedTabsHistory.pop();
+    if (!tab) return null;
+    this.tabs.push(tab);
+    this.activeTabId = tab.id;
+    this.persist();
+    this.notify();
+    return tab;
   }
 
   updateContent(id: string, content: string) {

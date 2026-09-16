@@ -466,6 +466,22 @@ async function bootstrap() {
     onOpenRecent: () => {
       openRecentWorkspacesPicker();
     },
+    onOpenWorkspace: async (dirPath: string) => {
+      await loadWorkspace(dirPath);
+    },
+    onClearRecentWorkspaces: () => {
+      preferencesService.set('workbench.recentWorkspaces', []);
+      statusBar.showMessage('Recent workspaces cleared');
+    },
+    onReopenClosedEditor: () => {
+      const reopened = editorState.reopenClosedTab();
+      if (reopened) {
+        statusBar.showMessage(`Reopened: ${reopened.name}`);
+      }
+    },
+    canReopenClosedEditor: () => {
+      return editorState.canReopenClosedTab();
+    },
     onSave: () => {
       saveActiveFile();
     },
@@ -1511,6 +1527,26 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
     if (matchAction('workbench.action.files.newUntitledFile')) {
       e.preventDefault();
       editorState.openUntitledFile();
+      return;
+    }
+
+    // Close Active Editor
+    if (matchAction('workbench.action.closeActiveEditor')) {
+      e.preventDefault();
+      const active = editorState.getActiveTab();
+      if (active) {
+        editorState.closeTab(active.id);
+      }
+      return;
+    }
+
+    // Reopen Closed Editor
+    if (matchAction('workbench.action.reopenClosedEditor')) {
+      e.preventDefault();
+      const reopened = editorState.reopenClosedTab();
+      if (reopened) {
+        statusBar.showMessage(`Reopened: ${reopened.name}`);
+      }
       return;
     }
 

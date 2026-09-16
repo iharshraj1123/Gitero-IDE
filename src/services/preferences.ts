@@ -57,6 +57,7 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'workbench.action.files.newUntitledFile': 'Ctrl+N',
   'workbench.action.files.openFile': 'Ctrl+O',
   'workbench.action.closeActiveEditor': 'Ctrl+W',
+  'workbench.action.reopenClosedEditor': 'Ctrl+Shift+T',
   'workbench.action.toggleSidebarVisibility': 'Ctrl+B',
   'workbench.action.terminal.toggleTerminal': 'Ctrl+`',
   'workbench.action.findInFiles': 'Ctrl+Shift+F',

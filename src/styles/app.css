@@ -218,6 +218,40 @@ body.window-maximized #app {
 .dropdown-item-label {
   flex: 1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item.has-submenu {
+  position: relative;
+}
+
+.dropdown-item.submenu-active {
+  background-color: var(--accent-color);
+  color: #ffffff;
+}
+
+.dropdown-item-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 14px;
+  opacity: 0.7;
+}
+
+.dropdown-item:hover:not(.disabled) .dropdown-item-arrow,
+.dropdown-item.submenu-active .dropdown-item-arrow {
+  opacity: 1;
+}
+
+.titlebar-submenu {
+  position: absolute;
+  top: -4px;
+  left: 100%;
+  min-width: 260px;
+  max-width: 440px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  z-index: 1005;
 }
 
 .dropdown-item-shortcut {

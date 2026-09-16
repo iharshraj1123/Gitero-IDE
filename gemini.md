@@ -76,6 +76,14 @@ In Neutralinojs:
 
 ---
 
+## Neutralino Port & Native Storage Architecture
+
+* **Dynamic Port (`port: 0`)**: Assigned randomly on every launch to avoid port collisions and support multiple instances.
+* **WebView2 Origin Partitioning**: Browser `localStorage` is scoped to `protocol://host:port`. Changing ports resets `localStorage` to empty.
+* **Native Storage Bridge**: `neutralino.config.json` sets `"storageLocation": "system"` (`%APPDATA%\com.gitero.ide\.storage`). `PersistentStorageService` (`src/services/storage.ts`) hydrates `localStorage` on bootstrap and mirrors all writes to disk, ensuring settings, tabs, and recent workspaces persist across launches.
+
+---
+
 ## Guide: Adding Support for a New File Type & Language
 
 Follow this complete step-by-step checklist whenever introducing support for a new file format or programming language in Gitero IDE:
