@@ -28,6 +28,27 @@
 
   --editor-font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
   --editor-font-size: 14px;
+
+  /* Transparency & Glassmorphism Defaults */
+  --transparency-blur: 0px;
+  --opacity-master-bg: 1;
+  --opacity-master-fg: 1;
+  --opacity-titlebar-bg: 1;
+  --opacity-titlebar-fg: 1;
+  --opacity-activitybar-bg: 1;
+  --opacity-activitybar-fg: 1;
+  --opacity-sidebar-bg: 1;
+  --opacity-sidebar-fg: 1;
+  --opacity-tabbar-bg: 1;
+  --opacity-tabbar-fg: 1;
+  --opacity-editor-bg: 1;
+  --opacity-editor-fg: 1;
+  --opacity-terminal-bg: 1;
+  --opacity-terminal-fg: 1;
+  --opacity-statusbar-bg: 1;
+  --opacity-statusbar-fg: 1;
+  --opacity-overlays-bg: 1;
+  --opacity-overlays-fg: 1;
 }
 
 * {
@@ -3900,4 +3921,400 @@ body.window-maximized .win-resize-handle {
 .cm-searchMatch-selected {
   background-color: rgba(245, 158, 11, 0.55) !important;
   outline: 1px solid rgba(245, 158, 11, 0.9) !important;
+}
+
+/* ==========================================================================
+   Workspace Transparency & Glassmorphism Engine
+   ========================================================================== */
+
+body.transparency-active {
+  background-color: transparent !important;
+}
+
+body.transparency-active #app {
+  background-color: color-mix(in srgb, var(--bg-primary) calc(var(--opacity-master-bg, 1) * 100%), transparent);
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+
+body.transparency-active .ide-workspace {
+  background-color: transparent;
+}
+
+/* 1. Title Bar */
+body.transparency-active .app-titlebar {
+  background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-titlebar-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .app-titlebar .titlebar-app-icon,
+body.transparency-active .app-titlebar .menubar-button,
+body.transparency-active .app-titlebar .titlebar-title-text,
+body.transparency-active .app-titlebar .window-control {
+  opacity: var(--opacity-titlebar-fg, 1);
+}
+
+/* 2. Activity Bar */
+body.transparency-active .activity-bar {
+  background-color: color-mix(in srgb, var(--bg-activity) calc(var(--opacity-activitybar-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .activity-bar .activity-btn svg {
+  opacity: var(--opacity-activitybar-fg, 1);
+}
+
+/* 3. Primary Sidebar */
+body.transparency-active .sidebar,
+body.transparency-active .sidebar-pane,
+body.transparency-active .sidebar-header,
+body.transparency-active .sidebar-workspace-btn-container {
+  background-color: color-mix(in srgb, var(--bg-sidebar) calc(var(--opacity-sidebar-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .sidebar-header #workspace-title,
+body.transparency-active .sidebar-actions,
+body.transparency-active .file-tree,
+body.transparency-active .sidebar-content,
+body.transparency-active .sidebar-pane {
+  opacity: var(--opacity-sidebar-fg, 1);
+}
+
+/* 4. Tab Bar & Breadcrumbs */
+body.transparency-active .tab-bar-container,
+body.transparency-active .breadcrumbs-bar {
+  background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-tabbar-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .tab-bar-container .tab-item {
+  background-color: color-mix(in srgb, var(--tab-inactive-bg) calc(var(--opacity-tabbar-bg, 1) * 100%), transparent);
+  opacity: var(--opacity-tabbar-fg, 1);
+}
+body.transparency-active .tab-bar-container .tab-item.active {
+  background-color: color-mix(in srgb, var(--tab-active-bg) calc(var(--opacity-tabbar-bg, 1) * 100%), transparent) !important;
+}
+body.transparency-active .breadcrumbs-bar {
+  opacity: var(--opacity-tabbar-fg, 1);
+}
+
+/* 5. Code Editor Viewport */
+body.transparency-active .editor-main,
+body.transparency-active .editor-viewport {
+  background-color: transparent !important;
+}
+body.transparency-active .cm-editor,
+body.transparency-active .cm-gutters,
+body.transparency-active #markdown-viewport,
+body.transparency-active #media-viewport {
+  background-color: color-mix(in srgb, var(--editor-bg) calc(var(--opacity-editor-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .cm-scroller {
+  background-color: transparent !important;
+}
+body.transparency-active .cm-content,
+body.transparency-active .cm-line,
+body.transparency-active .cm-gutters .cm-gutterElement,
+body.transparency-active #markdown-viewport,
+body.transparency-active .editor-empty-state {
+  opacity: var(--opacity-editor-fg, 1);
+}
+
+/* 6. Terminal & Bottom Panel */
+body.transparency-active .bottom-panel,
+body.transparency-active .terminal-panel {
+  background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-terminal-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .bottom-panel-header,
+body.transparency-active .terminal-header,
+body.transparency-active .terminal-output,
+body.transparency-active .terminal-input-row,
+body.transparency-active .terminal-input {
+  opacity: var(--opacity-terminal-fg, 1);
+}
+
+/* 7. Status Bar */
+body.transparency-active .status-bar {
+  background-color: color-mix(in srgb, var(--status-bg) calc(var(--opacity-statusbar-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .status-bar .status-item,
+body.transparency-active .status-bar span {
+  opacity: var(--opacity-statusbar-fg, 1);
+}
+
+/* 8. Modals & Overlays */
+body.transparency-active .command-palette,
+body.transparency-active .settings-modal,
+body.transparency-active .shortcuts-modal,
+body.transparency-active .diff-modal,
+body.transparency-active .titlebar-dropdown-menu,
+body.transparency-active .cm-panels {
+  background-color: color-mix(in srgb, var(--bg-sidebar) calc(var(--opacity-overlays-bg, 1) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--transparency-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+}
+body.transparency-active .command-palette-item,
+body.transparency-active .settings-header,
+body.transparency-active .settings-body-wrapper {
+  opacity: var(--opacity-overlays-fg, 1);
+}
+
+/* ==========================================================================
+   Transparency Studio UI (Settings Modal)
+   ========================================================================== */
+
+.transparency-studio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.transparency-master-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color, #30363d);
+}
+
+.transparency-switch-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.transparency-presets-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset-chip-btn {
+  background: var(--bg-active, #21262d);
+  color: var(--fg-primary, #c9d1d9);
+  border: 1px solid var(--border-color, #30363d);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.preset-chip-btn:hover {
+  background: var(--bg-hover, #30363d);
+  border-color: var(--accent-color, #58a6ff);
+  color: #fff;
+}
+
+.preset-chip-btn.active {
+  background: var(--accent-color, #58a6ff);
+  border-color: var(--accent-color, #58a6ff);
+  color: #fff;
+}
+
+.transparency-master-sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+}
+
+.transparency-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.transparency-slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-primary, #c9d1d9);
+}
+
+.transparency-slider-val {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--accent-color, #58a6ff);
+  background: rgba(88, 166, 255, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.transparency-range-input {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-color, #30363d);
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--accent-color, #58a6ff);
+}
+
+/* Category Filter Tabs */
+.transparency-tabs-bar {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color, #30363d);
+  padding-bottom: 10px;
+  margin-top: 6px;
+}
+
+.transparency-tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-muted, #8b949e);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.transparency-tab-btn:hover {
+  color: var(--fg-primary, #c9d1d9);
+  background: var(--bg-hover, #161b22);
+}
+
+.transparency-tab-btn.active {
+  color: #ffffff;
+  background: var(--bg-active, #21262d);
+  border-color: var(--border-color, #30363d);
+}
+
+/* Section Cards Grid */
+.transparency-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.transparency-section-card {
+  background: var(--bg-secondary, #010409);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.transparency-section-card:hover {
+  border-color: rgba(88, 166, 255, 0.4);
+}
+
+.transparency-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.transparency-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transparency-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-primary, #c9d1d9);
+}
+
+.transparency-card-category-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg-muted, #8b949e);
+  letter-spacing: 0.5px;
+}
+
+.transparency-card-desc {
+  font-size: 11px;
+  color: var(--fg-muted, #8b949e);
+}
+
+.transparency-card-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .transparency-card-controls {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Contrast Preview Chip */
+.transparency-preview-chip {
+  width: 90px;
+  height: 38px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color, #30363d);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%),
+                    linear-gradient(-45deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%),
+                    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.06) 75%),
+                    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.06) 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+}
+
+.transparency-preview-chip-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+}
+
+.transparency-reset-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-muted, #8b949e);
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.transparency-reset-btn:hover {
+  color: var(--fg-primary, #ffffff);
+  background: var(--bg-hover, #21262d);
+  border-color: var(--border-color, #30363d);
 }

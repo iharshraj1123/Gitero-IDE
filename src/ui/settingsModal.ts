@@ -5,6 +5,7 @@ import { updaterService } from '../services/updater';
 import { preferencesService, CursorStyle, IconTheme } from '../services/preferences';
 import { renderIconPreview } from './icons';
 import { fileAssociationService } from '../services/fileAssociation';
+import { transparencyService, TRANSPARENCY_SECTIONS, TRANSPARENCY_PRESETS, TransparencyCategory } from '../services/transparencyService';
 
 export interface KeybindingDefinition {
   id: string;
@@ -331,6 +332,72 @@ export class SettingsModalComponent {
                 </div>
               </div>
 
+              <!-- Workspace Transparency & Glassmorphism Studio -->
+              <div class="setting-card transparency-studio-card">
+                <div class="transparency-master-header">
+                  <div>
+                    <div class="setting-card-title" style="margin-bottom: 4px;">Workspace Transparency & Glassmorphism</div>
+                    <div class="setting-desc">Control surface background opacity, independent text legibility, and frosted acrylic blur across IDE sections.</div>
+                  </div>
+                  <label class="transparency-switch-label">
+                    <span style="font-size: 12px; font-weight: 600; color: var(--fg-primary);">Enable Glass</span>
+                    <input type="checkbox" id="setting-transparency-enable-toggle" class="setting-checkbox" />
+                  </label>
+                </div>
+
+                <!-- One-Click Presets -->
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div class="setting-label">
+                    <span class="setting-title">Quick Glassmorphism Presets</span>
+                  </div>
+                  <div class="transparency-presets-row" id="transparency-presets-container">
+                    <button type="button" class="preset-chip-btn" data-preset="solid">Solid (Default)</button>
+                    <button type="button" class="preset-chip-btn" data-preset="subtle-glass">Subtle Glass</button>
+                    <button type="button" class="preset-chip-btn" data-preset="frosted-acrylic">Frosted Acrylic</button>
+                    <button type="button" class="preset-chip-btn" data-preset="code-focus">Code Focus</button>
+                  </div>
+                </div>
+
+                <!-- Master Global Controls -->
+                <div class="transparency-master-sliders" id="transparency-master-sliders-box">
+                  <div class="transparency-slider-group">
+                    <div class="transparency-slider-header">
+                      <span>Master Surface Opacity</span>
+                      <span class="transparency-slider-val" id="val-master-bg">100%</span>
+                    </div>
+                    <input type="range" id="setting-master-bg-opacity" class="transparency-range-input" min="10" max="100" step="1" value="100" />
+                  </div>
+
+                  <div class="transparency-slider-group">
+                    <div class="transparency-slider-header">
+                      <span>Master Text Contrast</span>
+                      <span class="transparency-slider-val" id="val-master-text">100%</span>
+                    </div>
+                    <input type="range" id="setting-master-text-opacity" class="transparency-range-input" min="30" max="100" step="1" value="100" />
+                  </div>
+
+                  <div class="transparency-slider-group">
+                    <div class="transparency-slider-header">
+                      <span>Backdrop Blur (Frosted)</span>
+                      <span class="transparency-slider-val" id="val-master-blur">12px</span>
+                    </div>
+                    <input type="range" id="setting-master-blur" class="transparency-range-input" min="0" max="32" step="1" value="12" />
+                  </div>
+                </div>
+
+                <!-- Category Segmented Filters -->
+                <div class="transparency-tabs-bar" id="transparency-category-tabs">
+                  <button type="button" class="transparency-tab-btn active" data-cat="all">All Sections (8)</button>
+                  <button type="button" class="transparency-tab-btn" data-cat="chrome">Chrome (3)</button>
+                  <button type="button" class="transparency-tab-btn" data-cat="workspace">Workspace (2)</button>
+                  <button type="button" class="transparency-tab-btn" data-cat="editor">Editor & Terminal (2)</button>
+                  <button type="button" class="transparency-tab-btn" data-cat="overlays">Overlays (1)</button>
+                </div>
+
+                <!-- Dynamic Sections Container -->
+                <div class="transparency-sections-grid" id="transparency-sections-grid"></div>
+              </div>
+
               <!-- Theme Toolbar -->
               <div class="setting-card theme-studio-card">
                 <div class="theme-studio-header">
@@ -573,6 +640,7 @@ export class SettingsModalComponent {
     this.setupIconThemeListeners();
     this.setupTerminalSettingsListeners();
     this.setupFileAssociationListeners();
+    this.setupTransparencyStudioListeners();
   }
 
   private setupFileAssociationListeners() {
@@ -1479,6 +1547,8 @@ export class SettingsModalComponent {
     if (previewBox) previewBox.innerHTML = renderIconPreview(currentIconTheme);
     if (customSection) customSection.style.display = currentIconTheme === 'custom' ? 'block' : 'none';
     if (customTextarea) customTextarea.value = preferencesService.get('workbench.customIconPackage') || '';
+
+    this.refreshTransparencyStudioUi();
   }
 
   close() {
@@ -1615,5 +1685,297 @@ export class SettingsModalComponent {
     }
 
     this.close();
+  }
+
+  private activeTransparencyCategory: string = 'all';
+
+  private setupTransparencyStudioListeners() {
+    const enableToggle = this.overlay.querySelector('#setting-transparency-enable-toggle') as HTMLInputElement;
+    const masterBgSlider = this.overlay.querySelector('#setting-master-bg-opacity') as HTMLInputElement;
+    const masterTextSlider = this.overlay.querySelector('#setting-master-text-opacity') as HTMLInputElement;
+    const masterBlurSlider = this.overlay.querySelector('#setting-master-blur') as HTMLInputElement;
+    const categoryTabs = this.overlay.querySelectorAll('#transparency-category-tabs .transparency-tab-btn');
+    const presetBtns = this.overlay.querySelectorAll('#transparency-presets-container .preset-chip-btn');
+
+    // Toggle Transparency
+    enableToggle?.addEventListener('change', () => {
+      preferencesService.set('transparency.enabled', enableToggle.checked);
+      this.refreshTransparencyStudioUi();
+    });
+
+    // Master Sliders
+    masterBgSlider?.addEventListener('input', () => {
+      const val = parseInt(masterBgSlider.value, 10) || 100;
+      const label = this.overlay.querySelector('#val-master-bg');
+      if (label) label.textContent = `${val}%`;
+      preferencesService.set('transparency.master.bgOpacity', val);
+      this.updateAllSectionChips();
+    });
+
+    masterTextSlider?.addEventListener('input', () => {
+      const val = parseInt(masterTextSlider.value, 10) || 100;
+      const label = this.overlay.querySelector('#val-master-text');
+      if (label) label.textContent = `${val}%`;
+      preferencesService.set('transparency.master.textOpacity', val);
+      this.updateAllSectionChips();
+    });
+
+    masterBlurSlider?.addEventListener('input', () => {
+      const val = parseInt(masterBlurSlider.value, 10) || 0;
+      const label = this.overlay.querySelector('#val-master-blur');
+      if (label) label.textContent = `${val}px`;
+      preferencesService.set('transparency.blur', val);
+    });
+
+    // Presets
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const presetId = btn.getAttribute('data-preset');
+        if (presetId) {
+          transparencyService.applyPreset(presetId);
+          this.refreshTransparencyStudioUi();
+        }
+      });
+    });
+
+    // Category Tabs
+    categoryTabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        categoryTabs.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeTransparencyCategory = btn.getAttribute('data-cat') || 'all';
+        this.filterTransparencySections();
+      });
+    });
+
+    this.renderTransparencySections();
+  }
+
+  private renderTransparencySections() {
+    const container = this.overlay.querySelector('#transparency-sections-grid') as HTMLElement;
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    TRANSPARENCY_SECTIONS.forEach(sec => {
+      const card = document.createElement('div');
+      card.className = 'transparency-section-card';
+      card.setAttribute('data-category', sec.category);
+      card.setAttribute('data-section-id', sec.id);
+
+      const bgVal = (preferencesService.get(sec.bgPrefKey) as number) ?? sec.defaultBg;
+      const textVal = (preferencesService.get(sec.textPrefKey) as number) ?? sec.defaultText;
+
+      card.innerHTML = `
+        <div class="transparency-card-top">
+          <div class="transparency-card-title-group">
+            <span class="transparency-card-title">${sec.name}</span>
+            <span class="transparency-card-category-badge">${sec.category}</span>
+          </div>
+          <button type="button" class="transparency-reset-btn" title="Reset ${sec.name} to default opacity">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+        </div>
+        <div class="transparency-card-desc">${sec.description}</div>
+        <div class="transparency-card-controls">
+          <div class="transparency-slider-group">
+            <div class="transparency-slider-header">
+              <span>Surface (Background)</span>
+              <span class="transparency-slider-val sec-bg-val">${bgVal}%</span>
+            </div>
+            <input type="range" class="transparency-range-input sec-bg-input" min="0" max="100" step="1" value="${bgVal}" />
+          </div>
+
+          <div class="transparency-slider-group">
+            <div class="transparency-slider-header">
+              <span>Text (Foreground)</span>
+              <span class="transparency-slider-val sec-text-val">${textVal}%</span>
+            </div>
+            <input type="range" class="transparency-range-input sec-text-input" min="30" max="100" step="1" value="${textVal}" />
+          </div>
+
+          <div class="transparency-preview-chip" title="Live surface & text contrast preview">
+            <div class="transparency-preview-chip-inner">Aa Code</div>
+          </div>
+        </div>
+      `;
+
+      // Wire inputs
+      const bgInput = card.querySelector('.sec-bg-input') as HTMLInputElement;
+      const textInput = card.querySelector('.sec-text-input') as HTMLInputElement;
+      const bgLabel = card.querySelector('.sec-bg-val') as HTMLElement;
+      const textLabel = card.querySelector('.sec-text-val') as HTMLElement;
+      const chipInner = card.querySelector('.transparency-preview-chip-inner') as HTMLElement;
+      const resetBtn = card.querySelector('.transparency-reset-btn') as HTMLButtonElement;
+
+      const updateChip = () => {
+        const curBg = parseInt(bgInput.value, 10) || 0;
+        const curText = parseInt(textInput.value, 10) || 30;
+        const masterBg = (preferencesService.get('transparency.master.bgOpacity') ?? 100) / 100;
+        const masterText = (preferencesService.get('transparency.master.textOpacity') ?? 100) / 100;
+        const effBg = Math.round((curBg / 100) * masterBg * 100);
+        const effText = Math.max(30, Math.round((curText / 100) * masterText * 100));
+
+        let bgVar = 'var(--bg-secondary)';
+        let fgVar = 'var(--fg-primary)';
+        if (sec.id === 'sidebar') {
+          bgVar = 'var(--bg-sidebar)';
+        } else if (sec.id === 'editor') {
+          bgVar = 'var(--editor-bg)';
+          fgVar = 'var(--editor-fg)';
+        } else if (sec.id === 'statusBar') {
+          bgVar = 'var(--status-bg)';
+          fgVar = 'var(--status-fg)';
+        } else if (sec.id === 'activityBar') {
+          bgVar = 'var(--bg-activity)';
+        }
+
+        chipInner.style.backgroundColor = `color-mix(in srgb, ${bgVar} ${effBg}%, transparent)`;
+        chipInner.style.color = `color-mix(in srgb, ${fgVar} ${effText}%, transparent)`;
+      };
+
+      updateChip();
+
+      bgInput.addEventListener('input', () => {
+        const val = parseInt(bgInput.value, 10) || 0;
+        bgLabel.textContent = `${val}%`;
+        preferencesService.set(sec.bgPrefKey, val);
+        updateChip();
+      });
+
+      textInput.addEventListener('input', () => {
+        const val = parseInt(textInput.value, 10) || 30;
+        textLabel.textContent = `${val}%`;
+        preferencesService.set(sec.textPrefKey, val);
+        updateChip();
+      });
+
+      resetBtn.addEventListener('click', () => {
+        transparencyService.resetSection(sec.id);
+        bgInput.value = String(sec.defaultBg);
+        textInput.value = String(sec.defaultText);
+        bgLabel.textContent = `${sec.defaultBg}%`;
+        textLabel.textContent = `${sec.defaultText}%`;
+        updateChip();
+      });
+
+      container.appendChild(card);
+    });
+
+    this.filterTransparencySections();
+  }
+
+  private filterTransparencySections() {
+    const cards = this.overlay.querySelectorAll('.transparency-section-card');
+    cards.forEach(c => {
+      const el = c as HTMLElement;
+      const cat = el.getAttribute('data-category');
+      if (this.activeTransparencyCategory === 'all' || cat === this.activeTransparencyCategory) {
+        el.style.display = 'flex';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+  }
+
+  private updateAllSectionChips() {
+    const cards = this.overlay.querySelectorAll('.transparency-section-card');
+    cards.forEach(c => {
+      const el = c as HTMLElement;
+      const secId = el.getAttribute('data-section-id');
+      const meta = TRANSPARENCY_SECTIONS.find(s => s.id === secId);
+      if (!meta) return;
+
+      const bgInput = el.querySelector('.sec-bg-input') as HTMLInputElement;
+      const textInput = el.querySelector('.sec-text-input') as HTMLInputElement;
+      const chipInner = el.querySelector('.transparency-preview-chip-inner') as HTMLElement;
+      if (!bgInput || !textInput || !chipInner) return;
+
+      const curBg = parseInt(bgInput.value, 10) || 0;
+      const curText = parseInt(textInput.value, 10) || 30;
+      const masterBg = (preferencesService.get('transparency.master.bgOpacity') ?? 100) / 100;
+      const masterText = (preferencesService.get('transparency.master.textOpacity') ?? 100) / 100;
+      const effBg = Math.round((curBg / 100) * masterBg * 100);
+      const effText = Math.max(30, Math.round((curText / 100) * masterText * 100));
+
+      let bgVar = 'var(--bg-secondary)';
+      let fgVar = 'var(--fg-primary)';
+      if (meta.id === 'sidebar') bgVar = 'var(--bg-sidebar)';
+      else if (meta.id === 'editor') { bgVar = 'var(--editor-bg)'; fgVar = 'var(--editor-fg)'; }
+      else if (meta.id === 'statusBar') { bgVar = 'var(--status-bg)'; fgVar = 'var(--status-fg)'; }
+      else if (meta.id === 'activityBar') bgVar = 'var(--bg-activity)';
+
+      chipInner.style.backgroundColor = `color-mix(in srgb, ${bgVar} ${effBg}%, transparent)`;
+      chipInner.style.color = `color-mix(in srgb, ${fgVar} ${effText}%, transparent)`;
+    });
+  }
+
+  private refreshTransparencyStudioUi() {
+    const enabled = preferencesService.get('transparency.enabled');
+    const blur = preferencesService.get('transparency.blur') ?? 12;
+    const masterBg = preferencesService.get('transparency.master.bgOpacity') ?? 100;
+    const masterText = preferencesService.get('transparency.master.textOpacity') ?? 100;
+
+    const enableToggle = this.overlay.querySelector('#setting-transparency-enable-toggle') as HTMLInputElement;
+    if (enableToggle) enableToggle.checked = enabled;
+
+    const masterBgSlider = this.overlay.querySelector('#setting-master-bg-opacity') as HTMLInputElement;
+    if (masterBgSlider) masterBgSlider.value = String(masterBg);
+    const valMasterBg = this.overlay.querySelector('#val-master-bg');
+    if (valMasterBg) valMasterBg.textContent = `${masterBg}%`;
+
+    const masterTextSlider = this.overlay.querySelector('#setting-master-text-opacity') as HTMLInputElement;
+    if (masterTextSlider) masterTextSlider.value = String(masterText);
+    const valMasterText = this.overlay.querySelector('#val-master-text');
+    if (valMasterText) valMasterText.textContent = `${masterText}%`;
+
+    const masterBlurSlider = this.overlay.querySelector('#setting-master-blur') as HTMLInputElement;
+    if (masterBlurSlider) masterBlurSlider.value = String(blur);
+    const valMasterBlur = this.overlay.querySelector('#val-master-blur');
+    if (valMasterBlur) valMasterBlur.textContent = `${blur}px`;
+
+    // Refresh active preset chip button highlight
+    const presetBtns = this.overlay.querySelectorAll('#transparency-presets-container .preset-chip-btn');
+    presetBtns.forEach(btn => {
+      const pId = btn.getAttribute('data-preset');
+      const preset = TRANSPARENCY_PRESETS.find(p => p.id === pId);
+      if (preset) {
+        const matches = (
+          (pId === 'solid' && !enabled) ||
+          (enabled &&
+           masterBg === preset.masterBg &&
+           masterText === preset.masterText &&
+           blur === preset.blur)
+        );
+        btn.classList.toggle('active', !!matches);
+      }
+    });
+
+    // Refresh Section Card Sliders
+    const cards = this.overlay.querySelectorAll('.transparency-section-card');
+    cards.forEach(c => {
+      const el = c as HTMLElement;
+      const secId = el.getAttribute('data-section-id');
+      const meta = TRANSPARENCY_SECTIONS.find(s => s.id === secId);
+      if (!meta) return;
+
+      const bgVal = (preferencesService.get(meta.bgPrefKey) as number) ?? meta.defaultBg;
+      const textVal = (preferencesService.get(meta.textPrefKey) as number) ?? meta.defaultText;
+
+      const bgInput = el.querySelector('.sec-bg-input') as HTMLInputElement;
+      const textInput = el.querySelector('.sec-text-input') as HTMLInputElement;
+      const bgLabel = el.querySelector('.sec-bg-val') as HTMLElement;
+      const textLabel = el.querySelector('.sec-text-val') as HTMLElement;
+
+      if (bgInput) bgInput.value = String(bgVal);
+      if (textInput) textInput.value = String(textVal);
+      if (bgLabel) bgLabel.textContent = `${bgVal}%`;
+      if (textLabel) textLabel.textContent = `${textVal}%`;
+    });
+
+    this.updateAllSectionChips();
   }
 }
