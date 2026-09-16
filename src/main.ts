@@ -90,7 +90,7 @@ async function bootstrap() {
     onVimToggled: (enabled) => {
       editorManager.toggleVim(enabled);
       statusBar.updateVimMode(vimIntegration.getCurrentMode());
-      statusBar.showMessage(`Vim mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
+      statusBar.showMessage(`Editing Mode: ${enabled ? 'Vim Mode' : 'Standard Text Mode'}`);
     }
   });
 
@@ -270,7 +270,7 @@ async function bootstrap() {
       vimIntegration.setEnabled(next);
       editorManager.toggleVim(next);
       statusBar.updateVimMode(vimIntegration.getCurrentMode());
-      statusBar.showMessage(`Vim mode ${next ? 'ENABLED' : 'DISABLED'}`);
+      statusBar.showMessage(`Editing Mode: ${next ? 'Vim Mode' : 'Standard Text Mode'}`);
     },
     onOpenThemePicker: () => {
       openThemePicker();
@@ -912,12 +912,10 @@ A high-performance, VS Code-styled, Vim-customizable IDE.
 * **F12** or **Ctrl + Shift + I**: Developer Tools
 
 ### Vim Mode
-Vim mode is built-in and enabled by default!
-* Press \`i\` for Insert Mode
-* Press \`Esc\` for Normal Mode
-* Press \`v\` for Visual Mode
+Vim mode is built-in and optional!
+* Press \`i\` for Insert Mode, \`Esc\` for Normal Mode, \`v\` for Visual Mode
 * Type \`:w\` to save, \`:q\` to close tab
-* Click the Vim pill in the bottom-left status bar to toggle anytime!
+* Click the **TEXT MODE** / **NORMAL** pill in the bottom-left status bar to toggle anytime!
 
 ### Themes & Customization
 Press **Ctrl + Shift + P** and select **Switch Color Theme** to choose from:
@@ -1091,14 +1089,14 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       },
       {
         id: 'vim.toggle',
-        title: `Vim: Toggle Vim Mode (${vimIntegration.isEnabled() ? 'Disable' : 'Enable'})`,
+        title: `Editing Mode: Toggle Vim Mode (${vimIntegration.isEnabled() ? 'Switch to Standard Text Mode' : 'Enable Vim Mode'})`,
         category: 'Vim',
         action: () => {
           const next = !vimIntegration.isEnabled();
           vimIntegration.setEnabled(next);
           editorManager.toggleVim(next);
           statusBar.updateVimMode(vimIntegration.getCurrentMode());
-          statusBar.showMessage(`Vim mode ${next ? 'ENABLED' : 'DISABLED'}`);
+          statusBar.showMessage(`Editing Mode: ${next ? 'Vim Mode' : 'Standard Text Mode'}`);
         }
       },
       {

@@ -1152,7 +1152,18 @@ html.init-sidebar-collapsed .sidebar {
 .mode-visual, .mode-v-line, .mode-v-block { background: #f59e0b; color: #000; }
 .mode-replace { background: #ec4899; color: #fff; }
 .mode-command { background: #ef4444; color: #fff; }
-.mode-disabled { background: var(--bg-hover); color: var(--fg-muted); }
+.mode-disabled, .mode-text {
+  background: var(--bg-secondary, #21262d);
+  color: var(--fg-secondary, #8b949e);
+  border: 1px solid var(--border-color, #30363d);
+  transition: all 0.15s ease;
+}
+
+.mode-disabled:hover, .mode-text:hover {
+  background: var(--bg-hover, #30363d);
+  color: var(--fg-primary, #ffffff);
+  border-color: var(--accent-color, #58a6ff);
+}
 
 .status-message {
   color: var(--accent-color);

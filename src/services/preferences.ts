@@ -114,7 +114,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.fontSize': 14,
   'editor.lineHeight': 1.5,
   'editor.theme': 'github-dark',
-  'editor.vimEnabled': true,
+  'editor.vimEnabled': false,
   'editor.customCss': '',
   'editor.tabSize': 2,
   'editor.insertSpaces': true,

@@ -50,8 +50,8 @@ export class StatusBarComponent {
   private build() {
     this.container.innerHTML = `
       <div class="status-left">
-        <div class="status-item status-vim-badge" id="status-vim" title="Click to toggle Vim Mode">
-          <span class="vim-indicator">NORMAL</span>
+        <div class="status-item status-vim-badge mode-text" id="status-vim" title="Editing Mode: Standard Text (Click to enable Vim Mode)">
+          <span class="vim-indicator">TEXT MODE</span>
         </div>
         <div class="status-git-group" id="status-git-group">
           <div class="status-item status-git-branch" id="status-git-branch" title="Git: Switch Branch">
@@ -163,13 +163,15 @@ export class StatusBarComponent {
     if (!indicator) return;
 
     if (!isEnabled) {
-      indicator.textContent = 'VIM: OFF';
-      this.vimModeEl.className = 'status-item status-vim-badge mode-disabled';
+      indicator.textContent = 'TEXT MODE';
+      this.vimModeEl.className = 'status-item status-vim-badge mode-text';
+      this.vimModeEl.title = 'Editing Mode: Standard Text (Click to enable Vim Mode)';
       return;
     }
 
     indicator.textContent = mode;
     this.vimModeEl.className = `status-item status-vim-badge mode-${mode.toLowerCase()}`;
+    this.vimModeEl.title = `Editing Mode: Vim (${mode}) (Click to switch to Standard Text Mode)`;
   }
 
   updateCursor(line: number, col: number) {
