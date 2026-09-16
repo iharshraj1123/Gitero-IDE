@@ -77,10 +77,20 @@ export class FileTreeComponent {
     }
   }
 
+  private getExpandedFoldersStorageKey(dirPath: string): string {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < dirPath.length; i++) {
+      h = Math.imul(h ^ dirPath.charCodeAt(i), 0x01000193);
+    }
+    const hash = (h >>> 0).toString(16).padStart(8, '0');
+    return `gitero_expanded_${hash}`;
+  }
+
   private loadExpandedDirectories(dirPath: string) {
     try {
-      const storageKey = `gitero_expanded_folders_${encodeURIComponent(dirPath)}`;
-      const raw = localStorage.getItem(storageKey);
+      const storageKey = this.getExpandedFoldersStorageKey(dirPath);
+      const legacyKey = `gitero_expanded_folders_${encodeURIComponent(dirPath)}`;
+      const raw = localStorage.getItem(storageKey) || localStorage.getItem(legacyKey);
       if (raw) {
         const arr = JSON.parse(raw);
         if (Array.isArray(arr)) {
@@ -96,7 +106,7 @@ export class FileTreeComponent {
     const ws = fsService.getWorkspace();
     if (!ws) return;
     try {
-      const storageKey = `gitero_expanded_folders_${encodeURIComponent(ws)}`;
+      const storageKey = this.getExpandedFoldersStorageKey(ws);
       localStorage.setItem(storageKey, JSON.stringify(Array.from(this.openDirectoryPaths)));
     } catch (e) {
       console.warn('Failed to persist expanded directory state', e);
