@@ -546,7 +546,39 @@ body.window-maximized #app {
   flex: 1;
 }
 
-/* Language Icon Badges */
+/* File & folder icons and badges */
+.tree-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.tree-icon svg,
+.tree-icon img {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.tab-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .icon-badge {
   font-size: 9px;
   font-weight: 800;
@@ -555,17 +587,44 @@ body.window-maximized #app {
   line-height: 1;
   display: inline-block;
   letter-spacing: -0.5px;
+  text-transform: uppercase;
+  user-select: none;
 }
-.badge-ts { background: #3178c6; color: #fff; }
-.badge-js { background: #f7df1e; color: #000; }
-.badge-react { background: #61dafb; color: #000; }
-.badge-rust { background: #dea584; color: #000; }
-.badge-py { background: #3776ab; color: #fff; }
-.badge-c { background: #00599c; color: #fff; }
-.badge-html { background: #e34f26; color: #fff; }
-.badge-css { background: #1572b6; color: #fff; }
-.badge-json { background: #cb9800; color: #fff; }
-.badge-md { background: #083fa1; color: #fff; }
+
+.tab-icon .icon-badge {
+  font-size: 8px;
+  padding: 1px 2px;
+}
+
+/* Icon preview row in Settings -> Appearance */
+.icon-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.icon-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-primary);
+  background: var(--bg-hover);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.icon-preview-label {
+  font-family: var(--editor-font-family, monospace);
+  font-size: 11px;
+}
+
 
 /* Explorer Context Menu */
 .explorer-context-menu {
@@ -3469,4 +3528,232 @@ body.window-maximized #app {
 
 body.window-maximized .win-resize-handle {
   display: none !important;
+}
+
+/* ==========================================================================
+   VS Code Style Top-Right Floating Find & Replace Widget
+   ========================================================================== */
+
+.cm-panels.cm-panels-top {
+  position: absolute !important;
+  top: 0 !important;
+  right: 22px !important;
+  left: auto !important;
+  width: auto !important;
+  background: transparent !important;
+  border: none !important;
+  z-index: 100 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+.cm-panels.cm-panels-top > * {
+  pointer-events: auto !important;
+}
+
+.cm-panels.cm-panels-bottom {
+  display: none !important;
+}
+
+.gitero-find-widget {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  background-color: var(--bg-secondary, #252526);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-top: none;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  padding: 4px 6px;
+  gap: 4px;
+  color: var(--fg-primary, #cccccc);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  font-size: 12px;
+  box-sizing: border-box;
+  transition: box-shadow 0.15s ease;
+}
+
+.gitero-find-widget:focus-within {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+}
+
+.gfw-toggle-col {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.gfw-toggle-replace {
+  width: 18px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted, #858585);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+  transition: transform 0.15s ease, color 0.1s ease;
+}
+
+.gfw-toggle-replace:hover {
+  color: var(--fg-primary, #ffffff);
+  background-color: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+.gfw-toggle-replace.is-expanded svg {
+  transform: rotate(90deg);
+}
+
+.gfw-content-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gfw-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+}
+
+.gfw-input-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 3px;
+  width: 240px;
+  height: 25px;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease;
+}
+
+.gfw-input-box:focus-within {
+  border-color: var(--accent-color, #007acc);
+  outline: 1px solid var(--accent-color, #007acc);
+}
+
+.gfw-input {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg-primary, #cccccc);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0 6px;
+  min-width: 0;
+}
+
+.gfw-input::placeholder {
+  color: var(--fg-muted, #6e7681);
+}
+
+.gfw-find-input.has-no-results {
+  border-color: #f85149 !important;
+  outline: 1px solid #f85149 !important;
+}
+
+.gfw-input-options {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.gfw-opt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--fg-muted, #858585);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.gfw-opt-btn:hover {
+  background-color: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  color: var(--fg-primary, #ffffff);
+}
+
+.gfw-opt-btn.active {
+  background-color: rgba(0, 122, 204, 0.25);
+  border-color: var(--accent-color, #007acc);
+  color: #ffffff;
+}
+
+.gfw-matches-count {
+  font-size: 11px;
+  color: var(--fg-muted, #858585);
+  min-width: 60px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.gfw-matches-count.gfw-count-empty,
+.gfw-matches-count.gfw-count-error {
+  color: #f85149;
+}
+
+.gfw-nav-actions,
+.gfw-replace-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.gfw-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-muted, #858585);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.gfw-btn:hover {
+  background-color: var(--bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--fg-primary, #ffffff);
+}
+
+.gfw-btn:active {
+  background-color: var(--bg-active, rgba(255, 255, 255, 0.16));
+}
+
+.gfw-btn.active {
+  background-color: rgba(0, 122, 204, 0.25);
+  color: var(--accent-color, #007acc);
+}
+
+/* CodeMirror Search Highlights styling */
+.cm-searchMatch {
+  background-color: rgba(234, 179, 8, 0.28) !important;
+  border-bottom: 1px solid rgba(234, 179, 8, 0.7) !important;
+}
+
+.cm-searchMatch-selected {
+  background-color: rgba(245, 158, 11, 0.55) !important;
+  outline: 1px solid rgba(245, 158, 11, 0.9) !important;
 }

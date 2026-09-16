@@ -216,11 +216,8 @@ export class ThemeManager {
       '&.cm-focused .cm-cursor': {
         borderLeftColor: c.editorCursor
       },
-      // Selection highlight: apply both focused and unfocused states
-      '&.cm-focused .cm-selectionBackground': {
-        backgroundColor: `${c.editorSelection} !important`
-      },
-      '.cm-selectionBackground': {
+      // Selection highlight: apply across focused scroller selectionLayer, content, and native
+      '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection, ::selection': {
         backgroundColor: `${c.editorSelection} !important`
       },
       '&.cm-focused': {

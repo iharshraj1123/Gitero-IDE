@@ -52,6 +52,7 @@ export class TitleBarComponent {
   private menuBarElement!: HTMLElement;
   private activeMenuId: string | null = null;
   private isMaximizedState: boolean = false;
+  private savedBounds: { x: number; y: number; width: number; height: number } | null = null;
   private maxRestoreBtn!: HTMLElement;
 
   constructor(container: HTMLElement, options: TitleBarOptions = {}) {
@@ -442,13 +443,17 @@ export class TitleBarComponent {
   private async checkMaximizedState() {
     if (isNative()) {
       try {
-        const isMax = await window.Neutralino?.window?.isMaximized();
-        this.updateMaximizedVisual(isMax ?? true);
+        const size = await window.Neutralino?.window?.getSize();
+        const availW = window.screen?.availWidth || window.screen?.width || 0;
+        const availH = window.screen?.availHeight || window.screen?.height || 0;
+        // Window is considered maximized if width and height match the available screen work area
+        const isMax = !!(size && size.width >= availW - 6 && size.height >= availH - 8);
+        this.updateMaximizedVisual(isMax);
       } catch (e) {
-        // Ignore in web preview
+        this.updateMaximizedVisual(false);
       }
     } else {
-      const isMax = window.innerWidth >= (window.screen?.availWidth || 0) && window.innerHeight >= (window.screen?.availHeight || 0);
+      const isMax = window.innerWidth >= (window.screen?.availWidth || 0) - 6 && window.innerHeight >= (window.screen?.availHeight || 0) - 8;
       this.updateMaximizedVisual(isMax);
     }
   }
@@ -483,12 +488,38 @@ export class TitleBarComponent {
   private async toggleMaximize() {
     if (isNative()) {
       try {
-        const isMax = await window.Neutralino?.window?.isMaximized();
-        if (isMax) {
-          await window.Neutralino?.window?.unmaximize();
+        if (this.isMaximizedState) {
+          // Restore to pre-maximized bounds
+          const b = this.savedBounds || { x: 100, y: 100, width: 1360, height: 860 };
+          await window.Neutralino?.window?.move(b.x, b.y);
+          await window.Neutralino?.window?.setSize({ width: b.width, height: b.height });
           this.updateMaximizedVisual(false);
         } else {
-          await window.Neutralino?.window?.maximize();
+          // Save current bounds before maximizing
+          try {
+            const pos = await window.Neutralino?.window?.getPosition();
+            const size = await window.Neutralino?.window?.getSize();
+            if (pos && size && size.width > 200 && size.height > 200) {
+              this.savedBounds = { x: pos.x, y: pos.y, width: size.width, height: size.height };
+            }
+          } catch {
+            // ignore
+          }
+
+          // Work-area maximize:
+          // Sized to the available screen work area, starting at (0, 0)
+          // When auto-hide taskbar is active (availHeight === screenHeight), leave 2px at the bottom
+          // so Windows Shell detects mouse hover at the bottom monitor edge and pops up the taskbar!
+          const availX = (window.screen as any)?.availLeft ?? 0;
+          const availY = (window.screen as any)?.availTop ?? 0;
+          const availW = window.screen?.availWidth || window.screen?.width || window.innerWidth;
+          const screenH = window.screen?.height || window.innerHeight;
+          const availH = window.screen?.availHeight || screenH;
+          const isAutoHide = availH >= screenH;
+          const targetH = isAutoHide ? (availH - 2) : availH;
+
+          await window.Neutralino?.window?.move(availX, availY);
+          await window.Neutralino?.window?.setSize({ width: availW, height: targetH });
           this.updateMaximizedVisual(true);
         }
       } catch (e) {

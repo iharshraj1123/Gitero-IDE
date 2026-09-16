@@ -413,7 +413,7 @@ async function bootstrap() {
       editorManager.openSearch();
     },
     onReplace: () => {
-      editorManager.openSearch();
+      editorManager.openReplace();
     },
     onToggleWordWrap: () => {
       const isWrap = editorManager.toggleWordWrap();

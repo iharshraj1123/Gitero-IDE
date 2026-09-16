@@ -1,5 +1,6 @@
 export type CursorStyle = 'line' | 'block' | 'underline';
 export type CursorBlinking = 'blink' | 'smooth' | 'solid';
+export type IconTheme = 'badges' | 'lucide' | 'material' | 'custom';
 
 export interface GiteroPreferences {
   'editor.cursorStyle': CursorStyle;
@@ -13,6 +14,8 @@ export interface GiteroPreferences {
   'editor.wordWrap': boolean;
   'files.autoSave': boolean;
   'files.autoSaveDelay': number;
+  'workbench.iconTheme': IconTheme;
+  'workbench.customIconPackage': string;
   'keybindings': Record<string, string>;
 }
 
@@ -62,6 +65,8 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.wordWrap': false,
   'files.autoSave': false,
   'files.autoSaveDelay': 1000,
+  'workbench.iconTheme': 'badges',
+  'workbench.customIconPackage': '',
   'keybindings': { ...DEFAULT_KEYBINDINGS }
 };
 

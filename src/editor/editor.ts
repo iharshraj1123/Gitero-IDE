@@ -1,4 +1,7 @@
-import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, highlightActiveLine, keymap } from '@codemirror/view';
+import {
+  EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection,
+  dropCursor, keymap, ViewPlugin, Decoration, DecorationSet, ViewUpdate
+} from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import {
   defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, selectAll,
@@ -7,13 +10,45 @@ import {
 } from '@codemirror/commands';
 import { foldGutter, foldKeymap, indentOnInput, bracketMatching } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap, snippet } from '@codemirror/autocomplete';
-import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
+import { search, searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
+import { FindWidgetPanel, openReplaceWidget } from './findWidget';
 
 import { themeManager } from '../themes/themeManager';
 import { vimIntegration } from './vim';
 import { detectLanguage, getLanguageByName } from './languages';
 import { preferencesService, CursorStyle } from '../services/preferences';
 import { createSnippetCompletionSource } from './snippets';
+
+// Smart active line highlighter that automatically yields during selections (e.g. Ctrl+A)
+// so the selection highlight is never occluded or hidden by the active line background.
+const activeLineDeco = Decoration.line({ class: 'cm-activeLine' });
+const smartHighlightActiveLine = ViewPlugin.fromClass(class {
+  decorations: DecorationSet;
+  constructor(view: EditorView) {
+    this.decorations = this.getDeco(view);
+  }
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.selectionSet || update.viewportChanged) {
+      this.decorations = this.getDeco(update.view);
+    }
+  }
+  getDeco(view: EditorView) {
+    let lastLineStart = -1;
+    const deco: any[] = [];
+    for (const r of view.state.selection.ranges) {
+      // If text is selected on this range (like Ctrl+A), do NOT paint active line over the selection
+      if (!r.empty) continue;
+      const line = view.lineBlockAt(r.head);
+      if (line.from > lastLineStart) {
+        deco.push(activeLineDeco.range(line.from));
+        lastLineStart = line.from;
+      }
+    }
+    return Decoration.set(deco);
+  }
+}, {
+  decorations: v => v.decorations
+});
 
 export interface CursorPosition {
   line: number;
@@ -53,8 +88,12 @@ export class EditorManager {
       autocompletion({
         override: [createSnippetCompletionSource()]
       }),
-      highlightActiveLine(),
+      smartHighlightActiveLine,
       highlightSelectionMatches(),
+      search({
+        top: true,
+        createPanel: (view) => new FindWidgetPanel(view)
+      }),
       this.tabSizeCompartment.of(EditorState.tabSize.of(tabSize)),
       this.wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
       this.languageCompartment.of(langExtension),
@@ -71,7 +110,8 @@ export class EditorManager {
         { key: 'Mod-]', run: indentMore },
         { key: 'Mod-[', run: indentLess },
         { key: 'Mod-l', run: selectLine },
-        { key: 'Mod-h', run: openSearchPanel },
+        { key: 'Mod-f', run: openSearchPanel, scope: 'editor search-panel' },
+        { key: 'Mod-h', run: openReplaceWidget, scope: 'editor search-panel' },
         ...closeBracketsKeymap,
         ...defaultKeymap,
         ...searchKeymap,
@@ -248,6 +288,11 @@ export class EditorManager {
   openSearch(): void {
     if (!this.view) return;
     openSearchPanel(this.view);
+  }
+
+  openReplace(): void {
+    if (!this.view) return;
+    openReplaceWidget(this.view);
   }
 
   gotoLine(lineNumber: number, colNumber: number = 1) {
