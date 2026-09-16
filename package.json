@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "neu:build": "npx @neutralinojs/neu build",
     "start": "neu run",
-    "installer": "npm run build && npx @neutralinojs/neu build && iscc installer/gitero.iss",
+    "installer": "npm run build && npx @neutralinojs/neu build && (iscc installer/gitero.iss 2>nul || \"C:\\Users\\ihars\\AppData\\Local\\Programs\\Inno Setup 6\\iscc.exe\" installer/gitero.iss)",
     "preview": "vite preview",
     "neu:run": "neu run"
   },

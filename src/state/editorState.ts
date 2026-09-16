@@ -161,6 +161,26 @@ export class EditorStateManager {
     }
   }
 
+  renameTab(oldId: string, newPath: string, savedContent: string) {
+    const tab = this.tabs.find(t => t.id === oldId);
+    if (tab) {
+      const newName = newPath.split(/[/\\]/).pop() || newPath;
+      tab.id = newPath;
+      tab.path = newPath;
+      tab.name = newName;
+      tab.content = savedContent;
+      tab.originalContent = savedContent;
+      tab.isDirty = false;
+      tab.language = detectLanguage(newPath).name;
+
+      if (this.activeTabId === oldId) {
+        this.activeTabId = newPath;
+      }
+      this.persist();
+      this.notify();
+    }
+  }
+
   onChange(listener: StateChangeListener) {
     this.listeners.push(listener);
   }

@@ -9,6 +9,7 @@ import { FileTreeComponent } from './ui/fileTree';
 import { StatusBarComponent } from './ui/statusBar';
 import { commandPalette, PaletteItem } from './ui/commandPalette';
 import { SettingsModalComponent } from './ui/settingsModal';
+import { TitleBarComponent } from './ui/titleBar';
 import { preferencesService } from './services/preferences';
 
 async function bootstrap() {
@@ -33,6 +34,7 @@ async function bootstrap() {
   preferencesService.subscribe('editor.fontSize', applyTypography);
 
   // 3. UI DOM References
+  const titleBarContainer = document.getElementById('app-titlebar') as HTMLElement;
   const sidebarEl = document.getElementById('sidebar') as HTMLElement;
   const fileTreeContainer = document.getElementById('file-tree-container') as HTMLElement;
   const tabBarContainer = document.getElementById('tab-bar') as HTMLElement;
@@ -68,13 +70,174 @@ async function bootstrap() {
   // 6. Initialize Tab Bar
   new TabBarComponent(tabBarContainer);
 
-  // 7. Initialize CodeMirror Editor
+  // Auto-Save Engine
+  let autoSaveTimer: any = null;
+  function triggerAutoSave() {
+    const isAutoSave = preferencesService.get('files.autoSave');
+    if (!isAutoSave) return;
+
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+    }
+
+    const delay = preferencesService.get('files.autoSaveDelay') || 1000;
+    autoSaveTimer = setTimeout(async () => {
+      const activeTab = editorState.getActiveTab();
+      if (activeTab && activeTab.isDirty) {
+        try {
+          const content = editorManager.getContent();
+          await fsService.writeFile(activeTab.path, content);
+          editorState.markSaved(activeTab.id, content);
+          statusBar.showMessage(`Auto-saved ${activeTab.name}`);
+        } catch (e) {
+          console.warn('Auto-save failed:', e);
+        }
+      }
+    }, delay);
+  }
+
+  // Save Active File handler
+  async function saveActiveFile() {
+    const activeTab = editorState.getActiveTab();
+    if (!activeTab) return;
+
+    try {
+      const currentContent = editorManager.getContent();
+      await fsService.writeFile(activeTab.path, currentContent);
+      editorState.markSaved(activeTab.id, currentContent);
+      statusBar.showMessage(`Saved ${activeTab.name}`);
+    } catch (err) {
+      alert(`Failed to save file: ${err}`);
+    }
+  }
+
+  // Save As Active File handler
+  async function saveAsActiveFile() {
+    const activeTab = editorState.getActiveTab();
+    const currentContent = editorManager.getContent();
+    const defaultPath = activeTab ? activeTab.path : (fsService.getWorkspace() || '');
+
+    const newPath = await fsService.saveFileDialog(defaultPath);
+    if (!newPath) return;
+
+    try {
+      await fsService.writeFile(newPath, currentContent);
+      if (activeTab) {
+        editorState.renameTab(activeTab.id, newPath, currentContent);
+      } else {
+        editorState.openFile(newPath, currentContent);
+      }
+      const newName = newPath.split(/[/\\]/).pop() || newPath;
+      statusBar.showMessage(`Saved as ${newName}`);
+
+      const ws = fsService.getWorkspace();
+      if (ws) {
+        fileTree.loadWorkspace(ws);
+      }
+    } catch (err) {
+      alert(`Failed to save file as "${newPath}": ${err}`);
+    }
+  }
+
+  // Open file dialog handler
+  async function openFilePicker() {
+    const filePath = await fsService.openFileDialog();
+    if (filePath) {
+      try {
+        const content = await fsService.readFile(filePath);
+        editorState.openFile(filePath, content);
+      } catch (err) {
+        alert(`Failed to open file: ${err}`);
+      }
+    }
+  }
+
+  // 7. Initialize Title Bar & Top Nav
+  const titleBar = new TitleBarComponent(titleBarContainer, {
+    onNewFile: () => {
+      const ws = fsService.getWorkspace() || '.';
+      fileTree.promptCreateFile(ws);
+    },
+    onOpenFile: () => {
+      openFilePicker();
+    },
+    onOpenFolder: async () => {
+      const folder = await fsService.selectFolder();
+      if (folder) await loadWorkspace(folder);
+    },
+    onSave: () => {
+      saveActiveFile();
+    },
+    onSaveAs: () => {
+      saveAsActiveFile();
+    },
+    onToggleAutoSave: () => {
+      const current = preferencesService.get('files.autoSave');
+      preferencesService.set('files.autoSave', !current);
+      statusBar.showMessage(`Auto Save ${!current ? 'ENABLED' : 'DISABLED'}`);
+    },
+    onOpenSettings: () => {
+      settingsModal.open();
+    },
+    onOpenThemePicker: () => {
+      openThemePicker();
+    },
+    onOpenCommandPalette: () => {
+      openCommandPalette();
+    },
+    onQuickOpen: () => {
+      openQuickFilePicker();
+    },
+    onToggleSidebar: () => {
+      sidebarEl.classList.toggle('collapsed');
+    },
+    onCycleCursor: () => {
+      const style = editorManager.cycleCursorStyle();
+      statusBar.showMessage(`Cursor Style: ${style.toUpperCase()} (Saved as preference)`);
+    },
+    onUndo: () => {
+      document.execCommand('undo');
+    },
+    onRedo: () => {
+      document.execCommand('redo');
+    },
+    onSelectAll: () => {
+      document.execCommand('selectAll');
+    },
+    onFind: () => {
+      openCommandPalette();
+    },
+    onReplace: () => {
+      openCommandPalette();
+    },
+    onCheckUpdates: () => {
+      settingsModal.open();
+    },
+    onAbout: () => {
+      alert('Gitero IDE v0.0.1-alpha\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.');
+    }
+  });
+
+  const updateAppTitle = (activeTab: EditorTab | null) => {
+    const ws = fsService.getWorkspace();
+    const wsName = ws ? ws.split(/[/\\]/).filter(Boolean).pop() : '';
+    if (activeTab) {
+      titleBar.updateTitle(`${activeTab.name} — ${wsName || 'Gitero IDE'} — Gitero IDE`);
+    } else if (wsName) {
+      titleBar.updateTitle(`${wsName} — Gitero IDE`);
+    } else {
+      titleBar.updateTitle('Gitero IDE');
+    }
+  };
+
+  // 8. Initialize CodeMirror Editor
   editorManager.init(cmRoot, {
     initialContent: '',
     onContentChange: (newContent) => {
       const activeTab = editorState.getActiveTab();
       if (activeTab) {
         editorState.updateContent(activeTab.id, newContent);
+        triggerAutoSave();
       }
     },
     onCursorChange: (pos) => {
@@ -86,7 +249,7 @@ async function bootstrap() {
     }
   });
 
-  // 8. Connect Vim Ex-Commands (:w, :q)
+  // 9. Connect Vim Ex-Commands (:w, :q)
   vimIntegration.setCallbacks(
     async () => {
       await saveActiveFile();
@@ -99,16 +262,17 @@ async function bootstrap() {
     }
   );
 
-  // 9. Initialize File Tree
+  // 10. Initialize File Tree
   const fileTree = new FileTreeComponent(fileTreeContainer, (filePath, content) => {
     editorState.openFile(filePath, content);
   });
 
-  // 10. Listen to Editor State changes (active tab, dirty indicators, etc.)
+  // 11. Listen to Editor State changes (active tab, dirty indicators, etc.)
   let currentLoadedTabId: string | null = null;
 
   editorState.onChange((tabs, activeTab) => {
     statusBar.updateTabInfo(activeTab);
+    updateAppTitle(activeTab);
 
     if (!activeTab) {
       cmRoot.style.display = 'none';
@@ -129,27 +293,13 @@ async function bootstrap() {
     }
   });
 
-  // 11. Save Active File handler
-  async function saveActiveFile() {
-    const activeTab = editorState.getActiveTab();
-    if (!activeTab) return;
-
-    try {
-      const currentContent = editorManager.getContent();
-      await fsService.writeFile(activeTab.path, currentContent);
-      editorState.markSaved(activeTab.id, currentContent);
-      statusBar.showMessage(`Saved ${activeTab.name}`);
-    } catch (err) {
-      alert(`Failed to save file: ${err}`);
-    }
-  }
-
   // 12. Workspace Loader
   async function loadWorkspace(dirPath: string) {
     fsService.setWorkspace(dirPath);
     const folderName = dirPath.split(/[/\\]/).filter(Boolean).pop() || dirPath;
     workspaceTitle.textContent = folderName.toUpperCase();
     await fileTree.loadWorkspace(dirPath);
+    updateAppTitle(editorState.getActiveTab());
     statusBar.showMessage(`Opened folder: ${folderName}`);
   }
 
@@ -258,6 +408,23 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         }
       },
       {
+        id: 'file.newFile',
+        title: 'File: New File',
+        detail: 'Ctrl+N',
+        category: 'File',
+        action: () => {
+          const ws = fsService.getWorkspace() || '.';
+          fileTree.promptCreateFile(ws);
+        }
+      },
+      {
+        id: 'file.openFile',
+        title: 'File: Open File...',
+        detail: 'Ctrl+O',
+        category: 'File',
+        action: () => openFilePicker()
+      },
+      {
         id: 'file.openFolder',
         title: 'File: Open Folder...',
         category: 'File',
@@ -272,6 +439,23 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         detail: 'Ctrl+S or :w',
         category: 'File',
         action: () => saveActiveFile()
+      },
+      {
+        id: 'file.saveAs',
+        title: 'File: Save As...',
+        detail: 'Ctrl+Shift+S',
+        category: 'File',
+        action: () => saveAsActiveFile()
+      },
+      {
+        id: 'file.toggleAutoSave',
+        title: `File: Toggle Auto Save (${preferencesService.get('files.autoSave') ? 'Disable' : 'Enable'})`,
+        category: 'File',
+        action: () => {
+          const cur = preferencesService.get('files.autoSave');
+          preferencesService.set('files.autoSave', !cur);
+          statusBar.showMessage(`Auto Save ${!cur ? 'ENABLED' : 'DISABLED'}`);
+        }
       },
       {
         id: 'file.close',
@@ -373,10 +557,32 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       return;
     }
 
+    // Ctrl + Shift + S (Save As)
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveAsActiveFile();
+      return;
+    }
+
     // Ctrl + S (Save)
-    if (e.ctrlKey && e.key.toLowerCase() === 's') {
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 's') {
       e.preventDefault();
       saveActiveFile();
+      return;
+    }
+
+    // Ctrl + O (Open File)
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'o') {
+      e.preventDefault();
+      openFilePicker();
+      return;
+    }
+
+    // Ctrl + N (New File)
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      const ws = fsService.getWorkspace() || '.';
+      fileTree.promptCreateFile(ws);
       return;
     }
 

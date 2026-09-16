@@ -72,6 +72,25 @@ export class SettingsModalComponent {
             </div>
           </div>
 
+          <!-- Files & Auto-Save Section -->
+          <div class="settings-section">
+            <h3>Files & Auto-Save</h3>
+            <div class="setting-row">
+              <label class="setting-label">
+                <span>Enable Auto Save</span>
+                <span class="setting-desc">Automatically save dirty files after a brief delay (Default: Off)</span>
+              </label>
+              <input type="checkbox" id="setting-auto-save-toggle" class="setting-checkbox" />
+            </div>
+            <div class="setting-row">
+              <label class="setting-label">
+                <span>Auto Save Delay (ms)</span>
+                <span class="setting-desc">Delay in milliseconds before automatically saving (e.g. 1000)</span>
+              </label>
+              <input type="number" id="setting-auto-save-delay" class="setting-input-small" min="100" max="10000" step="100" value="1000" />
+            </div>
+          </div>
+
           <!-- Vim Mode Section -->
           <div class="settings-section">
             <h3>Vim Mode</h3>
@@ -269,6 +288,12 @@ export class SettingsModalComponent {
 
     this.loadBranches();
 
+    const autoSaveToggle = this.overlay.querySelector('#setting-auto-save-toggle') as HTMLInputElement;
+    autoSaveToggle.checked = preferencesService.get('files.autoSave');
+
+    const autoSaveDelayInput = this.overlay.querySelector('#setting-auto-save-delay') as HTMLInputElement;
+    autoSaveDelayInput.value = String(preferencesService.get('files.autoSaveDelay'));
+
     const vimToggle = this.overlay.querySelector('#setting-vim-toggle') as HTMLInputElement;
     vimToggle.checked = vimIntegration.isEnabled();
 
@@ -303,12 +328,19 @@ export class SettingsModalComponent {
   }
 
   private save() {
+    const autoSaveToggle = this.overlay.querySelector('#setting-auto-save-toggle') as HTMLInputElement;
+    const autoSaveDelayInput = this.overlay.querySelector('#setting-auto-save-delay') as HTMLInputElement;
     const vimToggle = this.overlay.querySelector('#setting-vim-toggle') as HTMLInputElement;
     const themeSelect = this.overlay.querySelector('#setting-theme-select') as HTMLSelectElement;
     const cursorSelect = this.overlay.querySelector('#setting-cursor-style') as HTMLSelectElement;
     const fontInput = this.overlay.querySelector('#setting-font-family') as HTMLInputElement;
     const sizeInput = this.overlay.querySelector('#setting-font-size') as HTMLInputElement;
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
+
+    // Save Auto Save
+    preferencesService.set('files.autoSave', autoSaveToggle.checked);
+    const delayNum = parseInt(autoSaveDelayInput.value.trim(), 10) || 1000;
+    preferencesService.set('files.autoSaveDelay', delayNum);
 
     // Save Cursor Style
     const newCursor = (cursorSelect.value as CursorStyle) || 'line';

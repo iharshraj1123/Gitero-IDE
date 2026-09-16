@@ -60,6 +60,49 @@ export class FileSystemService {
     return null;
   }
 
+  async openFileDialog(): Promise<string | null> {
+    if (isNative()) {
+      try {
+        const files = await window.Neutralino.os.showOpenDialog('Open File', {
+          multiSelections: false,
+          defaultPath: this.currentWorkspace || undefined,
+          filters: [
+            { name: 'All Files', extensions: ['*'] },
+            { name: 'Code & Text Files', extensions: ['js', 'ts', 'jsx', 'tsx', 'py', 'rs', 'c', 'cpp', 'h', 'hpp', 'html', 'css', 'json', 'md', 'txt', 'go', 'java', 'xml', 'yaml', 'yml', 'sh', 'bat', 'ps1'] }
+          ]
+        });
+        if (files && files.length > 0) {
+          return files[0];
+        }
+      } catch (err) {
+        console.error('Failed to show open dialog:', err);
+      }
+    } else {
+      return prompt('Open file (mock path or name):', 'README.md');
+    }
+    return null;
+  }
+
+  async saveFileDialog(defaultPath?: string): Promise<string | null> {
+    if (isNative()) {
+      try {
+        const selected = await window.Neutralino.os.showSaveDialog('Save As', {
+          defaultPath: defaultPath || this.currentWorkspace || undefined,
+          forceOverwrite: true,
+          filters: [
+            { name: 'All Files', extensions: ['*'] }
+          ]
+        });
+        return selected || null;
+      } catch (err) {
+        console.error('Failed to show save dialog:', err);
+        return null;
+      }
+    } else {
+      return prompt('Save file as:', defaultPath || 'untitled.txt');
+    }
+  }
+
   async readDirectory(dirPath: string): Promise<FileNode[]> {
     if (isNative()) {
       try {

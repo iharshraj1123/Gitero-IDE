@@ -11,6 +11,8 @@ export interface GiteroPreferences {
   'editor.customCss': string;
   'editor.tabSize': number;
   'editor.wordWrap': boolean;
+  'files.autoSave': boolean;
+  'files.autoSaveDelay': number;
 }
 
 const STORAGE_KEY = 'gitero_preferences_v1';
@@ -24,7 +26,9 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.vimEnabled': true,
   'editor.customCss': '',
   'editor.tabSize': 2,
-  'editor.wordWrap': false
+  'editor.wordWrap': false,
+  'files.autoSave': false,
+  'files.autoSaveDelay': 1000
 };
 
 type PreferenceChangeListener<T> = (newValue: T, oldValue: T) => void;
