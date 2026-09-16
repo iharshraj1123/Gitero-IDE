@@ -51,6 +51,9 @@ export class ThemeManager {
   }
 
   init() {
+    this.customThemes = this.loadCustomThemes();
+    this.currentThemeId = preferencesService.get('editor.theme');
+    this.customCss = preferencesService.get('editor.customCss');
     this.applyTheme(this.currentThemeId, false);
     this.applyCustomCss(this.customCss, false);
   }
