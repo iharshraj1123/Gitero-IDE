@@ -17,6 +17,7 @@ import { TerminalPanelComponent } from './ui/terminalPanel';
 import { ShortcutsModalComponent } from './ui/shortcutsModal';
 import { SUPPORTED_LANGUAGES } from './editor/languages';
 import { MarkdownViewerComponent } from './ui/markdownViewer';
+import { gitService } from './services/git';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -147,6 +148,75 @@ async function bootstrap() {
     commandPalette.open(items);
   }
 
+  // Git Branch Picker via Command Palette
+  async function openBranchPicker() {
+    if (!gitService.isGitRepo()) {
+      statusBar.showMessage('Not a Git repository');
+      return;
+    }
+
+    const branches = await gitService.getBranches();
+    const items: PaletteItem[] = [
+      {
+        id: 'git.branch.create',
+        title: '+ Create new branch...',
+        detail: 'Create and checkout a new Git branch',
+        category: 'Git',
+        action: () => {
+          commandPalette.promptInput({
+            placeholder: 'Branch name...',
+            onAccept: async (val) => {
+              if (val.trim()) {
+                const res = await gitService.createAndCheckoutBranch(val.trim());
+                if (res.success) {
+                  statusBar.showMessage(`Switched to new branch: ${val.trim()}`);
+                } else {
+                  alert(`Failed to create branch: ${res.error}`);
+                }
+              }
+            }
+          });
+        }
+      }
+    ];
+
+    branches.forEach((b) => {
+      items.push({
+        id: `git.branch.${b.name}`,
+        title: `${b.name} ${b.isCurrent ? '(current)' : ''}`,
+        detail: b.isCurrent ? 'Current active branch' : 'Checkout branch',
+        category: 'Git Branches',
+        action: async () => {
+          if (!b.isCurrent) {
+            const res = await gitService.checkoutBranch(b.name);
+            if (res.success) {
+              statusBar.showMessage(`Switched to branch: ${b.name}`);
+            } else {
+              alert(`Failed to checkout branch: ${res.error}`);
+            }
+          }
+        }
+      });
+    });
+
+    commandPalette.open(items);
+  }
+
+  // Git Sync
+  async function syncGit() {
+    if (!gitService.isGitRepo()) {
+      statusBar.showMessage('Not a Git repository');
+      return;
+    }
+    statusBar.showMessage('Syncing with remote repository...');
+    const res = await gitService.push();
+    if (res.success) {
+      statusBar.showMessage('Git: Successfully synced with remote');
+    } else {
+      statusBar.showMessage(`Git sync error: ${res.error || 'Failed'}`);
+    }
+  }
+
   // 6. Initialize Status Bar
   const statusBar = new StatusBarComponent(statusBarContainer, {
     onToggleVim: () => {
@@ -167,6 +237,12 @@ async function bootstrap() {
     },
     onOpenGit: () => {
       showSidebarPane('git');
+    },
+    onSwitchBranch: () => {
+      openBranchPicker();
+    },
+    onSyncGit: () => {
+      syncGit();
     }
   });
 
@@ -192,6 +268,7 @@ async function bootstrap() {
           await fsService.writeFile(activeTab.path, content);
           editorState.markSaved(activeTab.id, content);
           statusBar.showMessage(`Auto-saved ${activeTab.name}`);
+          gitService.refresh();
         } catch (e) {
           console.warn('Auto-save failed:', e);
         }
@@ -213,6 +290,7 @@ async function bootstrap() {
       await fsService.writeFile(activeTab.path, currentContent);
       editorState.markSaved(activeTab.id, currentContent);
       statusBar.showMessage(`Saved ${activeTab.name}`);
+      gitService.refresh();
     } catch (err) {
       alert(`Failed to save file: ${err}`);
     }
@@ -354,7 +432,7 @@ async function bootstrap() {
       settingsModal.open();
     },
     onAbout: () => {
-      alert('Gitero IDE v0.0.3-alpha\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.');
+      alert('Gitero IDE v0.0.4-alpha\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.');
     }
   });
 
@@ -473,6 +551,7 @@ async function bootstrap() {
     updateAppTitle(editorState.getActiveTab());
     terminalPanel.setCwd(dirPath);
     terminalPanel.logOutput(`Opened workspace folder: ${dirPath}`);
+    gitService.refresh();
     gitPanel.refresh();
     statusBar.showMessage(`Opened folder: ${folderName}`);
   }
@@ -829,6 +908,32 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         action: () => showSidebarPane('git')
       },
       {
+        id: 'git.switchBranch',
+        title: 'Git: Switch Branch...',
+        detail: 'Ctrl+Shift+B',
+        category: 'Git',
+        action: () => openBranchPicker()
+      },
+      {
+        id: 'git.sync',
+        title: 'Git: Sync / Push Changes',
+        detail: 'Ctrl+Shift+U',
+        category: 'Git',
+        action: () => syncGit()
+      },
+      {
+        id: 'git.stageAll',
+        title: 'Git: Stage All Changes',
+        category: 'Git',
+        action: () => gitService.stageAll()
+      },
+      {
+        id: 'git.unstageAll',
+        title: 'Git: Unstage All Changes',
+        category: 'Git',
+        action: () => gitService.unstageAll()
+      },
+      {
         id: 'preferences.language',
         title: 'Preferences: Change Language Mode',
         category: 'Preferences',
@@ -948,6 +1053,20 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
     if (matchAction('workbench.view.scm')) {
       e.preventDefault();
       showSidebarPane('git');
+      return;
+    }
+
+    // Git Sync
+    if (matchAction('git.sync')) {
+      e.preventDefault();
+      syncGit();
+      return;
+    }
+
+    // Git Switch Branch
+    if (matchAction('git.switchBranch')) {
+      e.preventDefault();
+      openBranchPicker();
       return;
     }
 

@@ -21,6 +21,8 @@ export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'workbench.action.terminal.toggleTerminal', name: 'Toggle Integrated Terminal', category: 'Terminal' },
   { id: 'workbench.action.findInFiles', name: 'Find in Files (Global Search)', category: 'Search' },
   { id: 'workbench.view.scm', name: 'Source Control (Git)', category: 'Git' },
+  { id: 'git.sync', name: 'Git: Sync / Push Remote Changes', category: 'Git' },
+  { id: 'git.switchBranch', name: 'Git: Switch Branch...', category: 'Git' },
   { id: 'workbench.action.gotoLine', name: 'Go to Line/Column...', category: 'Go' },
   { id: 'editor.action.toggleWordWrap', name: 'Toggle Word Wrap', category: 'Editor' },
   { id: 'markdown.showPreview', name: 'Toggle Markdown Preview / Raw Editor', category: 'Markdown' },

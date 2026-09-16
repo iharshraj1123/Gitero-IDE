@@ -1,6 +1,8 @@
 import { FileNode, fsService } from '../services/fs';
 import { editorState } from '../state/editorState';
 import { getFileIconSvg } from './icons';
+import { gitService } from '../services/git';
+import { diffModal } from './diffModal';
 
 export interface ContextMenuItem {
   label: string;
@@ -40,6 +42,12 @@ export class FileTreeComponent {
     this.setupGlobalContextMenuDismiss();
     this.setupContainerContextMenu();
     this.setupKeyboardShortcuts();
+
+    gitService.onStatusChange(() => {
+      if (this.rootNodes.length > 0) {
+        this.render();
+      }
+    });
   }
 
   async loadWorkspace(dirPath: string) {
@@ -111,6 +119,30 @@ export class FileTreeComponent {
     row.appendChild(chevron);
     row.appendChild(iconSpan);
     row.appendChild(label);
+
+    // Git decorations
+    if (node.isDirectory) {
+      const changeCount = gitService.getFolderChangeCount(node.path);
+      if (changeCount > 0) {
+        row.classList.add('tree-row-has-changes');
+        const folderDot = document.createElement('span');
+        folderDot.className = 'tree-folder-git-dot';
+        folderDot.title = `${changeCount} modified/untracked file(s) inside`;
+        row.appendChild(folderDot);
+      }
+    } else {
+      const gitStatus = gitService.getFileStatus(node.path);
+      if (gitStatus) {
+        row.classList.add(`tree-row-git-${gitStatus.status.toLowerCase()}`);
+        const gitBadge = document.createElement('span');
+        gitBadge.className = `tree-git-badge status-${gitStatus.status.toLowerCase()}`;
+        gitBadge.textContent = gitStatus.status;
+        gitBadge.title = gitStatus.isStaged 
+          ? `Git: Staged (${gitStatus.status})` 
+          : `Git: ${gitStatus.status === 'U' ? 'Untracked' : 'Modified'} (${gitStatus.status})`;
+        row.appendChild(gitBadge);
+      }
+    }
 
     const childrenContainer = document.createElement('div');
     childrenContainer.className = 'tree-children';
@@ -263,6 +295,36 @@ export class FileTreeComponent {
         action: () => this.promptCreateFolder(targetDir)
       });
       items.push({ label: '', divider: true });
+
+      if (!node.isDirectory) {
+        const gitStatus = gitService.getFileStatus(node.path);
+        if (gitStatus) {
+          items.push({
+            label: 'Open Changes (Diff)',
+            action: () => diffModal.open(gitStatus, gitStatus.isStaged)
+          });
+          if (gitStatus.isStaged) {
+            items.push({
+              label: 'Unstage Changes',
+              action: () => gitService.unstageFile(gitStatus.relativePath)
+            });
+          } else {
+            items.push({
+              label: 'Stage Changes',
+              action: () => gitService.stageFile(gitStatus.relativePath)
+            });
+          }
+          items.push({
+            label: 'Discard Changes',
+            action: () => {
+              if (confirm(`Discard changes to "${gitStatus.relativePath}"?`)) {
+                gitService.discardFile(gitStatus.relativePath, gitStatus.status === 'U');
+              }
+            }
+          });
+          items.push({ label: '', divider: true });
+        }
+      }
 
       items.push({
         label: 'Reveal in File Explorer',

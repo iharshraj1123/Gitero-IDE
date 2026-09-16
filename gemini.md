@@ -20,7 +20,7 @@
 * **Output Folder**:  
   `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\`
 * **Current Installer Executable**:  
-  `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\Gitero-Setup-0.0.3-alpha.exe`
+  `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\Gitero-Setup-0.0.4-alpha.exe`
 * **Inno Setup Script**:  
   `d:\ProjectsNew\appDev2\Gitero IDE\installer\gitero.iss`
 
@@ -30,7 +30,7 @@
 
 * **GitHub Repository**: [https://github.com/iharshraj1123/Glitero-IDE](https://github.com/iharshraj1123/Glitero-IDE)
 * **Active Branch**: `main`
-* **Current Version**: `0.0.3-alpha`
+* **Current Version**: `0.0.4-alpha`
 
 ---
 
@@ -42,7 +42,7 @@
 | `npm start` | Run the native desktop app with Neutralino CLI |
 | `npm run build` | Compile TypeScript and bundle frontend to `dist/` |
 | `npm run neu:build` | Package `dist/` into `dist/gitero/resources.neu` |
-| `npm run installer` | Complete build: compile frontend, bundle `resources.neu`, and generate `Gitero-Setup-0.0.3-alpha.exe` |
+| `npm run installer` | Complete build: compile frontend, bundle `resources.neu`, and generate `Gitero-Setup-0.0.4-alpha.exe` |
 
 ---
 

@@ -2,12 +2,15 @@ import { vimIntegration, VimMode } from '../editor/vim';
 import { themeManager } from '../themes/themeManager';
 import { EditorTab } from '../state/editorState';
 import { preferencesService } from '../services/preferences';
+import { gitService } from '../services/git';
 
 export class StatusBarComponent {
   private container: HTMLElement;
 
   private vimModeEl!: HTMLElement;
+  private gitGroupEl!: HTMLElement;
   private gitBranchEl!: HTMLElement;
+  private gitSyncEl!: HTMLElement;
   private messageEl!: HTMLElement;
   private cursorEl!: HTMLElement;
   private spacesEl!: HTMLElement;
@@ -20,6 +23,8 @@ export class StatusBarComponent {
   private onOpenLanguagePicker?: () => void;
   private onOpenIndentationPicker?: () => void;
   private onOpenGit?: () => void;
+  private onSwitchBranch?: () => void;
+  private onSyncGit?: () => void;
 
   constructor(container: HTMLElement, options?: {
     onToggleVim?: () => void;
@@ -27,6 +32,8 @@ export class StatusBarComponent {
     onOpenLanguagePicker?: () => void;
     onOpenIndentationPicker?: () => void;
     onOpenGit?: () => void;
+    onSwitchBranch?: () => void;
+    onSyncGit?: () => void;
   }) {
     this.container = container;
     this.onToggleVim = options?.onToggleVim;
@@ -34,6 +41,8 @@ export class StatusBarComponent {
     this.onOpenLanguagePicker = options?.onOpenLanguagePicker;
     this.onOpenIndentationPicker = options?.onOpenIndentationPicker;
     this.onOpenGit = options?.onOpenGit;
+    this.onSwitchBranch = options?.onSwitchBranch;
+    this.onSyncGit = options?.onSyncGit;
     this.build();
     this.setupListeners();
   }
@@ -44,9 +53,14 @@ export class StatusBarComponent {
         <div class="status-item status-vim-badge" id="status-vim" title="Click to toggle Vim Mode">
           <span class="vim-indicator">NORMAL</span>
         </div>
-        <div class="status-item" id="status-git" title="Click to open Source Control">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
-          <span class="git-branch-name">main</span>
+        <div class="status-git-group" id="status-git-group">
+          <div class="status-item status-git-branch" id="status-git-branch" title="Git: Switch Branch">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            <span class="git-branch-name">main</span>
+          </div>
+          <div class="status-item status-git-sync" id="status-git-sync" title="Git: Synchronize Changes (Push / Pull)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+          </div>
         </div>
         <div class="status-item status-message" id="status-msg"></div>
       </div>
@@ -63,7 +77,9 @@ export class StatusBarComponent {
     `;
 
     this.vimModeEl = this.container.querySelector('#status-vim') as HTMLElement;
-    this.gitBranchEl = this.container.querySelector('#status-git') as HTMLElement;
+    this.gitGroupEl = this.container.querySelector('#status-git-group') as HTMLElement;
+    this.gitBranchEl = this.container.querySelector('#status-git-branch') as HTMLElement;
+    this.gitSyncEl = this.container.querySelector('#status-git-sync') as HTMLElement;
     this.messageEl = this.container.querySelector('#status-msg') as HTMLElement;
     this.cursorEl = this.container.querySelector('#status-cursor') as HTMLElement;
     this.spacesEl = this.container.querySelector('#status-spaces') as HTMLElement;
@@ -76,7 +92,15 @@ export class StatusBarComponent {
     });
 
     this.gitBranchEl.addEventListener('click', () => {
-      this.onOpenGit?.();
+      if (this.onSwitchBranch) {
+        this.onSwitchBranch();
+      } else {
+        this.onOpenGit?.();
+      }
+    });
+
+    this.gitSyncEl.addEventListener('click', () => {
+      this.onSyncGit?.();
     });
 
     this.spacesEl.addEventListener('click', () => {
@@ -107,6 +131,16 @@ export class StatusBarComponent {
     // Tab size updates
     preferencesService.subscribe('editor.tabSize', (size) => {
       this.spacesEl.textContent = `Spaces: ${size}`;
+    });
+
+    // Git state updates
+    gitService.onStatusChange((state) => {
+      if (state.isRepo) {
+        this.gitGroupEl.style.display = 'inline-flex';
+        this.updateGitBranch(state.branch);
+      } else {
+        this.gitGroupEl.style.display = 'none';
+      }
     });
 
     // Initial values

@@ -2,7 +2,7 @@
 ; Generates a lightweight (~3.5MB) native Windows Installer with desktop icon, Start menu, and "Open with Gitero" context menu.
 
 #define MyAppName "Gitero IDE"
-#define MyAppVersion "0.0.3-alpha"
+#define MyAppVersion "0.0.4-alpha"
 #define MyAppPublisher "Gitero Team"
 #define MyAppURL "https://github.com/iharshraj1123/Glitero-IDE"
 #define MyAppExeName "Gitero.exe"
@@ -41,8 +41,8 @@ Source: "..\neutralino.config.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\public\icons\appIcon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"; IconIndex: 0
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"; IconIndex: 0; Tasks: desktopicon
 
 [Registry]
 ; 1. Right-click ANY FILE context menu: "Open with Gitero"

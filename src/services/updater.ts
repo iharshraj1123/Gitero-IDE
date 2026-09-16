@@ -37,7 +37,7 @@ export interface UpdateHistoryEntry {
 }
 
 const GITHUB_REPO = 'iharshraj1123/Glitero-IDE';
-const CURRENT_VERSION = 'v0.0.3-alpha';
+const CURRENT_VERSION = 'v0.0.4-alpha';
 const HISTORY_STORAGE_KEY = 'gitero_update_history';
 
 export class UpdaterService {

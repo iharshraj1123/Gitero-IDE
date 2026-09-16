@@ -30,6 +30,8 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'workbench.action.terminal.toggleTerminal': 'Ctrl+`',
   'workbench.action.findInFiles': 'Ctrl+Shift+F',
   'workbench.view.scm': 'Ctrl+Shift+G',
+  'git.sync': 'Ctrl+Shift+U',
+  'git.switchBranch': 'Ctrl+Shift+B',
   'workbench.action.gotoLine': 'Ctrl+G',
   'editor.action.toggleWordWrap': 'Alt+Z',
   'markdown.showPreview': 'Ctrl+Shift+V',

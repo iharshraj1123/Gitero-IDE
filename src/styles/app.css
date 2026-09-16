@@ -686,41 +686,49 @@ body.window-maximized #app {
   flex: 1;
 }
 
-.tab-dirty-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--accent-color);
-  display: inline-block;
-  margin-left: 2px;
+.tab-dirty-indicator,
+.dirty-indicator {
+  font-size: 9px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.tab-close,
 .tab-close-btn {
-  background: transparent;
-  border: none;
-  color: var(--fg-muted);
+  background-color: rgba(0, 0, 0, 0);
+  border: 0;
+  color: white;
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 3px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  opacity: 0.6;
+  opacity: 0.7;
   transition: all 0.1s ease;
+  outline: none;
 }
 
+.editor-tab:hover .tab-close,
 .editor-tab:hover .tab-close-btn {
   opacity: 1;
 }
 
+.tab-close:hover,
 .tab-close-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--fg-primary);
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
 }
 
 .close-x {
   font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Plus Button (New Tab / File) */
@@ -2575,5 +2583,321 @@ body.window-maximized #app {
   color: var(--fg-muted);
   font-style: italic;
 }
+
+/* ==========================================================================
+   Git Tree Decorations & Badges
+   ========================================================================== */
+
+.tree-git-badge {
+  font-size: 10px;
+  font-weight: 800;
+  font-family: monospace;
+  margin-left: auto;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+  line-height: 1;
+}
+
+.tree-folder-git-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #e0af68;
+  margin-left: auto;
+  margin-right: 10px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.tree-row-git-m .tree-label {
+  color: #e0af68;
+}
+
+.tree-row-git-u .tree-label {
+  color: #9ece6a;
+}
+
+.tree-row-git-a .tree-label {
+  color: #73daca;
+}
+
+.tree-row-git-d .tree-label {
+  color: #f7768e;
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.tree-row-git-r .tree-label {
+  color: #7aa2f7;
+}
+
+/* ==========================================================================
+   Source Control Dual Sections
+   ========================================================================== */
+
+.git-section-group {
+  margin-bottom: 8px;
+}
+
+.git-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.git-section-arrow {
+  color: var(--fg-muted);
+}
+
+.git-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.git-sec-action-btn {
+  background: none;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.git-sec-action-btn:hover {
+  color: var(--fg-primary);
+  background: var(--bg-hover);
+}
+
+/* ==========================================================================
+   Status Bar Git Group & Sync
+   ========================================================================== */
+
+.status-git-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.status-git-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.status-git-sync {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.status-git-sync:hover {
+  color: var(--accent-color);
+}
+
+/* ==========================================================================
+   Git Diff Viewer Modal
+   ========================================================================== */
+
+.diff-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 12500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff-modal-dialog {
+  width: 960px;
+  max-width: 95vw;
+  height: 80vh;
+  max-height: 85vh;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diff-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+}
+
+.diff-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.diff-file-icon {
+  display: flex;
+  align-items: center;
+}
+
+.diff-file-path {
+  font-family: var(--editor-font-family);
+  font-size: 12px;
+}
+
+.diff-stage-tag {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  color: var(--fg-muted);
+  letter-spacing: 0.5px;
+}
+
+.diff-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diff-modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.diff-modal-close-btn:hover {
+  color: var(--fg-primary);
+  background: var(--bg-hover);
+}
+
+.diff-modal-body {
+  flex: 1;
+  overflow: auto;
+  font-family: var(--editor-font-family);
+  font-size: 12px;
+  line-height: 1.45;
+  background: var(--editor-bg, #1a1b26);
+}
+
+.diff-viewer-table {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 600px;
+}
+
+.diff-row {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 20px;
+}
+
+.diff-meta-header {
+  padding: 4px 12px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  font-style: italic;
+}
+
+.diff-hunk-row {
+  background: rgba(122, 162, 247, 0.12);
+  color: #7aa2f7;
+  font-size: 11px;
+  font-weight: 600;
+  border-top: 1px solid rgba(122, 162, 247, 0.2);
+  border-bottom: 1px solid rgba(122, 162, 247, 0.2);
+  padding: 2px 0;
+}
+
+.diff-line-col {
+  width: 44px;
+  min-width: 44px;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--fg-muted);
+  user-select: none;
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.diff-line-hunk-spacer {
+  color: #7aa2f7;
+  opacity: 0.5;
+}
+
+.diff-prefix-col {
+  width: 22px;
+  min-width: 22px;
+  text-align: center;
+  user-select: none;
+  font-weight: 700;
+}
+
+.diff-content-col {
+  flex: 1;
+  white-space: pre;
+  overflow-x: visible;
+  padding-right: 16px;
+}
+
+.diff-row-added {
+  background-color: rgba(115, 201, 145, 0.15);
+  color: #9ece6a;
+}
+
+.diff-row-added .diff-prefix-col {
+  color: #73c991;
+}
+
+.diff-row-deleted {
+  background-color: rgba(247, 118, 142, 0.15);
+  color: #f7768e;
+}
+
+.diff-row-deleted .diff-prefix-col {
+  color: #f7768e;
+}
+
+.diff-row-context {
+  color: var(--fg-primary);
+}
+
+.diff-empty-msg {
+  padding: 40px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
 
 

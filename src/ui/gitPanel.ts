@@ -1,33 +1,35 @@
-import { isNative } from '../services/neutralino';
+import { gitService, GitFileChange, GitState } from '../services/git';
 import { fsService } from '../services/fs';
 import { editorState } from '../state/editorState';
 import { getFileIconSvg } from './icons';
-
-export interface GitFileChange {
-  path: string;
-  relativePath: string;
-  status: 'M' | 'U' | 'D' | 'A' | 'R' | '?';
-  isStaged: boolean;
-}
+import { diffModal } from './diffModal';
 
 export class GitPanelComponent {
   private container: HTMLElement;
-  private currentBranch: string = '';
-  private isGitRepo: boolean = false;
-  private changes: GitFileChange[] = [];
   private isLoading: boolean = false;
 
   private branchLabel!: HTMLElement;
   private commitInput!: HTMLTextAreaElement;
   private commitBtn!: HTMLButtonElement;
+  private stagedHeader!: HTMLElement;
+  private stagedList!: HTMLElement;
+  private stagedCountBadge!: HTMLElement;
+  private changesHeader!: HTMLElement;
   private changesList!: HTMLElement;
-  private statusMessage!: HTMLElement;
   private changesCountBadge!: HTMLElement;
+  private statusMessage!: HTMLElement;
+  private emptyStateEl!: HTMLElement;
+  private bodyEl!: HTMLElement;
 
   constructor(container: HTMLElement) {
     this.container = container;
     this.build();
-    this.refresh();
+    this.setupListeners();
+
+    // Subscribe to Git state changes
+    gitService.onStatusChange((state) => {
+      this.updateView(state);
+    });
   }
 
   private build() {
@@ -37,6 +39,9 @@ export class GitPanelComponent {
         <div class="sidebar-actions">
           <button class="sidebar-action-btn" id="btn-git-refresh" title="Refresh Git Status">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+          </button>
+          <button class="sidebar-action-btn" id="btn-git-pull" title="Pull from Remote">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/><path d="M12 3v14"/><path d="M20 21H4"/></svg>
           </button>
           <button class="sidebar-action-btn" id="btn-git-push" title="Push Changes to Remote">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/><path d="M12 9v12"/><path d="M20 4H4"/></svg>
@@ -55,17 +60,47 @@ export class GitPanelComponent {
           <div class="git-commit-actions">
             <button class="btn-git-action btn-git-commit" id="btn-git-commit-action">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Commit All
+              <span>Commit</span>
             </button>
           </div>
         </div>
 
-        <div class="git-section-header">
-          <span class="git-section-title">CHANGES</span>
-          <span class="git-count-badge" id="git-changes-count">0</span>
+        <!-- STAGED CHANGES SECTION -->
+        <div class="git-section-group" id="git-staged-group">
+          <div class="git-section-header" id="git-staged-header">
+            <div class="git-section-title-wrap">
+              <svg class="git-section-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span class="git-section-title">STAGED CHANGES</span>
+              <span class="git-count-badge" id="git-staged-count">0</span>
+            </div>
+            <div class="git-section-actions">
+              <button class="git-sec-action-btn" id="btn-git-unstage-all" title="Unstage All Changes">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="git-changes-list" id="git-staged-list"></div>
         </div>
 
-        <div class="git-changes-list" id="git-changes-list"></div>
+        <!-- WORKING CHANGES SECTION -->
+        <div class="git-section-group" id="git-changes-group">
+          <div class="git-section-header" id="git-changes-header">
+            <div class="git-section-title-wrap">
+              <svg class="git-section-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span class="git-section-title">CHANGES</span>
+              <span class="git-count-badge" id="git-changes-count">0</span>
+            </div>
+            <div class="git-section-actions">
+              <button class="git-sec-action-btn" id="btn-git-stage-all" title="Stage All Changes">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button class="git-sec-action-btn" id="btn-git-discard-all" title="Discard All Changes">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="git-changes-list" id="git-changes-list"></div>
+        </div>
 
         <div class="git-status-note" id="git-status-note"></div>
       </div>
@@ -76,14 +111,21 @@ export class GitPanelComponent {
       </div>
     `;
 
+    this.bodyEl = this.container.querySelector('#git-panel-body') as HTMLElement;
+    this.emptyStateEl = this.container.querySelector('#git-empty-state') as HTMLElement;
     this.branchLabel = this.container.querySelector('#git-panel-branch') as HTMLElement;
     this.commitInput = this.container.querySelector('#git-commit-input') as HTMLTextAreaElement;
     this.commitBtn = this.container.querySelector('#btn-git-commit-action') as HTMLButtonElement;
+
+    this.stagedHeader = this.container.querySelector('#git-staged-header') as HTMLElement;
+    this.stagedList = this.container.querySelector('#git-staged-list') as HTMLElement;
+    this.stagedCountBadge = this.container.querySelector('#git-staged-count') as HTMLElement;
+
+    this.changesHeader = this.container.querySelector('#git-changes-header') as HTMLElement;
     this.changesList = this.container.querySelector('#git-changes-list') as HTMLElement;
-    this.statusMessage = this.container.querySelector('#git-status-note') as HTMLElement;
     this.changesCountBadge = this.container.querySelector('#git-changes-count') as HTMLElement;
 
-    this.setupListeners();
+    this.statusMessage = this.container.querySelector('#git-status-note') as HTMLElement;
   }
 
   private setupListeners() {
@@ -93,6 +135,27 @@ export class GitPanelComponent {
 
     this.container.querySelector('#btn-git-push')?.addEventListener('click', () => {
       this.pushChanges();
+    });
+
+    this.container.querySelector('#btn-git-pull')?.addEventListener('click', () => {
+      this.pullChanges();
+    });
+
+    this.container.querySelector('#btn-git-stage-all')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      gitService.stageAll();
+    });
+
+    this.container.querySelector('#btn-git-unstage-all')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      gitService.unstageAll();
+    });
+
+    this.container.querySelector('#btn-git-discard-all')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('Discard ALL uncommitted working tree changes? This cannot be undone.')) {
+        gitService.discardAll();
+      }
     });
 
     this.commitBtn.addEventListener('click', () => {
@@ -106,141 +169,91 @@ export class GitPanelComponent {
       }
     });
 
-    this.container.querySelector('#btn-init-git')?.addEventListener('click', () => {
-      this.initGitRepo();
+    this.container.querySelector('#btn-init-git')?.addEventListener('click', async () => {
+      this.statusMessage.textContent = 'Initializing git repository...';
+      const success = await gitService.initRepo();
+      if (!success) {
+        alert('Failed to initialize Git repository.');
+      }
     });
-  }
-
-  private async runGitCommand(args: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-    if (!isNative()) {
-      return { stdout: '', stderr: 'Git not supported in web mode', exitCode: 1 };
-    }
-
-    const ws = fsService.getWorkspace();
-    if (!ws) {
-      return { stdout: '', stderr: 'No workspace open', exitCode: 1 };
-    }
-
-    const cmd = `cd /d "${ws}" && git ${args}`;
-    try {
-      const res = await window.Neutralino.os.execCommand(cmd);
-      return {
-        stdout: res.stdOut || '',
-        stderr: res.stdErr || '',
-        exitCode: res.exitCode
-      };
-    } catch (err: any) {
-      return {
-        stdout: '',
-        stderr: err?.message || String(err),
-        exitCode: 1
-      };
-    }
   }
 
   async refresh() {
     if (this.isLoading) return;
     this.isLoading = true;
+    try {
+      await gitService.refresh();
+    } finally {
+      this.isLoading = false;
+    }
+  }
 
-    const bodyEl = this.container.querySelector('#git-panel-body') as HTMLElement;
-    const emptyEl = this.container.querySelector('#git-empty-state') as HTMLElement;
-
+  private updateView(state: GitState) {
     const ws = fsService.getWorkspace();
     if (!ws) {
-      bodyEl.style.display = 'none';
-      emptyEl.style.display = 'flex';
-      emptyEl.querySelector('p')!.textContent = 'Open a workspace folder to use Git.';
-      (emptyEl.querySelector('#btn-init-git') as HTMLElement).style.display = 'none';
-      this.isLoading = false;
+      this.bodyEl.style.display = 'none';
+      this.emptyStateEl.style.display = 'flex';
+      this.emptyStateEl.querySelector('p')!.textContent = 'Open a workspace folder to use Git.';
+      (this.emptyStateEl.querySelector('#btn-init-git') as HTMLElement).style.display = 'none';
       return;
     }
 
-    // Check if git repo
-    const checkRepo = await this.runGitCommand('rev-parse --is-inside-work-tree');
-    if (checkRepo.exitCode !== 0 || !checkRepo.stdout.includes('true')) {
-      this.isGitRepo = false;
-      bodyEl.style.display = 'none';
-      emptyEl.style.display = 'flex';
-      emptyEl.querySelector('p')!.textContent = 'No git repository detected in this workspace.';
-      (emptyEl.querySelector('#btn-init-git') as HTMLElement).style.display = 'block';
-      this.isLoading = false;
+    if (!state.isRepo) {
+      this.bodyEl.style.display = 'none';
+      this.emptyStateEl.style.display = 'flex';
+      this.emptyStateEl.querySelector('p')!.textContent = 'No git repository detected in this workspace.';
+      (this.emptyStateEl.querySelector('#btn-init-git') as HTMLElement).style.display = 'block';
       return;
     }
 
-    this.isGitRepo = true;
-    bodyEl.style.display = 'flex';
-    emptyEl.style.display = 'none';
+    this.bodyEl.style.display = 'flex';
+    this.emptyStateEl.style.display = 'none';
+    this.branchLabel.textContent = state.branch || 'main';
 
-    // Get current branch
-    const branchRes = await this.runGitCommand('branch --show-current');
-    this.currentBranch = branchRes.stdout.trim() || 'HEAD (detached)';
-    this.branchLabel.textContent = this.currentBranch;
-
-    // Get status porcelain
-    const statusRes = await this.runGitCommand('status --porcelain');
-    this.changes = this.parseStatusOutput(statusRes.stdout, ws);
-    this.renderChanges();
-    this.isLoading = false;
-  }
-
-  private parseStatusOutput(stdout: string, ws: string): GitFileChange[] {
-    const list: GitFileChange[] = [];
-    const lines = stdout.split(/\r?\n/).filter(Boolean);
-
-    for (const line of lines) {
-      if (line.length < 3) continue;
-      const indexCode = line[0];
-      const workCode = line[1];
-      const relPath = line.substring(3).trim().replace(/^"/, '').replace(/"$/, '');
-
-      let status: 'M' | 'U' | 'D' | 'A' | 'R' | '?' = 'M';
-      let isStaged = false;
-
-      if (indexCode === '?' || workCode === '?') {
-        status = 'U';
-      } else if (indexCode === 'D' || workCode === 'D') {
-        status = 'D';
-      } else if (indexCode === 'A' || workCode === 'A') {
-        status = 'A';
-      } else if (indexCode === 'R' || workCode === 'R') {
-        status = 'R';
-      } else {
-        status = 'M';
-      }
-
-      if (indexCode !== ' ' && indexCode !== '?') {
-        isStaged = true;
-      }
-
-      const sep = ws.includes('/') ? '/' : '\\';
-      const fullPath = ws.endsWith(sep) ? `${ws}${relPath}` : `${ws}${sep}${relPath}`;
-
-      list.push({
-        path: fullPath,
-        relativePath: relPath,
-        status,
-        isStaged
-      });
+    // Render Staged Changes
+    this.renderFileList(this.stagedList, state.stagedChanges, true);
+    this.stagedCountBadge.textContent = `${state.stagedChanges.length}`;
+    const stagedGroup = this.container.querySelector('#git-staged-group') as HTMLElement;
+    if (stagedGroup) {
+      stagedGroup.style.display = state.stagedChanges.length > 0 ? 'block' : 'none';
     }
 
-    return list;
-  }
+    // Render Working Changes
+    this.renderFileList(this.changesList, state.workingChanges, false);
+    this.changesCountBadge.textContent = `${state.workingChanges.length}`;
 
-  private renderChanges() {
-    this.changesList.innerHTML = '';
-    this.changesCountBadge.textContent = `${this.changes.length}`;
-
-    if (this.changes.length === 0) {
-      this.changesList.innerHTML = `<div class="git-clean-msg">Working tree clean. No changes.</div>`;
+    // Clean tree note
+    if (state.totalChanges === 0) {
+      this.statusMessage.textContent = 'Working tree clean. No changes.';
+    } else {
       this.statusMessage.textContent = '';
+    }
+
+    // Update Commit button label
+    const commitSpan = this.commitBtn.querySelector('span');
+    if (commitSpan) {
+      if (state.stagedChanges.length > 0) {
+        commitSpan.textContent = `Commit (${state.stagedChanges.length} staged)`;
+      } else if (state.workingChanges.length > 0) {
+        commitSpan.textContent = `Commit All (${state.workingChanges.length})`;
+      } else {
+        commitSpan.textContent = 'Commit';
+      }
+    }
+  }
+
+  private renderFileList(container: HTMLElement, items: GitFileChange[], isStaged: boolean) {
+    container.innerHTML = '';
+    if (items.length === 0) {
+      container.innerHTML = `<div class="git-clean-msg">${isStaged ? 'No staged changes' : 'No working changes'}</div>`;
       return;
     }
 
-    for (const item of this.changes) {
+    for (const item of items) {
       const row = document.createElement('div');
       row.className = 'git-change-row';
 
-      const fileName = item.relativePath.split(/[/\\]/).pop() || item.relativePath;
+      const fileName = item.relativePath.split('/').pop() || item.relativePath;
       const dirPart = item.relativePath.substring(0, item.relativePath.length - fileName.length);
 
       const iconSpan = document.createElement('span');
@@ -256,36 +269,65 @@ export class GitPanelComponent {
       badgeSpan.className = `git-status-code status-${item.status.toLowerCase()}`;
       badgeSpan.textContent = item.status;
 
-      // Hover actions
+      // Action buttons
       const actionsGroup = document.createElement('div');
       actionsGroup.className = 'git-row-actions';
 
-      const discardBtn = document.createElement('button');
-      discardBtn.className = 'git-action-icon-btn';
-      discardBtn.title = 'Discard Changes';
-      discardBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
-      discardBtn.addEventListener('click', (e) => {
+      // 1. Stage / Unstage button
+      const stageBtn = document.createElement('button');
+      stageBtn.className = 'git-action-icon-btn';
+      stageBtn.title = isStaged ? 'Unstage Changes' : 'Stage Changes';
+      stageBtn.innerHTML = isStaged 
+        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>`
+        : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+      stageBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        this.discardChange(item);
+        if (isStaged) {
+          await gitService.unstageFile(item.relativePath);
+        } else {
+          await gitService.stageFile(item.relativePath);
+        }
       });
+      actionsGroup.appendChild(stageBtn);
 
-      actionsGroup.appendChild(discardBtn);
+      // 2. Discard button (only for unstaged changes)
+      if (!isStaged) {
+        const discardBtn = document.createElement('button');
+        discardBtn.className = 'git-action-icon-btn';
+        discardBtn.title = 'Discard Changes';
+        discardBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+        discardBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmDiscard = confirm(`Discard changes to "${item.relativePath}"? This cannot be undone.`);
+          if (confirmDiscard) {
+            await gitService.discardFile(item.relativePath, item.status === 'U');
+          }
+        });
+        actionsGroup.appendChild(discardBtn);
+      }
+
+      // 3. View Diff button
+      const diffBtn = document.createElement('button');
+      diffBtn.className = 'git-action-icon-btn';
+      diffBtn.title = 'Open Changes (Diff)';
+      diffBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>`;
+      diffBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        diffModal.open(item, isStaged);
+      });
+      actionsGroup.appendChild(diffBtn);
 
       row.appendChild(iconSpan);
       row.appendChild(titleSpan);
       row.appendChild(actionsGroup);
       row.appendChild(badgeSpan);
 
-      row.addEventListener('click', async () => {
-        try {
-          const content = await fsService.readFile(item.path);
-          editorState.openFile(item.path, content);
-        } catch (err) {
-          alert(`Could not open changed file: ${err}`);
-        }
+      // Clicking row opens diff modal directly
+      row.addEventListener('click', () => {
+        diffModal.open(item, isStaged);
       });
 
-      this.changesList.appendChild(row);
+      container.appendChild(row);
     }
   }
 
@@ -296,7 +338,8 @@ export class GitPanelComponent {
       return;
     }
 
-    if (this.changes.length === 0) {
+    const state = gitService.getState();
+    if (state.totalChanges === 0) {
       alert('No changes to commit.');
       return;
     }
@@ -304,60 +347,37 @@ export class GitPanelComponent {
     this.commitBtn.disabled = true;
     this.statusMessage.textContent = 'Committing changes...';
 
-    // Stage all and commit
-    const addRes = await this.runGitCommand('add -A');
-    if (addRes.exitCode !== 0) {
-      this.statusMessage.textContent = `Stage failed: ${addRes.stderr}`;
-      this.commitBtn.disabled = false;
-      return;
-    }
-
-    // Escape quotes in commit message
-    const safeMsg = msg.replace(/"/g, '\\"');
-    const commitRes = await this.runGitCommand(`commit -m "${safeMsg}"`);
-
+    const res = await gitService.commit(msg);
     this.commitBtn.disabled = false;
-    if (commitRes.exitCode === 0) {
+
+    if (res.success) {
       this.commitInput.value = '';
       this.statusMessage.textContent = 'Committed successfully.';
-      await this.refresh();
     } else {
-      this.statusMessage.textContent = `Commit failed: ${commitRes.stderr}`;
+      this.statusMessage.textContent = `Commit failed: ${res.error}`;
+      alert(`Commit error: ${res.error}`);
     }
   }
 
   async pushChanges() {
     this.statusMessage.textContent = 'Pushing changes to remote...';
-    const pushRes = await this.runGitCommand('push');
-    if (pushRes.exitCode === 0) {
+    const res = await gitService.push();
+    if (res.success) {
       this.statusMessage.textContent = 'Push completed successfully.';
-      await this.refresh();
     } else {
-      this.statusMessage.textContent = `Push error: ${pushRes.stderr || pushRes.stdout}`;
+      this.statusMessage.textContent = `Push error: ${res.error}`;
+      alert(`Push error: ${res.error}`);
     }
   }
 
-  async discardChange(item: GitFileChange) {
-    const confirmDiscard = confirm(`Discard changes to "${item.relativePath}"? This cannot be undone.`);
-    if (!confirmDiscard) return;
-
-    if (item.status === 'U') {
-      await this.runGitCommand(`clean -f "${item.relativePath}"`);
+  async pullChanges() {
+    this.statusMessage.textContent = 'Pulling changes from remote...';
+    const res = await gitService.pull();
+    if (res.success) {
+      this.statusMessage.textContent = 'Pull completed successfully.';
     } else {
-      await this.runGitCommand(`checkout -- "${item.relativePath}"`);
-    }
-
-    await this.refresh();
-  }
-
-  async initGitRepo() {
-    this.statusMessage.textContent = 'Initializing git repository...';
-    const initRes = await this.runGitCommand('init');
-    if (initRes.exitCode === 0) {
-      this.statusMessage.textContent = 'Git repository initialized.';
-      await this.refresh();
-    } else {
-      alert(`Failed to initialize git repository: ${initRes.stderr}`);
+      this.statusMessage.textContent = `Pull error: ${res.error}`;
+      alert(`Pull error: ${res.error}`);
     }
   }
 }

@@ -40,6 +40,10 @@ export class ShortcutsModalComponent {
     { command: 'Show Source Control (Git)', keys: ['Ctrl', 'Shift', 'G'], category: 'Panels' },
     { command: 'Toggle Integrated Terminal', keys: ['Ctrl', '`'], category: 'Panels' },
 
+    // Git
+    { command: 'Git: Switch Branch', keys: ['Ctrl', 'Shift', 'B'], category: 'Git' },
+    { command: 'Git: Sync / Push Remote Changes', keys: ['Ctrl', 'Shift', 'U'], category: 'Git' },
+
     // Vim Mode
     { command: 'Vim: Enter Insert Mode', keys: ['i'], category: 'Vim' },
     { command: 'Vim: Return to Normal Mode', keys: ['Esc'], category: 'Vim' },
