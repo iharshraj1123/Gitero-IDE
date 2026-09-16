@@ -749,7 +749,6 @@ async function bootstrap() {
   // Auto-refresh Git status when file watcher detects external changes on disk
   fsService.onWorkspaceChanged(() => {
     gitService.refresh();
-    gitPanel.refresh();
   });
 
   function openRecentWorkspacesPicker() {

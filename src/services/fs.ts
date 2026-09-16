@@ -33,7 +33,40 @@ export class FileSystemService {
 
   private setupWatcherListener() {
     if (typeof window !== 'undefined' && window.Neutralino?.events) {
-      window.Neutralino.events.on('watchFile', () => {
+      window.Neutralino.events.on('watchFile', (evt?: any) => {
+        const detail = evt?.detail || evt;
+        if (detail && typeof detail === 'object') {
+          // If a watcher ID is present, ensure it matches our active workspace watcher
+          if (this.activeWatcherId !== null && detail.id !== undefined && detail.id !== this.activeWatcherId) {
+            return;
+          }
+
+          const dir = (detail.dir || '').replace(/\\/g, '/').toLowerCase();
+          const filename = (detail.filename || '').replace(/\\/g, '/').toLowerCase();
+          const combined = `${dir}/${filename}`;
+
+          // Ignore Git internals, package managers, build artifacts, temporary caches, and system storage
+          if (
+            combined.includes('/.git/') ||
+            combined.endsWith('/.git') ||
+            combined.includes('/.git') ||
+            combined.includes('/node_modules/') ||
+            combined.endsWith('/node_modules') ||
+            combined.includes('/node_modules') ||
+            combined.includes('/dist/') ||
+            combined.endsWith('/dist') ||
+            combined.includes('/target/') ||
+            combined.endsWith('/target') ||
+            combined.includes('/.storage/') ||
+            combined.includes('/.vite/') ||
+            combined.includes('/installer-output/') ||
+            filename === 'neutralino.log' ||
+            filename.endsWith('.tmp') ||
+            filename.endsWith('.lock')
+          ) {
+            return;
+          }
+        }
         this.notifyWorkspaceChanged();
       });
     }

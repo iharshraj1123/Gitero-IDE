@@ -69,6 +69,7 @@ export class GitService {
   private listeners: Set<GitStatusChangeListener> = new Set();
   private outputListeners: Set<GitOutputListener> = new Set();
   private isRefreshing: boolean = false;
+  private lastStatusFingerprint: string = '';
 
   constructor() {
     // Initial refresh if workspace is open
@@ -128,7 +129,7 @@ export class GitService {
     });
   }
 
-  public async runGitCommand(args: string, silent: boolean = true): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  public async runGitCommand(args: string, silent: boolean = true, noOptionalLocks: boolean = true): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     if (!silent) {
       this.logOutput(`> git ${args}`, 'info');
     }
@@ -144,7 +145,8 @@ export class GitService {
       return { stdout: '', stderr: 'No workspace folder open', exitCode: 1 };
     }
 
-    const cmd = `cd /d "${ws}" && git ${args}`;
+    const gitExec = noOptionalLocks ? 'git --no-optional-locks' : 'git';
+    const cmd = `cd /d "${ws}" && ${gitExec} ${args}`;
     try {
       const res = await window.Neutralino.os.execCommand(cmd);
       const stdout = res.stdOut || '';
@@ -175,12 +177,13 @@ export class GitService {
     }
   }
 
-  public async refresh(): Promise<GitState> {
+  public async refresh(force: boolean = false): Promise<GitState> {
     if (this.isRefreshing) return this.state;
     this.isRefreshing = true;
 
     const ws = fsService.getWorkspace();
     if (!ws) {
+      const wasRepo = this.state.isRepo;
       this.state = {
         isRepo: false,
         branch: '',
@@ -190,14 +193,18 @@ export class GitService {
       };
       this.fileStatusMap.clear();
       this.folderChangesMap.clear();
+      this.lastStatusFingerprint = '';
       this.isRefreshing = false;
-      this.notify();
+      if (wasRepo || force) {
+        this.notify();
+      }
       return this.state;
     }
 
     // 1. Check if workspace is inside a git work tree
     const checkRepo = await this.runGitCommand('rev-parse --is-inside-work-tree');
     if (checkRepo.exitCode !== 0 || !checkRepo.stdout.toLowerCase().includes('true')) {
+      const wasRepo = this.state.isRepo;
       this.state = {
         isRepo: false,
         branch: '',
@@ -207,8 +214,11 @@ export class GitService {
       };
       this.fileStatusMap.clear();
       this.folderChangesMap.clear();
+      this.lastStatusFingerprint = '';
       this.isRefreshing = false;
-      this.notify();
+      if (wasRepo || force) {
+        this.notify();
+      }
       return this.state;
     }
 
@@ -223,14 +233,24 @@ export class GitService {
 
     // 3. Query porcelain status with -uall for granular untracked file paths
     const statusRes = await this.runGitCommand('status --porcelain -uall');
-    this.parseStatusOutput(statusRes.stdout, ws);
 
-    this.state.isRepo = true;
-    this.state.branch = currentBranch;
-    this.state.totalChanges = this.state.stagedChanges.length + this.state.workingChanges.length;
+    // Create a fingerprint of the status to detect real changes
+    const currentFingerprint = `${currentBranch}::${statusRes.stdout}`;
+    const hasChanged = currentFingerprint !== this.lastStatusFingerprint || !this.state.isRepo;
 
-    this.isRefreshing = false;
-    this.notify();
+    if (hasChanged || force) {
+      this.lastStatusFingerprint = currentFingerprint;
+      this.parseStatusOutput(statusRes.stdout, ws);
+      this.state.isRepo = true;
+      this.state.branch = currentBranch;
+      this.state.totalChanges = this.state.stagedChanges.length + this.state.workingChanges.length;
+
+      this.isRefreshing = false;
+      this.notify();
+    } else {
+      this.isRefreshing = false;
+    }
+
     return this.state;
   }
 

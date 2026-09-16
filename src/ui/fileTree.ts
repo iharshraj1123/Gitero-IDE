@@ -48,7 +48,7 @@ export class FileTreeComponent {
 
     gitService.onStatusChange(() => {
       if (this.rootNodes.length > 0) {
-        this.render();
+        this.updateGitDecorations();
       }
     });
 
@@ -144,10 +144,59 @@ export class FileTreeComponent {
     this.container.appendChild(treeList);
   }
 
+  public updateGitDecorations() {
+    const itemContainers = this.container.querySelectorAll('.tree-item-container[data-path]');
+    itemContainers.forEach((container) => {
+      const el = container as HTMLElement;
+      const path = el.getAttribute('data-path');
+      if (!path) return;
+      const isDir = el.getAttribute('data-is-dir') === 'true';
+      const row = el.querySelector(':scope > .tree-row') as HTMLElement;
+      if (!row) return;
+
+      // Clean existing Git decoration classes & badges
+      const classesToRemove: string[] = [];
+      row.classList.forEach((cls) => {
+        if (cls.startsWith('tree-row-git-') || cls === 'tree-row-has-changes') {
+          classesToRemove.push(cls);
+        }
+      });
+      classesToRemove.forEach((cls) => row.classList.remove(cls));
+
+      row.querySelector(':scope > .tree-folder-git-dot')?.remove();
+      row.querySelector(':scope > .tree-git-badge')?.remove();
+
+      // Apply updated Git decorations
+      if (isDir) {
+        const changeCount = gitService.getFolderChangeCount(path);
+        if (changeCount > 0) {
+          row.classList.add('tree-row-has-changes');
+          const folderDot = document.createElement('span');
+          folderDot.className = 'tree-folder-git-dot';
+          folderDot.title = `${changeCount} modified/untracked file(s) inside`;
+          row.appendChild(folderDot);
+        }
+      } else {
+        const gitStatus = gitService.getFileStatus(path);
+        if (gitStatus) {
+          row.classList.add(`tree-row-git-${gitStatus.status.toLowerCase()}`);
+          const gitBadge = document.createElement('span');
+          gitBadge.className = `tree-git-badge status-${gitStatus.status.toLowerCase()}`;
+          gitBadge.textContent = gitStatus.status;
+          gitBadge.title = gitStatus.isStaged 
+            ? `Git: Staged (${gitStatus.status})` 
+            : `Git: ${gitStatus.status === 'U' ? 'Untracked' : 'Modified'} (${gitStatus.status})`;
+          row.appendChild(gitBadge);
+        }
+      }
+    });
+  }
+
   private createNodeElement(node: FileNode, depth: number): HTMLElement {
     const itemContainer = document.createElement('div');
     itemContainer.className = 'tree-item-container';
     itemContainer.setAttribute('data-path', node.path);
+    itemContainer.setAttribute('data-is-dir', node.isDirectory ? 'true' : 'false');
     itemContainer.setAttribute('data-depth', String(depth));
 
     const row = document.createElement('div');
