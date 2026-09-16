@@ -167,11 +167,7 @@ export class TitleBarComponent {
     this.container.innerHTML = `
       <div class="titlebar-left">
         <div class="titlebar-app-icon" title="Gitero IDE">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
-            <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
-            <polyline points="10 9 9 12 11 12 10 15"></polyline>
-          </svg>
+          <span class="app-logo-mark">G</span>
         </div>
         <nav class="titlebar-menubar" id="titlebar-menubar"></nav>
       </div>
