@@ -13,6 +13,24 @@ namespace GiteroExplorerHotkey
     {
         private const string MUTEX_NAME = "Gitero_Explorer_Hotkey_Single_Instance_Mutex_v1";
 
+        private const int GWL_EXSTYLE = -20;
+        private const int WS_EX_LAYERED = 0x00080000;
+        private const uint SWP_NOMOVE = 0x0002;
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOZORDER = 0x0004;
+        private const uint SWP_FRAMECHANGED = 0x0020;
+        private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+        private const uint MAXIMUM_ALLOWED = 0x02000000;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MARGINS
+        {
+            public int cxLeftWidth;
+            public int cxRightWidth;
+            public int cyTopHeight;
+            public int cyBottomHeight;
+        }
+
         private const int WH_KEYBOARD_LL = 13;
         private const int WM_KEYDOWN = 0x0100;
         private const int WM_SYSKEYDOWN = 0x0104;
@@ -28,8 +46,18 @@ namespace GiteroExplorerHotkey
         private static Mutex _mutex = null;
 
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            if (args != null && args.Length > 0)
+            {
+                string cmd = args[0].ToLowerInvariant().Trim();
+                if (cmd == "--apply-acrylic" || cmd == "-apply-acrylic" || cmd == "/apply-acrylic")
+                {
+                    ApplyAcrylicToAllGiteroWindows();
+                    return;
+                }
+            }
+
             bool createdNew;
             _mutex = new Mutex(true, MUTEX_NAME, out createdNew);
 
@@ -40,6 +68,11 @@ namespace GiteroExplorerHotkey
             }
 
             _hookId = SetHook(_proc);
+
+            // Start background watcher thread to automatically strip WS_EX_LAYERED and apply Acrylic to Gitero windows
+            Thread watcherThread = new Thread(GiteroWatcherLoop);
+            watcherThread.IsBackground = true;
+            watcherThread.Start();
 
             Application.ApplicationExit += (s, e) =>
             {
@@ -52,6 +85,109 @@ namespace GiteroExplorerHotkey
             };
 
             Application.Run();
+        }
+
+        private static void GiteroWatcherLoop()
+        {
+            while (true)
+            {
+                try
+                {
+                    EnumWindows((hwnd, lParam) =>
+                    {
+                        try
+                        {
+                            StringBuilder cls = new StringBuilder(256);
+                            GetClassName(hwnd, cls, cls.Capacity);
+                            if (cls.ToString() == "Neutralinojs_webview")
+                            {
+                                int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+                                if ((ex & WS_EX_LAYERED) != 0)
+                                {
+                                    ApplyAcrylicToWindow(hwnd);
+                                }
+                            }
+                        }
+                        catch {}
+                        return true;
+                    }, IntPtr.Zero);
+                }
+                catch {}
+
+                Thread.Sleep(500);
+            }
+        }
+
+        public static void ApplyAcrylicToAllGiteroWindows()
+        {
+            try
+            {
+                EnumWindows((hwnd, lParam) =>
+                {
+                    try
+                    {
+                        StringBuilder cls = new StringBuilder(256);
+                        GetClassName(hwnd, cls, cls.Capacity);
+                        if (cls.ToString() == "Neutralinojs_webview")
+                        {
+                            ApplyAcrylicToWindow(hwnd);
+                        }
+                    }
+                    catch {}
+                    return true;
+                }, IntPtr.Zero);
+
+                try
+                {
+                    IntPtr hWinSta = OpenWindowStation("WinSta0", false, MAXIMUM_ALLOWED);
+                    if (hWinSta != IntPtr.Zero)
+                    {
+                        SetProcessWindowStation(hWinSta);
+                        IntPtr hDesk = OpenDesktop("Default", 0, false, MAXIMUM_ALLOWED);
+                        if (hDesk != IntPtr.Zero)
+                        {
+                            SetThreadDesktop(hDesk);
+                            EnumDesktopWindows(hDesk, (hwnd, lParam) =>
+                            {
+                                try
+                                {
+                                    StringBuilder cls = new StringBuilder(256);
+                                    GetClassName(hwnd, cls, cls.Capacity);
+                                    if (cls.ToString() == "Neutralinojs_webview")
+                                    {
+                                        ApplyAcrylicToWindow(hwnd);
+                                    }
+                                }
+                                catch {}
+                                return true;
+                            }, IntPtr.Zero);
+                        }
+                    }
+                }
+                catch {}
+            }
+            catch {}
+        }
+
+        public static void ApplyAcrylicToWindow(IntPtr hwnd)
+        {
+            try
+            {
+                int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+                if ((ex & WS_EX_LAYERED) != 0)
+                {
+                    SetWindowLong(hwnd, GWL_EXSTYLE, ex & ~WS_EX_LAYERED);
+                }
+
+                MARGINS margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
+                DwmExtendFrameIntoClientArea(hwnd, ref margins);
+
+                int backdrop = 3; // 3 = Acrylic (DWMSBT_TRANSIENTWINDOW)
+                DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));
+
+                SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            }
+            catch {}
         }
 
         private static IntPtr SetHook(LowLevelKeyboardProc proc)
@@ -326,5 +462,40 @@ namespace GiteroExplorerHotkey
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr OpenWindowStation(string lpszWinSta, bool fInherit, uint dwDesiredAccess);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetProcessWindowStation(IntPtr hWinSta);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr OpenDesktop(string lpszDesktop, uint dwFlags, bool fInherit, uint dwDesiredAccess);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetThreadDesktop(IntPtr hDesktop);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumDesktopWindows(IntPtr hDesktop, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
     }
 }

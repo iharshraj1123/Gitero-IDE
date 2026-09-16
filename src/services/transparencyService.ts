@@ -136,8 +136,8 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     blur: 12,
     masterBg: 100,
     masterText: 100,
-    atmosphereMood: 'deep-space',
-    atmosphereIntensity: 65,
+    atmosphereMood: 'none',
+    atmosphereIntensity: 0,
     sections: {
       titleBar: { bg: 60, text: 100 },
       activityBar: { bg: 50, text: 100 },
@@ -156,8 +156,8 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     blur: 20,
     masterBg: 100,
     masterText: 100,
-    atmosphereMood: 'aurora',
-    atmosphereIntensity: 85,
+    atmosphereMood: 'none',
+    atmosphereIntensity: 0,
     sections: {
       titleBar: { bg: 35, text: 100 },
       activityBar: { bg: 30, text: 100 },
@@ -176,8 +176,8 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     blur: 16,
     masterBg: 100,
     masterText: 100,
-    atmosphereMood: 'deep-space',
-    atmosphereIntensity: 80,
+    atmosphereMood: 'none',
+    atmosphereIntensity: 0,
     sections: {
       titleBar: { bg: 40, text: 100 },
       activityBar: { bg: 35, text: 100 },
@@ -275,6 +275,11 @@ export class TransparencyService {
     }
 
     body.classList.add('transparency-active');
+
+    // Trigger Windows DWM Acrylic backdrop and ensure WS_EX_LAYERED is stripped
+    if (typeof window !== 'undefined' && (window as any).Neutralino?.os?.execCommand) {
+      (window as any).Neutralino.os.execCommand('bin\\gitero_explorer_hotkey.exe --apply-acrylic', { background: true }).catch(() => {});
+    }
 
     // Manage Ambient Atmosphere Element & Properties
     const atmosphere = this.ensureAtmosphereElement();

@@ -33,6 +33,10 @@ async function bootstrap() {
 
   // 1. Initialize native platform (if running in Neutralino binary)
   await initNeutralino();
+  if (isNative() && (window as any).Neutralino?.os?.execCommand) {
+    (window as any).Neutralino.os.execCommand('bin\\gitero_explorer_hotkey.exe', { background: true }).catch(() => {});
+    (window as any).Neutralino.os.execCommand('bin\\gitero_explorer_hotkey.exe --apply-acrylic', { background: true }).catch(() => {});
+  }
   await persistentStorage.init();
   preferencesService.reload();
   fsService.reloadWorkspaceFromStorage();

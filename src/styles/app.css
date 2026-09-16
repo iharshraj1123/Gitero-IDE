@@ -3938,8 +3938,10 @@ body.window-maximized .win-resize-handle {
    Workspace Transparency & Glassmorphism Engine
    ========================================================================== */
 
+html.transparency-active,
 body.transparency-active {
-  background-color: var(--bg-primary, #0d1117) !important;
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 /* 0. Luminous Ambient Atmosphere Canvas */
@@ -3951,7 +3953,7 @@ body.transparency-active {
   overflow: hidden;
   opacity: var(--glass-atmosphere-intensity, 0.75);
   transition: opacity 0.3s ease;
-  background: radial-gradient(circle at 10% 20%, #111524 0%, #0a0d14 60%, #05070b 100%);
+  background: transparent;
   display: none;
 }
 
@@ -3960,7 +3962,7 @@ body.transparency-active .gitero-glass-atmosphere {
 }
 
 body.transparency-active .gitero-glass-atmosphere.mood-none {
-  display: none;
+  display: none !important;
 }
 
 .gitero-glass-atmosphere .glass-orb {

@@ -38,6 +38,7 @@
       "enableInspector": true,
       "openInspectorOnStartup": false,
       "borderless": true,
+      "transparent": true,
       "maximize": false,
       "hidden": false,
       "resizable": true,
