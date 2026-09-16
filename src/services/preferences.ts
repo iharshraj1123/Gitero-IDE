@@ -76,7 +76,8 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'workbench.action.openSettings': 'Ctrl+,',
   'workbench.action.openShortcuts': 'Ctrl+K Ctrl+S',
   'workbench.action.toggleFullScreen': 'F11',
-  'workbench.action.toggleDevTools': 'F12'
+  'workbench.action.toggleDevTools': 'F12',
+  'workbench.action.explorerHotkey': 'Ctrl+.'
 };
 
 export const DEFAULT_PREFERENCES: GiteroPreferences = {

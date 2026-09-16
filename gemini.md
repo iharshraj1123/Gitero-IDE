@@ -43,8 +43,26 @@
 | `npm run dev` | Start Vite development server with hot-reload |
 | `npm start` | Run the native desktop app with Neutralino CLI |
 | `npm run build` | Compile TypeScript and bundle frontend to `dist/` |
+| `npm run build:hotkey` | Compile Windows Explorer `Ctrl+.` background companion (`gitero_explorer_hotkey.exe`) |
 | `npm run neu:build` | Package `dist/` into `dist/gitero/resources.neu` |
-| `npm run installer` | Complete build: compile frontend, bundle `resources.neu`, and generate `Gitero-Setup-0.1.2-beta.exe` |
+| `npm run installer` | Complete build: compile frontend, hotkey companion, bundle `resources.neu`, and generate `Gitero-Setup-0.1.2-beta.exe` |
+
+---
+
+## Windows Explorer `Ctrl+.` Hotkey Integration (`gitero_explorer_hotkey`)
+
+* **Companion Executable**: `bin/gitero_explorer_hotkey.exe` (aliased as `bin/glitero_explorer_hotkey.exe`).
+* **Source Location**: `src-native/explorer-hotkey/Program.cs` and `src-native/explorer-hotkey/build.bat`.
+* **Behavior**:
+  * Runs silently in the background (~19MB RAM, 0% CPU).
+  * Hooks `Ctrl+.` via low-level keyboard hook (`WH_KEYBOARD_LL`).
+  * Only intercepts when the foreground window is Windows File Explorer (`CabinetWClass` / `ExploreWClass`) or Desktop (`Progman` / `WorkerW`).
+  * Passes through `Ctrl+.` completely untouched in all other applications (VS Code, browsers, word processors, etc.).
+  * Automatically resolves active directory in both single-window and multi-tab Windows 11 Explorer views, then launches `Gitero.exe "<directory>"`.
+* **Installer Registration**:
+  * Optional task during installation: `[x] Enable Ctrl+. shortcut in Windows Explorer to open active folder in Gitero`.
+  * Auto-starts with Windows login via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\GiteroExplorerHotkey`.
+  * Cleanly killed during upgrades or uninstallation via `taskkill.exe`.
 
 ---
 

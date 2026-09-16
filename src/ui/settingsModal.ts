@@ -41,7 +41,8 @@ export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'workbench.action.openSettings', name: 'Open Settings & Custom CSS', category: 'Preferences' },
   { id: 'workbench.action.openShortcuts', name: 'Keyboard Shortcuts Reference', category: 'Help' },
   { id: 'workbench.action.toggleFullScreen', name: 'Toggle Full Screen', category: 'View' },
-  { id: 'workbench.action.toggleDevTools', name: 'Toggle Developer Tools', category: 'Developer' }
+  { id: 'workbench.action.toggleDevTools', name: 'Toggle Developer Tools', category: 'Developer' },
+  { id: 'workbench.action.explorerHotkey', name: 'Open Active Folder in Gitero (Windows Explorer / Desktop)', category: 'System' }
 ];
 
 export class SettingsModalComponent {

@@ -49,6 +49,7 @@ Built on the **Neutralinojs native runtime** and **CodeMirror 6**, Gitero elimin
 - **Zero Configuration Loss**: Updates strictly refresh application runtime bundles while leaving your themes, custom CSS, keybindings, and preferences completely untouched.
 
 ### Windows Explorer Integration
+- **Ctrl+. Active Directory Hotkey**: Press `Ctrl+.` inside any Windows File Explorer window or on the Desktop to immediately launch Gitero IDE with that folder open as your workspace. Powered by a lightweight background companion (`gitero_explorer_hotkey.exe`) that passes keystrokes through untouched to all other apps.
 - **Context Menus**: Right-click any file, folder, directory background, or drive to open immediately in Gitero IDE.
 - **User-Level Installation**: Installed via Inno Setup into Local AppData (`%LOCALAPPDATA%\Programs\Gitero IDE`), requiring no UAC administrative elevation.
 

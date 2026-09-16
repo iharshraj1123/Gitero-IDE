@@ -34,6 +34,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "contextmenu"; Description: "Add 'Open with Gitero' to Windows Explorer context menu"; GroupDescription: "Windows Explorer Integration:"
+Name: "explorer_hotkey"; Description: "Enable Ctrl+. shortcut in Windows Explorer to open active folder in Gitero"; GroupDescription: "Windows Explorer Integration:"; Flags: checkedonce
 Name: "addtopath"; Description: "Add Gitero to PATH (allows 'gcode .' from Terminal / CMD / PowerShell)"; GroupDescription: "Terminal Integration:"
 Name: "assoc_md"; Description: "Register Gitero as default viewer for Markdown files (.md, .markdown)"; GroupDescription: "File Associations:"; Flags: checkedonce
 Name: "assoc_code"; Description: "Register Gitero for source code and script files (.js, .ts, .py, .html, .css, .json, etc.)"; GroupDescription: "File Associations:"; Flags: unchecked
@@ -51,6 +52,9 @@ Source: "..\public\icons\file-types\*.ico"; DestDir: "{app}\icons\file-types"; F
 ; CLI Terminal Launcher scripts
 Source: "..\bin\gcode.cmd"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\bin\gcode"; DestDir: "{app}\bin"; Flags: ignoreversion
+; Windows Explorer Hotkey Companion (Ctrl+.)
+Source: "..\bin\gitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Tasks: explorer_hotkey
+Source: "..\bin\glitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Tasks: explorer_hotkey
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -230,8 +234,15 @@ Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: 
 Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".php"; ValueData: "Gitero.PHP"
 Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Gitero"; ValueData: "Software\Gitero\Capabilities"
 
+; 8. Windows Startup for Explorer Ctrl+. Shortcut
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "GiteroExplorerHotkey"; ValueData: """{app}\bin\gitero_explorer_hotkey.exe"""; Flags: uninsdeletevalue; Tasks: explorer_hotkey
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\bin\gitero_explorer_hotkey.exe"; Flags: nowait; Tasks: explorer_hotkey
+
+[UninstallRun]
+Filename: "taskkill.exe"; Parameters: "/F /IM gitero_explorer_hotkey.exe /IM glitero_explorer_hotkey.exe"; Flags: runhidden; RunOnceId: "KillGiteroHotkey"
 
 [Code]
 const
@@ -288,9 +299,20 @@ end;
 procedure SHChangeNotify(wEventId: LongInt; uFlags: Cardinal; dwItem1, dwItem2: Cardinal);
   external 'SHChangeNotify@shell32.dll stdcall';
 
+procedure KillHotkeyProcess();
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/F /IM gitero_explorer_hotkey.exe /IM glitero_explorer_hotkey.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssPostInstall then
+  if CurStep = ssInstall then
+  begin
+    KillHotkeyProcess();
+  end
+  else if CurStep = ssPostInstall then
   begin
     RegisterPath();
     SHChangeNotify($08000000, 0, 0, 0);
@@ -299,7 +321,11 @@ end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usPostUninstall then
+  if CurUninstallStep = usUninstall then
+  begin
+    KillHotkeyProcess();
+  end
+  else if CurUninstallStep = usPostUninstall then
   begin
     UnregisterPath();
     SHChangeNotify($08000000, 0, 0, 0);
