@@ -1,4 +1,5 @@
 import { themeManager } from '../themes/themeManager';
+import { ThemeDefinition } from '../themes/themes';
 import { vimIntegration } from '../editor/vim';
 import { updaterService } from '../services/updater';
 import { preferencesService, CursorStyle } from '../services/preferences';
@@ -23,11 +24,21 @@ export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'workbench.view.scm', name: 'Source Control (Git)', category: 'Git' },
   { id: 'git.sync', name: 'Git: Sync / Push Remote Changes', category: 'Git' },
   { id: 'git.switchBranch', name: 'Git: Switch Branch...', category: 'Git' },
-  { id: 'workbench.action.gotoLine', name: 'Go to Line/Column...', category: 'Go' },
   { id: 'editor.action.toggleWordWrap', name: 'Toggle Word Wrap', category: 'Editor' },
+  { id: 'editor.action.commentLine', name: 'Toggle Line Comment', category: 'Editor' },
+  { id: 'editor.action.blockComment', name: 'Toggle Block Comment', category: 'Editor' },
+  { id: 'editor.action.copyLinesDownAction', name: 'Copy Line Down (Duplicate)', category: 'Editor' },
+  { id: 'editor.action.copyLinesUpAction', name: 'Copy Line Up', category: 'Editor' },
+  { id: 'editor.action.moveLinesDownAction', name: 'Move Line Down', category: 'Editor' },
+  { id: 'editor.action.moveLinesUpAction', name: 'Move Line Up', category: 'Editor' },
+  { id: 'editor.action.deleteLines', name: 'Delete Line', category: 'Editor' },
+  { id: 'editor.action.indentLines', name: 'Indent Line', category: 'Editor' },
+  { id: 'editor.action.outdentLines', name: 'Outdent Line', category: 'Editor' },
+  { id: 'editor.action.selectLine', name: 'Select Current Line', category: 'Editor' },
   { id: 'markdown.showPreview', name: 'Toggle Markdown Preview / Raw Editor', category: 'Markdown' },
   { id: 'workbench.action.openSettings', name: 'Open Settings & Custom CSS', category: 'Preferences' },
-  { id: 'workbench.action.openShortcuts', name: 'Keyboard Shortcuts Reference', category: 'Help' }
+  { id: 'workbench.action.openShortcuts', name: 'Keyboard Shortcuts Reference', category: 'Help' },
+  { id: 'workbench.action.toggleDevTools', name: 'Toggle Developer Tools', category: 'Developer' }
 ];
 
 export class SettingsModalComponent {
@@ -56,7 +67,35 @@ export class SettingsModalComponent {
         </div>
 
         <div class="settings-body-wrapper">
-          <!-- Left: Scrollable Tab Content Area -->
+          <!-- Left: Stacked Tabs Sidebar Navigation -->
+          <nav class="settings-tabs-sidebar" aria-label="Settings Categories">
+            <button class="settings-tab-btn active" data-target="editor">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <span>Editor</span>
+            </button>
+            <button class="settings-tab-btn" data-target="files">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span>Files</span>
+            </button>
+            <button class="settings-tab-btn" data-target="appearance">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+              <span>Appearance</span>
+            </button>
+            <button class="settings-tab-btn" data-target="shortcuts">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
+              <span>Shortcuts</span>
+            </button>
+            <button class="settings-tab-btn" data-target="updates">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              <span>Updates</span>
+            </button>
+            <button class="settings-tab-btn" data-target="css">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+              <span>Custom CSS</span>
+            </button>
+          </nav>
+
+          <!-- Right: Scrollable Tab Content Area -->
           <div class="settings-tab-content">
             <!-- 1. Editor Tab Pane -->
             <div class="settings-tab-pane active" id="tab-pane-editor" data-tab="editor">
@@ -88,31 +127,38 @@ export class SettingsModalComponent {
                 <div class="setting-row">
                   <div class="setting-label">
                     <span class="setting-title">Cursor Style</span>
-                    <span class="setting-desc">Shape of the cursor in the active editor</span>
+                    <span class="setting-desc">Caret presentation style in editor</span>
                   </div>
                   <select id="setting-cursor-style" class="setting-select">
-                    <option value="line">Line / Bar (Default)</option>
+                    <option value="line">Line (Bar) [Default]</option>
                     <option value="block">Block</option>
                     <option value="underline">Underline</option>
                   </select>
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="setting-title">Tab Size</span>
-                    <span class="setting-desc">Number of spaces per indentation level</span>
+                    <span class="setting-title">Cursor Blinking</span>
+                    <span class="setting-desc">Animation curve for cursor blink</span>
                   </div>
-                  <select id="setting-tab-size" class="setting-select">
-                    <option value="2">2 Spaces</option>
-                    <option value="4">4 Spaces</option>
-                    <option value="8">8 Spaces</option>
+                  <select id="setting-cursor-blinking" class="setting-select">
+                    <option value="blink">Blink [Default]</option>
+                    <option value="smooth">Smooth Fade</option>
+                    <option value="solid">Solid (No Blink)</option>
                   </select>
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="setting-title">Word Wrap</span>
-                    <span class="setting-desc">Wrap long lines to fit viewport width (Alt+Z)</span>
+                    <span class="setting-title">Tab Size (Spaces)</span>
+                    <span class="setting-desc">Number of spaces rendered per indentation level</span>
                   </div>
-                  <input type="checkbox" id="setting-word-wrap-toggle" class="setting-checkbox" />
+                  <input type="number" id="setting-tab-size" class="setting-input-small" min="1" max="8" value="2" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Word Wrap</span>
+                    <span class="setting-desc">Wrap long lines to fit viewport width</span>
+                  </div>
+                  <input type="checkbox" id="setting-word-wrap" class="setting-checkbox" />
                 </div>
               </div>
 
@@ -120,8 +166,8 @@ export class SettingsModalComponent {
                 <div class="setting-card-title">Modal Editing</div>
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="setting-title">Enable Vim Mode</span>
-                    <span class="setting-desc">Full Vim motions, modes (normal/insert/visual), operators, and Ex commands (:w, :q)</span>
+                    <span class="setting-title">Vim Keybindings</span>
+                    <span class="setting-desc">Standard vi/vim modal editing commands (:w, :q, hjkl, etc.)</span>
                   </div>
                   <input type="checkbox" id="setting-vim-toggle" class="setting-checkbox" />
                 </div>
@@ -157,20 +203,64 @@ export class SettingsModalComponent {
             <!-- 3. Appearance Tab Pane -->
             <div class="settings-tab-pane" id="tab-pane-appearance" data-tab="appearance">
               <div class="settings-section-header">
-                <div class="settings-section-title">Appearance & Themes</div>
-                <div class="settings-section-subtitle">Select and preview color schemes for the Gitero studio interface and code editor.</div>
+                <div class="settings-section-title">Appearance & Theme Studio</div>
+                <div class="settings-section-subtitle">Customize workspace chrome, editor surfaces, and syntax highlighting tokens, or create and export your own custom themes.</div>
               </div>
 
-              <div class="setting-card">
-                <div class="setting-card-title">Color Theme</div>
-                <div class="setting-row">
-                  <div class="setting-label">
-                    <span class="setting-title">Active Theme</span>
-                    <span class="setting-desc">Choose from bundled professional themes</span>
+              <!-- Theme Toolbar -->
+              <div class="setting-card theme-studio-card">
+                <div class="theme-studio-header">
+                  <div class="theme-select-container">
+                    <label for="setting-theme-select" class="theme-field-label">Theme Preset:</label>
+                    <select id="setting-theme-select" class="setting-select"></select>
                   </div>
-                  <select id="setting-theme-select" class="setting-select"></select>
+                  <div class="theme-studio-actions">
+                    <button class="btn btn-secondary btn-sm" id="btn-theme-new" title="Create new custom theme">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span>New Theme</span>
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="btn-theme-save" title="Save customizations to theme">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                      <span>Save Theme</span>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-theme-export" title="Export current theme as JSON">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                      <span>Export JSON</span>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-theme-import" title="Import theme from JSON">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      <span>Import JSON</span>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-theme-delete" title="Delete custom theme" style="display: none; color: #f85149;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 </div>
-                <div id="theme-preview-palette"></div>
+              </div>
+
+              <!-- Live Interactive Code Preview -->
+              <div class="setting-card">
+                <div class="setting-card-title">Live Code & Syntax Preview</div>
+                <div id="theme-live-preview-box" class="theme-live-preview-box"></div>
+              </div>
+
+              <!-- Workspace Colors -->
+              <div class="setting-card">
+                <div class="setting-card-title">Workspace Chrome Colors</div>
+                <div class="color-picker-grid" id="theme-colors-workspace"></div>
+              </div>
+
+              <!-- Editor Surface Colors -->
+              <div class="setting-card">
+                <div class="setting-card-title">Editor Surface & Cursor Colors</div>
+                <div class="color-picker-grid" id="theme-colors-editor"></div>
+              </div>
+
+              <!-- Syntax Highlighting Colors -->
+              <div class="setting-card">
+                <div class="setting-card-title">Syntax Token Highlighting Colors</div>
+                <div class="color-picker-grid" id="theme-colors-syntax"></div>
               </div>
             </div>
 
@@ -213,56 +303,44 @@ export class SettingsModalComponent {
 
               <div class="update-box">
                 <div class="update-meta-grid">
-                  <div class="update-meta-item">
-                    <span class="update-meta-label">Version</span>
-                    <span class="update-meta-val" id="update-cur-ver">v1.0.0</span>
+                  <div class="update-meta-card">
+                    <span class="meta-label">Installed Version</span>
+                    <span class="meta-val" id="update-cur-ver">0.0.4-alpha</span>
                   </div>
-                  <div class="update-meta-item">
-                    <span class="update-meta-label">Current Commit</span>
-                    <span class="update-meta-val" id="update-cur-sha">791a8ec</span>
+                  <div class="update-meta-card">
+                    <span class="meta-label">Current Branch</span>
+                    <span class="meta-val" id="update-cur-branch">main</span>
                   </div>
-                  <div class="update-meta-item">
-                    <span class="update-meta-label">Active Channel</span>
-                    <span class="update-meta-val" id="update-cur-branch">main</span>
+                  <div class="update-meta-card">
+                    <span class="meta-label">Current SHA</span>
+                    <span class="meta-val" id="update-cur-sha">HEAD</span>
                   </div>
                 </div>
 
-                <div class="update-channel-row">
-                  <label for="update-branch-select" class="update-label">Target Branch:</label>
-                  <div class="update-branch-controls">
-                    <select id="update-branch-select" class="setting-select update-branch-select">
+                <div class="update-controls-row">
+                  <div class="update-channel-group">
+                    <label for="update-branch-select">Target Branch:</label>
+                    <select id="update-branch-select" class="setting-select">
                       <option value="main">main</option>
                     </select>
-                    <button class="btn btn-secondary btn-sm" id="btn-refresh-branches" title="Fetch active branches from GitHub">Refresh</button>
+                  </div>
+                  <div class="update-buttons">
+                    <button class="btn btn-secondary" id="btn-check-update">Check for Updates</button>
+                    <button class="btn btn-primary" id="btn-apply-update" disabled>Update Now</button>
                   </div>
                 </div>
 
-                <div class="update-status-card" id="update-status-card">
-                  <div class="update-status-msg" id="update-status-msg">Click "Check for Updates" to compare with GitHub.</div>
-                </div>
+                <div class="update-status" id="update-status-msg">Click "Check for Updates" to query the repository.</div>
 
-                <div class="update-actions">
-                  <button class="btn btn-secondary" id="btn-check-update">Check for Updates</button>
-                  <button class="btn btn-primary" id="btn-apply-update" disabled>Update from this Branch</button>
-                </div>
-
-                <!-- Update History & Rollback Sub-section -->
-                <div class="update-history-container">
+                <div class="update-history-section">
                   <div class="update-history-header">
-                    <div class="update-history-title">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-                      <span>Update History & Rollback</span>
-                      <span class="history-count-badge" id="history-count-badge">0</span>
+                    <div class="history-title-group">
+                      <h4>Update & Rollback History</h4>
+                      <span class="history-badge" id="history-count-badge">0</span>
                     </div>
                     <button class="btn btn-secondary btn-sm" id="btn-toggle-history">Show History</button>
                   </div>
-
                   <div class="update-history-list" id="update-history-list" style="display: none;"></div>
-                </div>
-
-                <div class="update-preservation-note">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  <span><strong>User State Isolated:</strong> Updates strictly refresh application code. Your chosen themes, custom CSS overrides, keybindings, and preferences remain 100% untouched.</span>
                 </div>
               </div>
             </div>
@@ -279,34 +357,6 @@ export class SettingsModalComponent {
               </div>
             </div>
           </div>
-
-          <!-- Right: Stacked Tabs Sidebar Navigation -->
-          <nav class="settings-tabs-sidebar" aria-label="Settings Categories">
-            <button class="settings-tab-btn active" data-target="editor">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              <span>Editor</span>
-            </button>
-            <button class="settings-tab-btn" data-target="files">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span>Files</span>
-            </button>
-            <button class="settings-tab-btn" data-target="appearance">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-              <span>Appearance</span>
-            </button>
-            <button class="settings-tab-btn" data-target="shortcuts">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
-              <span>Shortcuts</span>
-            </button>
-            <button class="settings-tab-btn" data-target="updates">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-              <span>Updates</span>
-            </button>
-            <button class="settings-tab-btn" data-target="css">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
-              <span>Custom CSS</span>
-            </button>
-          </nav>
         </div>
 
         <div class="settings-footer">
@@ -346,6 +396,7 @@ export class SettingsModalComponent {
 
     this.setupUpdateListeners();
     this.setupKeybindingsListeners();
+    this.setupThemeStudioListeners();
   }
 
   private setupUpdateListeners() {
@@ -723,28 +774,262 @@ export class SettingsModalComponent {
     });
   }
 
-  private updateThemePreview(themeId: string) {
-    const previewContainer = this.overlay.querySelector('#theme-preview-palette') as HTMLElement | null;
-    if (!previewContainer) return;
+  private workingTheme: ThemeDefinition | null = null;
 
-    const theme = themeManager.getAllThemes().find(t => t.id === themeId) || themeManager.getCurrentTheme();
-    const c = theme.colors;
+  private setupThemeStudioListeners() {
+    const themeSelect = this.overlay.querySelector('#setting-theme-select') as HTMLSelectElement;
+    const newBtn = this.overlay.querySelector('#btn-theme-new') as HTMLButtonElement;
+    const saveBtn = this.overlay.querySelector('#btn-theme-save') as HTMLButtonElement;
+    const exportBtn = this.overlay.querySelector('#btn-theme-export') as HTMLButtonElement;
+    const importBtn = this.overlay.querySelector('#btn-theme-import') as HTMLButtonElement;
+    const deleteBtn = this.overlay.querySelector('#btn-theme-delete') as HTMLButtonElement;
 
-    previewContainer.innerHTML = `
-      <div class="theme-swatch-card" style="background: ${c.bgPrimary}; border-color: ${c.borderColor};">
-        <div class="theme-swatch-header" style="background: ${c.bgSecondary}; border-bottom: 1px solid ${c.borderColor};">
-          <span style="color: ${c.fgPrimary}; font-weight: 600;">${theme.name}</span>
-          <span class="theme-type-badge" style="background: ${c.bgActive}; color: ${c.accent};">${theme.isDark ? 'Dark Palette' : 'Light Palette'}</span>
+    themeSelect?.addEventListener('change', () => {
+      this.loadThemeIntoStudio(themeSelect.value);
+    });
+
+    newBtn?.addEventListener('click', () => {
+      const name = prompt('Enter a name for the new custom theme:', (this.workingTheme?.name || 'Custom') + ' Copy');
+      if (!name || !name.trim()) return;
+      const baseColors = this.workingTheme?.colors || themeManager.getCurrentTheme().colors;
+      const id = 'custom-' + name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
+      const newTheme: ThemeDefinition = {
+        id,
+        name: name.trim(),
+        isDark: true,
+        colors: { ...baseColors }
+      };
+      themeManager.saveCustomTheme(newTheme);
+      this.refreshThemeDropdown(newTheme.id);
+      this.loadThemeIntoStudio(newTheme.id);
+    });
+
+    saveBtn?.addEventListener('click', () => {
+      if (!this.workingTheme) return;
+      if (themeManager.isCustomTheme(this.workingTheme.id)) {
+        themeManager.saveCustomTheme(this.workingTheme);
+        alert(`Saved theme "${this.workingTheme.name}".`);
+      } else {
+        const name = prompt('Preset themes are protected. Save as a new custom theme name:', this.workingTheme.name + ' Custom');
+        if (!name || !name.trim()) return;
+        const id = 'custom-' + name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
+        const newTheme: ThemeDefinition = {
+          ...this.workingTheme,
+          id,
+          name: name.trim()
+        };
+        themeManager.saveCustomTheme(newTheme);
+        this.refreshThemeDropdown(newTheme.id);
+        this.loadThemeIntoStudio(newTheme.id);
+      }
+    });
+
+    deleteBtn?.addEventListener('click', () => {
+      if (!this.workingTheme || !themeManager.isCustomTheme(this.workingTheme.id)) return;
+      if (confirm(`Delete custom theme "${this.workingTheme.name}"?`)) {
+        themeManager.deleteCustomTheme(this.workingTheme.id);
+        const curTheme = themeManager.getCurrentTheme();
+        this.refreshThemeDropdown(curTheme.id);
+        this.loadThemeIntoStudio(curTheme.id);
+      }
+    });
+
+    exportBtn?.addEventListener('click', () => {
+      if (!this.workingTheme) return;
+      const json = JSON.stringify(this.workingTheme, null, 2);
+      navigator.clipboard?.writeText(json).catch(() => {});
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${this.workingTheme.id}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    importBtn?.addEventListener('click', () => {
+      const input = prompt('Paste theme JSON content here:');
+      if (!input || !input.trim()) return;
+      try {
+        const imported = themeManager.importThemeJson(input.trim());
+        this.refreshThemeDropdown(imported.id);
+        this.loadThemeIntoStudio(imported.id);
+      } catch (err: any) {
+        alert('Failed to import theme: ' + err.message);
+      }
+    });
+  }
+
+  private refreshThemeDropdown(selectedId?: string) {
+    const themeSelect = this.overlay.querySelector('#setting-theme-select') as HTMLSelectElement;
+    if (!themeSelect) return;
+    themeSelect.innerHTML = '';
+
+    const currentId = selectedId || themeManager.getCurrentTheme().id;
+    const allThemes = themeManager.getAllThemes();
+
+    const presets = allThemes.filter(t => !themeManager.isCustomTheme(t.id));
+    const customs = allThemes.filter(t => themeManager.isCustomTheme(t.id));
+
+    const optGroupPresets = document.createElement('optgroup');
+    optGroupPresets.label = 'Built-in Presets';
+    presets.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.name;
+      if (t.id === currentId) opt.selected = true;
+      optGroupPresets.appendChild(opt);
+    });
+    themeSelect.appendChild(optGroupPresets);
+
+    if (customs.length > 0) {
+      const optGroupCustoms = document.createElement('optgroup');
+      optGroupCustoms.label = 'Custom Themes';
+      customs.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = `${t.name} (Custom)`;
+        if (t.id === currentId) opt.selected = true;
+        optGroupCustoms.appendChild(opt);
+      });
+      themeSelect.appendChild(optGroupCustoms);
+    }
+  }
+
+  private loadThemeIntoStudio(themeId: string) {
+    const theme = themeManager.getTheme(themeId);
+    this.workingTheme = JSON.parse(JSON.stringify(theme));
+    const deleteBtn = this.overlay.querySelector('#btn-theme-delete') as HTMLButtonElement;
+    if (deleteBtn) {
+      deleteBtn.style.display = themeManager.isCustomTheme(theme.id) ? 'inline-flex' : 'none';
+    }
+
+    this.renderThemeLivePreview();
+    this.renderColorPickers();
+    themeManager.applyTheme(this.workingTheme!, false);
+  }
+
+  private renderThemeLivePreview() {
+    const box = this.overlay.querySelector('#theme-live-preview-box') as HTMLElement;
+    if (!box || !this.workingTheme) return;
+    const c = this.workingTheme.colors;
+
+    box.style.background = c.editorBg;
+    box.style.borderColor = c.borderColor;
+
+    box.innerHTML = `
+      <div class="preview-chrome" style="background: ${c.bgSecondary}; border-bottom: 1px solid ${c.borderColor}; color: ${c.fgPrimary}; display: flex; align-items: center; justify-content: space-between; padding: 6px 12px;">
+        <div class="preview-chrome-left" style="display: flex; align-items: center; gap: 8px;">
+          <span class="preview-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #f85149; display: inline-block;"></span>
+          <span class="preview-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #e3b341; display: inline-block;"></span>
+          <span class="preview-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #2ea043; display: inline-block;"></span>
+          <span class="preview-title" style="color: ${c.fgMuted}; font-size: 12px; margin-left: 6px; font-weight: 500;">${this.workingTheme.name}</span>
         </div>
-        <div class="theme-swatch-palette">
-          <div class="swatch-item"><div class="swatch-color" style="background: ${c.bgPrimary};"></div><span>Primary (${c.bgPrimary})</span></div>
-          <div class="swatch-item"><div class="swatch-color" style="background: ${c.bgSidebar};"></div><span>Sidebar (${c.bgSidebar})</span></div>
-          <div class="swatch-item"><div class="swatch-color" style="background: ${c.accent};"></div><span>Accent (${c.accent})</span></div>
-          <div class="swatch-item"><div class="swatch-color" style="background: ${c.fgPrimary};"></div><span>Text (${c.fgPrimary})</span></div>
-          <div class="swatch-item"><div class="swatch-color" style="background: ${c.editorActiveLine};"></div><span>Active Line</span></div>
+        <div class="preview-chrome-badge" style="background: ${c.bgActive}; color: ${c.accent}; font-size: 11px; padding: 2px 8px; border-radius: 4px;">
+          ${themeManager.isCustomTheme(this.workingTheme.id) ? 'Custom Theme' : 'Preset Theme'}
         </div>
       </div>
+      <div class="preview-content-row" style="display: flex; min-height: 140px;">
+        <div class="preview-sidebar" style="background: ${c.bgSidebar}; border-right: 1px solid ${c.borderColor}; color: ${c.fgMuted}; width: 140px; padding: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
+          <div class="preview-tree-item" style="color: ${c.accent}; font-weight: 600;"><span style="margin-right: 4px;">▸</span> src</div>
+          <div class="preview-tree-item active" style="background: ${c.bgActive}; color: ${c.fgPrimary}; padding: 2px 6px; border-radius: 3px;"><span style="margin-right: 4px;">•</span> main.ts</div>
+          <div class="preview-tree-item" style="color: ${c.fgMuted}; padding: 2px 6px;"><span style="margin-right: 4px;">•</span> app.css</div>
+        </div>
+        <div class="preview-editor-canvas" style="flex: 1; background: ${c.editorBg}; color: ${c.editorFg}; font-family: monospace; font-size: 12.5px; padding: 8px 12px; line-height: 1.6;">
+          <div class="preview-code-line"><span class="p-num" style="color: ${c.editorLineNumber}; display: inline-block; width: 22px;">1</span> <span style="color: ${c.synComment}; font-style: italic;">// Gitero IDE — Live Syntax Preview</span></div>
+          <div class="preview-code-line"><span class="p-num" style="color: ${c.editorLineNumber}; display: inline-block; width: 22px;">2</span> <span style="color: ${c.synKeyword};">import</span> { <span style="color: ${c.synFunction};">createApp</span> } <span style="color: ${c.synKeyword};">from</span> <span style="color: ${c.synString};">'gitero'</span>;</div>
+          <div class="preview-code-line active" style="background: ${c.editorActiveLine};"><span class="p-num" style="color: ${c.fgPrimary}; font-weight: bold; display: inline-block; width: 22px;">3</span> <span style="color: ${c.synKeyword};">export async function</span> <span style="color: ${c.synFunction};">buildApp</span>(<span style="color: ${c.synVariable};">config</span>: <span style="color: ${c.synType};">AppConfig</span>): <span style="color: ${c.synType};">Promise</span>&lt;<span style="color: ${c.synType};">boolean</span>&gt; {<span class="p-cursor" style="border-left: 2px solid ${c.editorCursor}; margin-left: 2px;"></span></div>
+          <div class="preview-code-line"><span class="p-num" style="color: ${c.editorLineNumber}; display: inline-block; width: 22px;">4</span>   <span style="color: ${c.synKeyword};">const</span> <span style="color: ${c.synVariable};">totalCount</span>: <span style="color: ${c.synType};">number</span> = <span style="color: ${c.synNumber};">42</span>;</div>
+          <div class="preview-code-line"><span class="p-num" style="color: ${c.editorLineNumber}; display: inline-block; width: 22px;">5</span>   <span style="color: ${c.synKeyword};">return</span> <span style="color: ${c.synVariable};">config</span>.<span style="color: ${c.synVariable};">enabled</span> <span style="color: ${c.synOperator};">===</span> <span style="color: ${c.synNumber};">true</span>;</div>
+          <div class="preview-code-line"><span class="p-num" style="color: ${c.editorLineNumber}; display: inline-block; width: 22px;">6</span> }</div>
+        </div>
+      </div>
+      <div class="preview-statusbar" style="background: ${c.statusBarBg}; color: ${c.statusBarFg}; border-top: 1px solid ${c.borderColor}; font-size: 11px; padding: 4px 12px; display: flex; justify-content: space-between;">
+        <span>git: (main) • Synced</span>
+        <span>TypeScript • UTF-8 • Tab Size: 2</span>
+      </div>
     `;
+  }
+
+  private renderColorPickers() {
+    if (!this.workingTheme) return;
+    const colors = this.workingTheme.colors;
+
+    const workspaceKeys: { key: keyof typeof colors; label: string }[] = [
+      { key: 'bgPrimary', label: 'Primary Background' },
+      { key: 'bgSidebar', label: 'Sidebar Background' },
+      { key: 'bgSecondary', label: 'Top Bar / Chrome' },
+      { key: 'bgHover', label: 'Hover Highlight' },
+      { key: 'bgActive', label: 'Active Tab / Element' },
+      { key: 'borderColor', label: 'Border & Dividers' },
+      { key: 'accent', label: 'Accent & Links' },
+      { key: 'statusBarBg', label: 'Status Bar Background' },
+      { key: 'statusBarFg', label: 'Status Bar Text' }
+    ];
+
+    const editorKeys: { key: keyof typeof colors; label: string }[] = [
+      { key: 'editorBg', label: 'Editor Canvas Background' },
+      { key: 'editorFg', label: 'Editor Text' },
+      { key: 'editorCursor', label: 'Cursor / Caret' },
+      { key: 'editorSelection', label: 'Selection Highlight' },
+      { key: 'editorActiveLine', label: 'Active Line Highlight' },
+      { key: 'editorLineNumber', label: 'Line Numbers Gutter' }
+    ];
+
+    const syntaxKeys: { key: keyof typeof colors; label: string }[] = [
+      { key: 'synKeyword', label: 'Keywords (import, function, return)' },
+      { key: 'synString', label: 'Strings ("...", \'...\')' },
+      { key: 'synFunction', label: 'Functions (createApp, buildApp)' },
+      { key: 'synVariable', label: 'Variables (config, totalCount)' },
+      { key: 'synComment', label: 'Comments (//, /* */)' },
+      { key: 'synType', label: 'Types & Classes (Promise, number)' },
+      { key: 'synNumber', label: 'Numbers & Booleans (42, true)' },
+      { key: 'synOperator', label: 'Operators (===, =, +, &)' }
+    ];
+
+    const populateGrid = (containerId: string, keys: { key: keyof typeof colors; label: string }[]) => {
+      const container = this.overlay.querySelector(containerId) as HTMLElement;
+      if (!container) return;
+      container.innerHTML = '';
+
+      keys.forEach(({ key, label }) => {
+        const val = (colors as any)[key] || '#ffffff';
+        const card = document.createElement('div');
+        card.className = 'color-item-card';
+        card.innerHTML = `
+          <div class="color-item-info">
+            <span class="color-item-label">${label}</span>
+            <code class="color-item-key">${key}</code>
+          </div>
+          <div class="color-item-inputs">
+            <input type="color" class="color-picker-input" data-key="${key}" value="${val.length === 7 ? val : '#1a1b26'}" />
+            <input type="text" class="color-text-input" data-key="${key}" value="${val}" spellcheck="false" />
+          </div>
+        `;
+
+        const colorInput = card.querySelector('.color-picker-input') as HTMLInputElement;
+        const textInput = card.querySelector('.color-text-input') as HTMLInputElement;
+
+        const updateColor = (newVal: string) => {
+          (this.workingTheme!.colors as any)[key] = newVal;
+          if (newVal.length === 7) {
+            colorInput.value = newVal;
+          }
+          textInput.value = newVal;
+          this.renderThemeLivePreview();
+          themeManager.applyTheme(this.workingTheme!, false);
+        };
+
+        colorInput.addEventListener('input', () => updateColor(colorInput.value));
+        textInput.addEventListener('input', () => updateColor(textInput.value));
+
+        container.appendChild(card);
+      });
+    };
+
+    populateGrid('#theme-colors-workspace', workspaceKeys);
+    populateGrid('#theme-colors-editor', editorKeys);
+    populateGrid('#theme-colors-syntax', syntaxKeys);
   }
 
   open(initialTab: string = 'editor') {
@@ -771,27 +1056,17 @@ export class SettingsModalComponent {
     const vimToggle = this.overlay.querySelector('#setting-vim-toggle') as HTMLInputElement;
     vimToggle.checked = vimIntegration.isEnabled();
 
-    const themeSelect = this.overlay.querySelector('#setting-theme-select') as HTMLSelectElement;
-    themeSelect.innerHTML = '';
     const currentTheme = themeManager.getCurrentTheme();
-
-    themeManager.getAllThemes().forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = t.name;
-      if (t.id === currentTheme.id) opt.selected = true;
-      themeSelect.appendChild(opt);
-    });
-
-    this.updateThemePreview(currentTheme.id);
-
-    // Update preview when theme selection changes
-    themeSelect.onchange = () => {
-      this.updateThemePreview(themeSelect.value);
-    };
+    this.refreshThemeDropdown(currentTheme.id);
+    this.loadThemeIntoStudio(currentTheme.id);
 
     const cursorSelect = this.overlay.querySelector('#setting-cursor-style') as HTMLSelectElement;
     cursorSelect.value = preferencesService.get('editor.cursorStyle');
+
+    const cursorBlinkingSelect = this.overlay.querySelector('#setting-cursor-blinking') as HTMLSelectElement;
+    if (cursorBlinkingSelect) {
+      cursorBlinkingSelect.value = preferencesService.get('editor.cursorBlinking');
+    }
 
     const fontInput = this.overlay.querySelector('#setting-font-family') as HTMLInputElement;
     fontInput.value = preferencesService.get('editor.fontFamily');
@@ -799,11 +1074,15 @@ export class SettingsModalComponent {
     const sizeInput = this.overlay.querySelector('#setting-font-size') as HTMLInputElement;
     sizeInput.value = String(preferencesService.get('editor.fontSize'));
 
-    const tabSelect = this.overlay.querySelector('#setting-tab-size') as HTMLSelectElement;
-    tabSelect.value = String(preferencesService.get('editor.tabSize') || 2);
+    const tabSizeInput = this.overlay.querySelector('#setting-tab-size') as HTMLInputElement;
+    if (tabSizeInput) {
+      tabSizeInput.value = String(preferencesService.get('editor.tabSize') || 2);
+    }
 
-    const wrapToggle = this.overlay.querySelector('#setting-word-wrap-toggle') as HTMLInputElement;
-    wrapToggle.checked = preferencesService.get('editor.wordWrap');
+    const wrapToggle = (this.overlay.querySelector('#setting-word-wrap') || this.overlay.querySelector('#setting-word-wrap-toggle')) as HTMLInputElement;
+    if (wrapToggle) {
+      wrapToggle.checked = preferencesService.get('editor.wordWrap');
+    }
 
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
     cssText.value = themeManager.getCustomCss();
@@ -812,6 +1091,7 @@ export class SettingsModalComponent {
   close() {
     this.isOpen = false;
     this.overlay.style.display = 'none';
+    themeManager.applyTheme(themeManager.getCurrentTheme().id, false);
   }
 
   private save() {
@@ -820,24 +1100,32 @@ export class SettingsModalComponent {
     const vimToggle = this.overlay.querySelector('#setting-vim-toggle') as HTMLInputElement;
     const themeSelect = this.overlay.querySelector('#setting-theme-select') as HTMLSelectElement;
     const cursorSelect = this.overlay.querySelector('#setting-cursor-style') as HTMLSelectElement;
+    const cursorBlinkingSelect = this.overlay.querySelector('#setting-cursor-blinking') as HTMLSelectElement;
     const fontInput = this.overlay.querySelector('#setting-font-family') as HTMLInputElement;
     const sizeInput = this.overlay.querySelector('#setting-font-size') as HTMLInputElement;
-    const tabSelect = this.overlay.querySelector('#setting-tab-size') as HTMLSelectElement;
-    const wrapToggle = this.overlay.querySelector('#setting-word-wrap-toggle') as HTMLInputElement;
+    const tabSizeInput = this.overlay.querySelector('#setting-tab-size') as HTMLInputElement;
+    const wrapToggle = (this.overlay.querySelector('#setting-word-wrap') || this.overlay.querySelector('#setting-word-wrap-toggle')) as HTMLInputElement;
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
 
     // Save Tab Size & Word Wrap
-    preferencesService.set('editor.tabSize', parseInt(tabSelect.value, 10) || 2);
-    preferencesService.set('editor.wordWrap', wrapToggle.checked);
+    if (tabSizeInput) {
+      preferencesService.set('editor.tabSize', parseInt(tabSizeInput.value, 10) || 2);
+    }
+    if (wrapToggle) {
+      preferencesService.set('editor.wordWrap', wrapToggle.checked);
+    }
 
     // Save Auto Save
     preferencesService.set('files.autoSave', autoSaveToggle.checked);
     const delayNum = parseInt(autoSaveDelayInput.value.trim(), 10) || 1000;
     preferencesService.set('files.autoSaveDelay', delayNum);
 
-    // Save Cursor Style
+    // Save Cursor Style & Blinking
     const newCursor = (cursorSelect.value as CursorStyle) || 'line';
     preferencesService.set('editor.cursorStyle', newCursor);
+    if (cursorBlinkingSelect) {
+      preferencesService.set('editor.cursorBlinking', (cursorBlinkingSelect.value as any) || 'blink');
+    }
 
     // Save Vim
     const newVim = vimToggle.checked;
@@ -845,8 +1133,16 @@ export class SettingsModalComponent {
     vimIntegration.setEnabled(newVim);
     if (this.onVimToggled) this.onVimToggled(newVim);
 
-    // Save Theme
-    themeManager.applyTheme(themeSelect.value);
+    // Save Working Theme
+    if (this.workingTheme) {
+      if (themeManager.isCustomTheme(this.workingTheme.id)) {
+        themeManager.saveCustomTheme(this.workingTheme);
+      } else {
+        themeManager.applyTheme(this.workingTheme.id, true);
+      }
+    } else if (themeSelect?.value) {
+      themeManager.applyTheme(themeSelect.value, true);
+    }
 
     // Save Typography
     const fontFamily = fontInput.value.trim() || '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace';

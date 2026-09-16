@@ -34,6 +34,7 @@
       "alwaysOnTop": false,
       "icon": "/icons/appIcon.png",
       "enableInspector": true,
+      "openInspectorOnStartup": false,
       "borderless": true,
       "maximize": true,
       "hidden": false,

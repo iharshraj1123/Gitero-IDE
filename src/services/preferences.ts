@@ -34,9 +34,20 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'git.switchBranch': 'Ctrl+Shift+B',
   'workbench.action.gotoLine': 'Ctrl+G',
   'editor.action.toggleWordWrap': 'Alt+Z',
+  'editor.action.commentLine': 'Ctrl+/',
+  'editor.action.blockComment': 'Ctrl+Shift+/',
+  'editor.action.copyLinesDownAction': 'Shift+Alt+Down',
+  'editor.action.copyLinesUpAction': 'Shift+Alt+Up',
+  'editor.action.moveLinesDownAction': 'Alt+Down',
+  'editor.action.moveLinesUpAction': 'Alt+Up',
+  'editor.action.deleteLines': 'Ctrl+Shift+K',
+  'editor.action.indentLines': 'Ctrl+]',
+  'editor.action.outdentLines': 'Ctrl+[',
+  'editor.action.selectLine': 'Ctrl+L',
   'markdown.showPreview': 'Ctrl+Shift+V',
   'workbench.action.openSettings': 'Ctrl+,',
-  'workbench.action.openShortcuts': 'Ctrl+K Ctrl+S'
+  'workbench.action.openShortcuts': 'Ctrl+K Ctrl+S',
+  'workbench.action.toggleDevTools': 'F12'
 };
 
 export const DEFAULT_PREFERENCES: GiteroPreferences = {

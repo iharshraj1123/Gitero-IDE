@@ -15,6 +15,7 @@ export class ShortcutsModalComponent {
     { command: 'Show Command Palette', keys: ['Ctrl', 'Shift', 'P'], category: 'General' },
     { command: 'Quick Open File', keys: ['Ctrl', 'P'], category: 'General' },
     { command: 'Toggle Primary Sidebar', keys: ['Ctrl', 'B'], category: 'General' },
+    { command: 'Toggle Developer Tools', keys: ['F12', 'or', 'Ctrl', 'Shift', 'I'], category: 'General' },
     { command: 'Open Settings & Custom CSS', keys: ['Ctrl', ','], category: 'General' },
     { command: 'Keyboard Shortcuts Reference', keys: ['Ctrl', 'K', 'Ctrl', 'S'], category: 'General' },
 

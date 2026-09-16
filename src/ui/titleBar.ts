@@ -40,6 +40,7 @@ export interface TitleBarOptions {
   onOpenSearch?: () => void;
   onOpenGit?: () => void;
   onOpenShortcuts?: () => void;
+  onToggleDevTools?: () => void;
   onCheckUpdates?: () => void;
   onAbout?: () => void;
 }
@@ -171,6 +172,7 @@ export class TitleBarComponent {
         label: 'Help',
         items: [
           { label: 'Keyboard Shortcuts Reference', shortcut: 'Ctrl+K Ctrl+S', action: this.options.onOpenShortcuts },
+          { label: 'Toggle Developer Tools', shortcut: 'F12', action: this.options.onToggleDevTools },
           { label: 'Check for Updates...', action: this.options.onCheckUpdates },
           { label: '', divider: true },
           { label: 'About Gitero IDE', action: this.options.onAbout }
@@ -351,17 +353,44 @@ export class TitleBarComponent {
   }
 
   private setupDraggable() {
-    const dragRegion = this.container.querySelector('#titlebar-drag-region') as HTMLElement;
-    if (!dragRegion) return;
+    let isMouseDown = false;
+    let startX = 0;
+    let startY = 0;
 
-    dragRegion.addEventListener('mousedown', (e) => {
-      // Left mouse click on drag region starts dragging window
-      if (e.button === 0 && isNative()) {
-        window.Neutralino?.window?.beginDrag();
+    // Mouse down on title bar (outside buttons and menu items) prepares drag
+    this.container.addEventListener('mousedown', (e) => {
+      const target = e.target as HTMLElement;
+      if (e.button !== 0) return;
+      if (target.closest('button, .menu-item, .menu-trigger, .win-btn, .titlebar-icon-btn, .titlebar-menubar')) {
+        return;
+      }
+      isMouseDown = true;
+      startX = e.screenX;
+      startY = e.screenY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDown) return;
+      const dist = Math.hypot(e.screenX - startX, e.screenY - startY);
+      if (dist > 5) {
+        isMouseDown = false;
+        if (isNative()) {
+          window.Neutralino?.window?.beginDrag();
+        }
       }
     });
 
-    dragRegion.addEventListener('dblclick', async () => {
+    window.addEventListener('mouseup', () => {
+      isMouseDown = false;
+    });
+
+    // Double-click on any empty title bar space maximizes / restores
+    this.container.addEventListener('dblclick', async (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button, .menu-item, .menu-trigger, .win-btn, .titlebar-icon-btn')) {
+        return;
+      }
+      e.preventDefault();
       await this.toggleMaximize();
     });
   }

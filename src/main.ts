@@ -19,6 +19,8 @@ import { SUPPORTED_LANGUAGES, isImageFile, isBinaryFile } from './editor/languag
 import { MarkdownViewerComponent } from './ui/markdownViewer';
 import { MediaViewerComponent } from './ui/mediaViewer';
 import { gitService } from './services/git';
+import { WindowResizer } from './ui/windowResizer';
+import { SNIPPETS } from './editor/snippets';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -26,6 +28,7 @@ async function bootstrap() {
 
   // 1. Initialize native platform (if running in Neutralino binary)
   await initNeutralino();
+  new WindowResizer();
 
   // 2. Initialize Themes and User CSS
   themeManager.init();
@@ -431,6 +434,9 @@ async function bootstrap() {
     onOpenShortcuts: () => {
       shortcutsModal.open();
     },
+    onToggleDevTools: () => {
+      statusBar.showMessage('Developer Tools: Press F12 or Ctrl+Shift+I (or right-click -> Inspect)');
+    },
     onCheckUpdates: () => {
       settingsModal.open('updates');
     },
@@ -717,6 +723,7 @@ A high-performance, VS Code-styled, Vim-customizable IDE.
 * **Ctrl + Shift + F**: Search in Files
 * **Ctrl + Shift + G**: Source Control (Git)
 * **Ctrl + ,**: Settings & Custom CSS
+* **F12** or **Ctrl + Shift + I**: Developer Tools
 
 ### Vim Mode
 Vim mode is built-in and enabled by default!
@@ -820,8 +827,76 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
     commandPalette.open(items);
   }
 
+  function openSnippetPicker() {
+    const items: PaletteItem[] = SNIPPETS.map(snip => ({
+      id: `snip-${snip.trigger}`,
+      title: `${snip.name}: ${snip.detail}`,
+      detail: snip.languages?.join(', ') || 'Snippet',
+      category: 'Snippets',
+      action: () => {
+        editorManager.insertSnippet(snip.template);
+      }
+    }));
+    commandPalette.open(items);
+  }
+
   function openCommandPalette() {
     const commands: PaletteItem[] = [
+      {
+        id: 'snippets.insert',
+        title: 'Snippets: Insert Snippet / Boilerplate (!html5, rafce, etc.)...',
+        category: 'Snippets',
+        action: () => openSnippetPicker()
+      },
+      {
+        id: 'edit.commentLine',
+        title: 'Edit: Toggle Line Comment',
+        detail: 'Ctrl+/',
+        category: 'Edit',
+        action: () => editorManager.toggleComment()
+      },
+      {
+        id: 'edit.blockComment',
+        title: 'Edit: Toggle Block Comment',
+        detail: 'Ctrl+Shift+/',
+        category: 'Edit',
+        action: () => editorManager.toggleBlockComment()
+      },
+      {
+        id: 'edit.copyLineDown',
+        title: 'Edit: Copy Line Down (Duplicate)',
+        detail: 'Shift+Alt+Down',
+        category: 'Edit',
+        action: () => editorManager.copyLineDown()
+      },
+      {
+        id: 'edit.copyLineUp',
+        title: 'Edit: Copy Line Up',
+        detail: 'Shift+Alt+Up',
+        category: 'Edit',
+        action: () => editorManager.copyLineUp()
+      },
+      {
+        id: 'edit.moveLineDown',
+        title: 'Edit: Move Line Down',
+        detail: 'Alt+Down',
+        category: 'Edit',
+        action: () => editorManager.moveLineDown()
+      },
+      {
+        id: 'edit.moveLineUp',
+        title: 'Edit: Move Line Up',
+        detail: 'Alt+Up',
+        category: 'Edit',
+        action: () => editorManager.moveLineUp()
+      },
+      {
+        id: 'edit.deleteLine',
+        title: 'Edit: Delete Line',
+        detail: 'Ctrl+Shift+K',
+        category: 'Edit',
+        action: () => editorManager.deleteLine()
+      },
       {
         id: 'theme.switch',
         title: 'Preferences: Switch Color Theme',
@@ -1047,6 +1122,15 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         detail: 'Ctrl+K Ctrl+S',
         category: 'Help',
         action: () => shortcutsModal.open()
+      },
+      {
+        id: 'developer.toggleDevTools',
+        title: 'Developer: Toggle Developer Tools',
+        detail: 'F12 or Ctrl+Shift+I',
+        category: 'Developer',
+        action: () => {
+          statusBar.showMessage('Developer Tools: Press F12 or Ctrl+Shift+I (or right-click -> Inspect)');
+        }
       }
     ];
 
@@ -1220,6 +1304,55 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       e.preventDefault();
       const isWrap = editorManager.toggleWordWrap();
       statusBar.showMessage(`Word Wrap: ${isWrap ? 'ENABLED' : 'DISABLED'}`);
+      return;
+    }
+
+    // Toggle Line Comment
+    if (matchAction('editor.action.commentLine')) {
+      e.preventDefault();
+      editorManager.toggleComment();
+      return;
+    }
+
+    // Toggle Block Comment
+    if (matchAction('editor.action.blockComment')) {
+      e.preventDefault();
+      editorManager.toggleBlockComment();
+      return;
+    }
+
+    // Duplicate Line Down
+    if (matchAction('editor.action.copyLinesDownAction')) {
+      e.preventDefault();
+      editorManager.copyLineDown();
+      return;
+    }
+
+    // Duplicate Line Up
+    if (matchAction('editor.action.copyLinesUpAction')) {
+      e.preventDefault();
+      editorManager.copyLineUp();
+      return;
+    }
+
+    // Move Line Down
+    if (matchAction('editor.action.moveLinesDownAction')) {
+      e.preventDefault();
+      editorManager.moveLineDown();
+      return;
+    }
+
+    // Move Line Up
+    if (matchAction('editor.action.moveLinesUpAction')) {
+      e.preventDefault();
+      editorManager.moveLineUp();
+      return;
+    }
+
+    // Delete Line
+    if (matchAction('editor.action.deleteLines')) {
+      e.preventDefault();
+      editorManager.deleteLine();
       return;
     }
 
