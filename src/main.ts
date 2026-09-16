@@ -25,6 +25,7 @@ import { SNIPPETS } from './editor/snippets';
 import { fileAssociationService } from './services/fileAssociation';
 import { persistentStorage } from './services/storage';
 import { transparencyService } from './services/transparencyService';
+import { DISPLAY_VERSION } from './version';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -580,7 +581,7 @@ async function bootstrap() {
       settingsModal.open('updates');
     },
     onAbout: () => {
-      alert('Gitero IDE v0.0.4-alpha\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.');
+      alert(`Gitero IDE ${DISPLAY_VERSION}\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.`);
     }
   });
 

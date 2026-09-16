@@ -5,8 +5,10 @@
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "node scripts/sync-version.js && vite",
+    "build": "node scripts/sync-version.js && tsc && vite build",
+    "sync:version": "node scripts/sync-version.js",
+    "version": "node scripts/sync-version.js",
     "build:hotkey": "cmd /c src-native\\explorer-hotkey\\build.bat",
     "neu:build": "npx @neutralinojs/neu build",
     "start": "neu run",
