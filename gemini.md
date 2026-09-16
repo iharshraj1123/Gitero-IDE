@@ -56,6 +56,24 @@ In Neutralinojs:
 
 ---
 
+## Preferences Storage Architecture
+
+* **Central Store**: `localStorage.getItem('gitero_preferences_v1')` (JSON document managed by `PreferencesService` in `src/services/preferences.ts`).
+* **Schema**:
+  * `editor.cursorStyle`: `'line' | 'block' | 'underline'` (Default: `'line'`)
+  * `editor.cursorBlinking`: `'blink' | 'smooth' | 'solid'` (Default: `'blink'`)
+  * `editor.fontFamily`: string (Default: Cascadia Code / Fira Code monospace stack)
+  * `editor.fontSize`: number (Default: `14`)
+  * `editor.theme`: string (Default: `'tokyo-night'`)
+  * `editor.vimEnabled`: boolean (Default: `true`)
+  * `editor.customCss`: string (Default: `''`)
+  * `editor.tabSize`: number (Default: `2`)
+  * `editor.wordWrap`: boolean (Default: `false`)
+* **Legacy Sync**: Automatically migrates and two-way mirrors legacy keys (`gitero_theme_id`, `gitero_font_family`, `gitero_font_size`, `gitero_vim_enabled`, `gitero_custom_css`) for zero data loss.
+* **Reactivity**: Components subscribe via `preferencesService.subscribe(key, callback)` for instant live updates across the app.
+
+---
+
 ## Strict Project Rules
 
 1. **Strictly No Emojis**:
