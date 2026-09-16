@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 dist/
+installer-output/
 
 # Neutralino storage & temp
 .storage/

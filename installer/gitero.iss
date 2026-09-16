@@ -2,7 +2,7 @@
 ; Generates a lightweight (~4-5MB) Windows Installer with desktop icon, Start menu, and "Open with Gitero" context menu.
 
 #define MyAppName "Gitero IDE"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "0.0.1-alpha"
 #define MyAppPublisher "Gitero Team"
 #define MyAppURL "https://github.com/iharshraj1123/Glitero-IDE"
 #define MyAppExeName "gitero-win_x64.exe"
@@ -21,7 +21,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\installer-output
 OutputBaseFilename=Gitero-Setup-{#MyAppVersion}
-SetupIconFile=..\public\icons\appIcon.png
+SetupIconFile=..\public\icons\appIcon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -41,18 +41,18 @@ Source: "..\Gitero.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\*"; DestDir: "{app}\dist"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\Gitero.bat"; IconFilename: "{app}\dist\icons\appIcon.png"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\Gitero.bat"; IconFilename: "{app}\dist\icons\appIcon.png"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\Gitero.bat"; IconFilename: "{app}\dist\icons\appIcon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\Gitero.bat"; IconFilename: "{app}\dist\icons\appIcon.ico"; Tasks: desktopicon
 
 [Registry]
 ; Right-click directory context menu: "Open with Gitero"
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\dist\icons\appIcon.png"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\dist\icons\appIcon.ico"""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\Gitero.bat"" ""%1"""; Tasks: contextmenu
 
 ; Right-click background context menu
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\dist\icons\appIcon.png"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\dist\icons\appIcon.ico"""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\Gitero.bat"" ""%V"""; Tasks: contextmenu
 
 [Run]

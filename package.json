@@ -1,12 +1,13 @@
 {
   "name": "gitero-ide",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.1-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "start": "neu run",
+    "installer": "npm run build && iscc installer/gitero.iss",
     "preview": "vite preview",
     "neu:run": "neu run"
   },
