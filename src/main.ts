@@ -214,7 +214,7 @@ async function bootstrap() {
       settingsModal.open();
     },
     onAbout: () => {
-      alert('Gitero IDE v0.0.1-alpha\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.');
+      alert('Gitero IDE v0.0.3-alpha\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.');
     }
   });
 

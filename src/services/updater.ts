@@ -25,7 +25,7 @@ export interface UpdateStatus {
 }
 
 const GITHUB_REPO = 'iharshraj1123/Glitero-IDE';
-const CURRENT_VERSION = 'v0.0.1-alpha';
+const CURRENT_VERSION = 'v0.0.3-alpha';
 
 export class UpdaterService {
   private currentBranch: string;

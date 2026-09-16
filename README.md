@@ -57,7 +57,7 @@ Built on the **Neutralinojs native runtime** and **CodeMirror 6**, Gitero elimin
 ## Quick Start
 
 ### Option 1: Windows Production Installer
-1. Download the latest installer `Gitero-Setup-0.0.1-alpha.exe` from [Releases](https://github.com/iharshraj1123/Glitero-IDE/releases).
+1. Download the latest installer `Gitero-Setup-0.0.3-alpha.exe` from [Releases](https://github.com/iharshraj1123/Glitero-IDE/releases).
 2. Run the installer. Gitero installs to `%LOCALAPPDATA%\Programs\Gitero IDE`.
 3. Launch Gitero IDE from the Start Menu, Desktop shortcut, or right-click any folder and select **Open with Gitero**.
 

@@ -379,8 +379,9 @@ export class TitleBarComponent {
   private async checkMaximizedState() {
     if (isNative()) {
       try {
+        await window.Neutralino?.window?.maximize();
         const isMax = await window.Neutralino?.window?.isMaximized();
-        this.updateMaximizedVisual(isMax);
+        this.updateMaximizedVisual(isMax ?? true);
       } catch (e) {
         // Ignore in web preview
       }
