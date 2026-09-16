@@ -3,6 +3,7 @@ import { editorState } from '../state/editorState';
 import { getFileIconSvg } from './icons';
 import { gitService } from '../services/git';
 import { diffModal } from './diffModal';
+import { isImageFile, isBinaryFile } from '../editor/languages';
 
 export interface ContextMenuItem {
   label: string;
@@ -182,7 +183,17 @@ export class FileTreeComponent {
           childrenContainer.style.display = node.isOpen ? 'block' : 'none';
         }
       } else {
-        // Open file from left sidebar -> Always open in RAW mode per specification
+        // Guard: check if file is an image or binary
+        if (isImageFile(node.path)) {
+          editorState.openBinaryFile(node.path, 'image');
+          return;
+        }
+        if (isBinaryFile(node.path)) {
+          editorState.openBinaryFile(node.path, 'binary');
+          return;
+        }
+
+        // Open code / text file from left sidebar -> Always open in RAW mode per specification
         try {
           const content = await fsService.readFile(node.path);
           if (this.onFileOpen) {

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# ============================================================================
+# Gitero IDE Shell Launcher (gcode)
+# For Git Bash, MSYS2, Cygwin, and WSL
+# ============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GITERO_EXE=""
+
+if [ -f "$SCRIPT_DIR/../Gitero.exe" ]; then
+  GITERO_EXE="$SCRIPT_DIR/../Gitero.exe"
+elif [ -n "$LOCALAPPDATA" ]; then
+  WIN_PATH="$LOCALAPPDATA\\Programs\\Gitero IDE\\Gitero.exe"
+  UNIX_PATH="$(cygpath -u "$WIN_PATH" 2>/dev/null || echo "$WIN_PATH")"
+  if [ -f "$UNIX_PATH" ]; then
+    GITERO_EXE="$UNIX_PATH"
+  fi
+fi
+
+if [ -z "$GITERO_EXE" ] && [ -f "$SCRIPT_DIR/../dist/gitero/gitero-win_x64.exe" ]; then
+  GITERO_EXE="$SCRIPT_DIR/../dist/gitero/gitero-win_x64.exe"
+fi
+
+if [ -z "$GITERO_EXE" ]; then
+  echo "[Gitero] Error: Gitero.exe could not be found."
+  exit 1
+fi
+
+if [ -z "$1" ]; then
+  "$GITERO_EXE" &
+elif [ "$1" = "." ]; then
+  TARGET="$(pwd -W 2>/dev/null || pwd)"
+  "$GITERO_EXE" "$TARGET" &
+else
+  TARGET="$(cygpath -w "$1" 2>/dev/null || echo "$1")"
+  "$GITERO_EXE" "$TARGET" &
+fi

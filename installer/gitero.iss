@@ -25,6 +25,7 @@ SetupIconFile=..\public\icons\appIcon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+ChangesEnvironment=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -32,6 +33,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "contextmenu"; Description: "Add 'Open with Gitero' to Windows Explorer context menu"; GroupDescription: "Windows Explorer Integration:"
+Name: "addtopath"; Description: "Add Gitero to PATH (allows 'gcode .' from Terminal / CMD / PowerShell)"; GroupDescription: "Terminal Integration:"
 
 [Files]
 ; Primary application executable and packaged resources
@@ -39,6 +41,9 @@ Source: "..\dist\gitero\gitero-win_x64.exe"; DestDir: "{app}"; DestName: "{#MyAp
 Source: "..\dist\gitero\resources.neu"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\neutralino.config.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\public\icons\appIcon.ico"; DestDir: "{app}"; Flags: ignoreversion
+; CLI Terminal Launcher scripts
+Source: "..\bin\gcode.cmd"; DestDir: "{app}\bin"; Flags: ignoreversion
+Source: "..\bin\gcode"; DestDir: "{app}\bin"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"; IconIndex: 0
@@ -72,3 +77,71 @@ Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\co
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+const
+  EnvironmentKey = 'Environment';
+
+procedure RegisterPath();
+var
+  Paths: string;
+  AppDir: string;
+begin
+  if WizardIsTaskSelected('addtopath') then
+  begin
+    AppDir := ExpandConstant('{app}\bin');
+    if RegQueryStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths) then
+    begin
+      if Pos(Uppercase(AppDir), Uppercase(Paths)) = 0 then
+      begin
+        if (Length(Paths) > 0) and (Paths[Length(Paths)] <> ';') then
+          Paths := Paths + ';';
+        Paths := Paths + AppDir;
+        RegWriteStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths);
+      end;
+    end
+    else
+    begin
+      RegWriteStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', AppDir);
+    end;
+  end;
+end;
+
+procedure UnregisterPath();
+var
+  Paths: string;
+  AppDir: string;
+  P: Integer;
+begin
+  AppDir := ExpandConstant('{app}\bin');
+  if RegQueryStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths) then
+  begin
+    P := Pos(Uppercase(AppDir), Uppercase(Paths));
+    if P > 0 then
+    begin
+      Delete(Paths, P, Length(AppDir));
+      StringChange(Paths, ';;', ';');
+      if (Length(Paths) > 0) and (Paths[Length(Paths)] = ';') then
+        Delete(Paths, Length(Paths), 1);
+      if (Length(Paths) > 0) and (Paths[1] = ';') then
+        Delete(Paths, 1, 1);
+      RegWriteStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths);
+    end;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    RegisterPath();
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    UnregisterPath();
+  end;
+end;

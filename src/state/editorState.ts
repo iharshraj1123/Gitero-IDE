@@ -9,7 +9,7 @@ export interface EditorTab {
   isDirty: boolean;
   language: string;
   cursor: { line: number; col: number };
-  viewMode?: 'raw' | 'rendered';
+  viewMode?: 'raw' | 'rendered' | 'image' | 'binary';
 }
 
 export interface StateChangeListener {
@@ -99,6 +99,35 @@ export class EditorStateManager {
       language: lang,
       cursor: { line: 1, col: 1 },
       viewMode: isMd ? viewMode : 'raw'
+    };
+
+    this.tabs.push(newTab);
+    this.activeTabId = filePath;
+    this.persist();
+    this.notify();
+    return newTab;
+  }
+
+  openBinaryFile(filePath: string, mode: 'image' | 'binary'): EditorTab {
+    const existing = this.tabs.find(t => t.id === filePath);
+    if (existing) {
+      existing.viewMode = mode;
+      this.activeTabId = filePath;
+      this.notify();
+      return existing;
+    }
+
+    const name = filePath.split(/[/\\]/).pop() || filePath;
+    const newTab: EditorTab = {
+      id: filePath,
+      name,
+      path: filePath,
+      content: '',
+      originalContent: '',
+      isDirty: false,
+      language: mode === 'image' ? 'Image' : 'Binary',
+      cursor: { line: 1, col: 1 },
+      viewMode: mode
     };
 
     this.tabs.push(newTab);

@@ -34,7 +34,7 @@ export class ThemeManager {
   }
 
   getCurrentTheme(): ThemeDefinition {
-    return THEMES[this.currentThemeId] || THEMES['tokyo-night'];
+    return THEMES[this.currentThemeId] || THEMES['github-dark'];
   }
 
   getAllThemes(): ThemeDefinition[] {
@@ -42,7 +42,7 @@ export class ThemeManager {
   }
 
   applyTheme(themeId: string, persist = true) {
-    const theme = THEMES[themeId] || THEMES['tokyo-night'];
+    const theme = THEMES[themeId] || THEMES['github-dark'];
     this.currentThemeId = theme.id;
     if (persist) {
       preferencesService.set('editor.theme', theme.id);

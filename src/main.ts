@@ -1,4 +1,4 @@
-import { initNeutralino } from './services/neutralino';
+import { initNeutralino, isNative } from './services/neutralino';
 import { fsService } from './services/fs';
 import { themeManager } from './themes/themeManager';
 import { editorManager } from './editor/editor';
@@ -15,8 +15,9 @@ import { SearchPanelComponent } from './ui/searchPanel';
 import { GitPanelComponent } from './ui/gitPanel';
 import { TerminalPanelComponent } from './ui/terminalPanel';
 import { ShortcutsModalComponent } from './ui/shortcutsModal';
-import { SUPPORTED_LANGUAGES } from './editor/languages';
+import { SUPPORTED_LANGUAGES, isImageFile, isBinaryFile } from './editor/languages';
 import { MarkdownViewerComponent } from './ui/markdownViewer';
+import { MediaViewerComponent } from './ui/mediaViewer';
 import { gitService } from './services/git';
 
 async function bootstrap() {
@@ -54,9 +55,11 @@ async function bootstrap() {
   const emptyStateEl = document.getElementById('empty-state') as HTMLElement;
   const cmRoot = document.getElementById('codemirror-root') as HTMLElement;
   const markdownViewport = document.getElementById('markdown-viewport') as HTMLElement;
+  const mediaViewport = document.getElementById('media-viewport') as HTMLElement;
   const btnMdToggle = document.getElementById('btn-md-toggle') as HTMLElement;
   const mdToggleText = document.getElementById('md-toggle-text') as HTMLElement;
   const markdownViewer = new MarkdownViewerComponent(markdownViewport);
+  const mediaViewer = new MediaViewerComponent(mediaViewport);
 
   btnMdToggle.addEventListener('click', () => {
     const nextMode = editorState.toggleActiveTabRenderMode();
@@ -429,7 +432,7 @@ async function bootstrap() {
       shortcutsModal.open();
     },
     onCheckUpdates: () => {
-      settingsModal.open();
+      settingsModal.open('updates');
     },
     onAbout: () => {
       alert('Gitero IDE v0.0.4-alpha\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.');
@@ -501,6 +504,7 @@ async function bootstrap() {
     if (!activeTab) {
       cmRoot.style.display = 'none';
       markdownViewport.style.display = 'none';
+      mediaViewport.style.display = 'none';
       btnMdToggle.style.display = 'none';
       emptyStateEl.style.display = 'flex';
       breadcrumbText.textContent = 'Gitero IDE';
@@ -511,9 +515,22 @@ async function bootstrap() {
     emptyStateEl.style.display = 'none';
     breadcrumbText.textContent = activeTab.path.replace(/\\/g, ' > ').replace(/\//g, ' > ');
 
-    const isMd = /\.md$/i.test(activeTab.path) || /\.markdown$/i.test(activeTab.path);
-
-    if (isMd) {
+    if (activeTab.viewMode === 'image') {
+      cmRoot.style.display = 'none';
+      markdownViewport.style.display = 'none';
+      mediaViewport.style.display = 'block';
+      btnMdToggle.style.display = 'none';
+      mediaViewer.renderImage(activeTab.path);
+      currentLoadedTabId = null;
+    } else if (activeTab.viewMode === 'binary') {
+      cmRoot.style.display = 'none';
+      markdownViewport.style.display = 'none';
+      mediaViewport.style.display = 'block';
+      btnMdToggle.style.display = 'none';
+      mediaViewer.renderBinary(activeTab.path);
+      currentLoadedTabId = null;
+    } else if (/\.md$/i.test(activeTab.path) || /\.markdown$/i.test(activeTab.path)) {
+      mediaViewport.style.display = 'none';
       btnMdToggle.style.display = 'inline-flex';
       if (activeTab.viewMode === 'rendered') {
         cmRoot.style.display = 'none';
@@ -534,6 +551,7 @@ async function bootstrap() {
     } else {
       btnMdToggle.style.display = 'none';
       markdownViewport.style.display = 'none';
+      mediaViewport.style.display = 'none';
       cmRoot.style.display = 'block';
       if (currentLoadedTabId !== activeTab.id) {
         currentLoadedTabId = activeTab.id;
@@ -556,55 +574,133 @@ async function bootstrap() {
     statusBar.showMessage(`Opened folder: ${folderName}`);
   }
 
-  // Load existing workspace or fallback
-  const initialWorkspace = fsService.getWorkspace() || '.';
-  loadWorkspace(initialWorkspace);
+  function getParentFolder(filePath: string): string {
+    const sep = filePath.includes('/') ? '/' : '\\';
+    const parts = filePath.split(sep).filter(Boolean);
+    parts.pop();
+    return parts.join(sep) || '.';
+  }
 
-  // Check if Gitero was opened with an external file argument (e.g. Windows "Open with" or double-click)
-  const checkExternalFileOpen = async (): Promise<boolean> => {
+  // Check if Gitero was opened with CLI arguments (e.g. `gcode .` or `gcode <folder>` or `gcode <file>`)
+  const checkExternalArguments = async (): Promise<{ openedWorkspace: boolean; openedFile: boolean }> => {
+    let openedWorkspace = false;
+    let openedFile = false;
+
     try {
       const nlArgs = (window as any).NL_ARGS;
       if (Array.isArray(nlArgs)) {
         for (let i = 1; i < nlArgs.length; i++) {
           const arg = nlArgs[i];
-          if (arg && !arg.startsWith('--') && !arg.startsWith('-') && !arg.startsWith('/')) {
-            try {
-              const content = await fsService.readFile(arg);
-              const isMd = /\.md$/i.test(arg) || /\.markdown$/i.test(arg);
-              // Opened externally / double-click in Windows -> open in rendered mode if markdown!
-              editorState.openFile(arg, content, { viewMode: isMd ? 'rendered' : 'raw' });
-              return true;
-            } catch (e) {
-              // Not a readable file path
+          if (!arg || arg.startsWith('--') || arg.startsWith('-') || arg.startsWith('/')) {
+            continue;
+          }
+
+          // 1. Check if argument is a directory (e.g. from `gcode .` or `gcode <folder>`)
+          try {
+            if (isNative()) {
+              const stats = await window.Neutralino.filesystem.getStats(arg);
+              if (stats?.entry?.type === 'DIRECTORY' || (stats as any)?.isDirectory || stats?.type === 'DIRECTORY') {
+                await loadWorkspace(arg);
+                openedWorkspace = true;
+                continue;
+              }
             }
+          } catch (e) {
+            // Not a directory or getStats failed, check if readDirectory succeeds
+            try {
+              if (isNative()) {
+                const entries = await window.Neutralino.filesystem.readDirectory(arg);
+                if (entries && entries.length >= 0) {
+                  await loadWorkspace(arg);
+                  openedWorkspace = true;
+                  continue;
+                }
+              }
+            } catch (errDir) {
+              // Not a directory
+            }
+          }
+
+          // 2. Check if argument is an image file
+          if (isImageFile(arg)) {
+            editorState.openBinaryFile(arg, 'image');
+            openedFile = true;
+            if (!openedWorkspace) {
+              const parent = getParentFolder(arg);
+              await loadWorkspace(parent);
+              openedWorkspace = true;
+            }
+            continue;
+          }
+
+          // 3. Check if argument is a binary file
+          if (isBinaryFile(arg)) {
+            editorState.openBinaryFile(arg, 'binary');
+            openedFile = true;
+            if (!openedWorkspace) {
+              const parent = getParentFolder(arg);
+              await loadWorkspace(parent);
+              openedWorkspace = true;
+            }
+            continue;
+          }
+
+          // 4. Code / text file
+          try {
+            const content = await fsService.readFile(arg);
+            const isMd = /\.md$/i.test(arg) || /\.markdown$/i.test(arg);
+            // Opened externally / double-click in Windows -> open in rendered mode if markdown!
+            editorState.openFile(arg, content, { viewMode: isMd ? 'rendered' : 'raw' });
+            openedFile = true;
+
+            if (!openedWorkspace) {
+              const parent = getParentFolder(arg);
+              await loadWorkspace(parent);
+              openedWorkspace = true;
+            }
+          } catch (e) {
+            // Not a readable file path
           }
         }
       }
     } catch (err) {
-      console.warn('Could not check external file arguments:', err);
+      console.warn('Could not check external arguments:', err);
     }
-    return false;
+
+    return { openedWorkspace, openedFile };
   };
 
   if ((window as any).Neutralino?.events) {
     (window as any).Neutralino.events.on('openedFile', async (evt: any) => {
       if (evt?.detail) {
-        try {
-          const path = evt.detail;
-          const content = await fsService.readFile(path);
-          const isMd = /\.md$/i.test(path) || /\.markdown$/i.test(path);
-          editorState.openFile(path, content, { viewMode: isMd ? 'rendered' : 'raw' });
-        } catch (e) {
-          console.warn('Failed to open file via openedFile event:', e);
+        const path = evt.detail;
+        if (isImageFile(path)) {
+          editorState.openBinaryFile(path, 'image');
+        } else if (isBinaryFile(path)) {
+          editorState.openBinaryFile(path, 'binary');
+        } else {
+          try {
+            const content = await fsService.readFile(path);
+            const isMd = /\.md$/i.test(path) || /\.markdown$/i.test(path);
+            editorState.openFile(path, content, { viewMode: isMd ? 'rendered' : 'raw' });
+          } catch (e) {
+            console.warn('Failed to open file via openedFile event:', e);
+          }
         }
       }
     });
   }
 
-  const openedExternal = await checkExternalFileOpen();
+  // Check CLI arguments first before falling back to cached workspace
+  const { openedWorkspace, openedFile } = await checkExternalArguments();
+
+  if (!openedWorkspace) {
+    const initialWorkspace = fsService.getWorkspace() || '.';
+    await loadWorkspace(initialWorkspace);
+  }
 
   // If no tabs are open and no external file was opened, open a friendly README welcome
-  if (!openedExternal && editorState.getTabs().length === 0) {
+  if (!openedFile && editorState.getTabs().length === 0) {
     editorState.openFile(
       'README.md',
       `# Gitero IDE

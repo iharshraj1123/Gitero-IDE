@@ -48,200 +48,275 @@ export class SettingsModalComponent {
     this.overlay.innerHTML = `
       <div class="settings-modal">
         <div class="settings-header">
-          <h2>Gitero Settings & Customization</h2>
+          <div class="settings-header-title-group">
+            <h2>Gitero Settings & Preferences</h2>
+            <span class="settings-header-badge">Preferences</span>
+          </div>
           <button class="settings-close-btn" aria-label="Close">×</button>
         </div>
-        <div class="settings-body">
-          <!-- Software Updates Section -->
-          <div class="settings-section update-section">
-            <h3>Software Updates (GitHub Branch Channel)</h3>
-            <p class="setting-desc">Switch and update Gitero IDE directly from any branch on GitHub.</p>
 
-            <div class="update-box">
-              <div class="update-meta-grid">
-                <div class="update-meta-item">
-                  <span class="update-meta-label">Version</span>
-                  <span class="update-meta-val" id="update-cur-ver">v1.0.0</span>
-                </div>
-                <div class="update-meta-item">
-                  <span class="update-meta-label">Current Commit</span>
-                  <span class="update-meta-val" id="update-cur-sha">791a8ec</span>
-                </div>
-                <div class="update-meta-item">
-                  <span class="update-meta-label">Active Channel</span>
-                  <span class="update-meta-val" id="update-cur-branch">main</span>
-                </div>
+        <div class="settings-body-wrapper">
+          <!-- Left: Scrollable Tab Content Area -->
+          <div class="settings-tab-content">
+            <!-- 1. Editor Tab Pane -->
+            <div class="settings-tab-pane active" id="tab-pane-editor" data-tab="editor">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Editor Configuration</div>
+                <div class="settings-section-subtitle">Customize typography, cursor styling, tab spacing, line wrapping, and editing modes.</div>
               </div>
 
-              <div class="update-channel-row">
-                <label for="update-branch-select" class="update-label">Target Branch:</label>
-                <div class="update-branch-controls">
-                  <select id="update-branch-select" class="setting-select update-branch-select">
-                    <option value="main">main</option>
-                  </select>
-                  <button class="btn btn-secondary btn-sm" id="btn-refresh-branches" title="Fetch active branches from GitHub">Refresh</button>
-                </div>
-              </div>
-
-              <div class="update-status-card" id="update-status-card">
-                <div class="update-status-msg" id="update-status-msg">Click "Check for Updates" to compare with GitHub.</div>
-              </div>
-
-              <div class="update-actions">
-                <button class="btn btn-secondary" id="btn-check-update">Check for Updates</button>
-                <button class="btn btn-primary" id="btn-apply-update" disabled>Update from this Branch</button>
-              </div>
-
-              <!-- Update History & Rollback Sub-section -->
-              <div class="update-history-container">
-                <div class="update-history-header">
-                  <div class="update-history-title">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-                    <span>Update History & Rollback</span>
-                    <span class="history-count-badge" id="history-count-badge">0</span>
+              <div class="setting-card">
+                <div class="setting-card-title">Typography</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Font Family</span>
+                    <span class="setting-desc">Monospace font stack with coding ligature support</span>
                   </div>
-                  <button class="btn btn-secondary btn-sm" id="btn-toggle-history">Show History</button>
+                  <input type="text" id="setting-font-family" class="setting-input" style="width: 250px;" value="Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Font Size (px)</span>
+                    <span class="setting-desc">Text size in the code editor viewport</span>
+                  </div>
+                  <input type="number" id="setting-font-size" class="setting-input-small" min="10" max="32" value="14" />
+                </div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">Cursor & Display</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Cursor Style</span>
+                    <span class="setting-desc">Shape of the cursor in the active editor</span>
+                  </div>
+                  <select id="setting-cursor-style" class="setting-select">
+                    <option value="line">Line / Bar (Default)</option>
+                    <option value="block">Block</option>
+                    <option value="underline">Underline</option>
+                  </select>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Tab Size</span>
+                    <span class="setting-desc">Number of spaces per indentation level</span>
+                  </div>
+                  <select id="setting-tab-size" class="setting-select">
+                    <option value="2">2 Spaces</option>
+                    <option value="4">4 Spaces</option>
+                    <option value="8">8 Spaces</option>
+                  </select>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Word Wrap</span>
+                    <span class="setting-desc">Wrap long lines to fit viewport width (Alt+Z)</span>
+                  </div>
+                  <input type="checkbox" id="setting-word-wrap-toggle" class="setting-checkbox" />
+                </div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">Modal Editing</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Enable Vim Mode</span>
+                    <span class="setting-desc">Full Vim motions, modes (normal/insert/visual), operators, and Ex commands (:w, :q)</span>
+                  </div>
+                  <input type="checkbox" id="setting-vim-toggle" class="setting-checkbox" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Files & Auto-Save Tab Pane -->
+            <div class="settings-tab-pane" id="tab-pane-files" data-tab="files">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Files & Auto-Save</div>
+                <div class="settings-section-subtitle">Manage automated file saving and workspace file behaviors.</div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">Auto-Save Behavior</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Enable Auto Save</span>
+                    <span class="setting-desc">Automatically persist modified files after a brief pause</span>
+                  </div>
+                  <input type="checkbox" id="setting-auto-save-toggle" class="setting-checkbox" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Auto Save Delay (ms)</span>
+                    <span class="setting-desc">Idle delay in milliseconds before automatically saving (e.g. 1000)</span>
+                  </div>
+                  <input type="number" id="setting-auto-save-delay" class="setting-input-small" min="100" max="10000" step="100" value="1000" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Appearance Tab Pane -->
+            <div class="settings-tab-pane" id="tab-pane-appearance" data-tab="appearance">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Appearance & Themes</div>
+                <div class="settings-section-subtitle">Select and preview color schemes for the Gitero studio interface and code editor.</div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">Color Theme</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Active Theme</span>
+                    <span class="setting-desc">Choose from bundled professional themes</span>
+                  </div>
+                  <select id="setting-theme-select" class="setting-select"></select>
+                </div>
+                <div id="theme-preview-palette"></div>
+              </div>
+            </div>
+
+            <!-- 4. Keyboard Shortcuts Tab Pane -->
+            <div class="settings-tab-pane" id="tab-pane-shortcuts" data-tab="shortcuts">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Keyboard Shortcuts</div>
+                <div class="settings-section-subtitle">Customize keybindings for commands. Click "Change" or double-click to assign keys.</div>
+              </div>
+
+              <div class="setting-card keybindings-section">
+                <div class="keybindings-header">
+                  <div class="keybindings-search-box" style="flex: 1; margin: 0;">
+                    <input type="text" id="setting-keybinding-search" class="setting-input" style="width: 100%;" placeholder="Search shortcuts (e.g. Save, Ctrl+S, Markdown)..." />
+                  </div>
+                  <button class="btn btn-secondary btn-sm" id="btn-reset-keybindings" title="Reset all keybindings to defaults">Reset to Defaults</button>
                 </div>
 
-                <div class="update-history-list" id="update-history-list" style="display: none;"></div>
+                <div class="keybindings-table-wrapper">
+                  <table class="keybindings-table">
+                    <thead>
+                      <tr>
+                        <th>Command</th>
+                        <th>Keybinding</th>
+                        <th style="width: 110px; text-align: right;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="keybindings-table-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. Software Updates Tab Pane -->
+            <div class="settings-tab-pane" id="tab-pane-updates" data-tab="updates">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Software Updates</div>
+                <div class="settings-section-subtitle">Switch channels and update Gitero IDE directly from any GitHub branch.</div>
               </div>
 
-              <div class="update-preservation-note">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span><strong>User State Isolated:</strong> Updates strictly refresh application code. Your chosen themes, custom CSS overrides, keybindings, and extensions remain 100% untouched.</span>
+              <div class="update-box">
+                <div class="update-meta-grid">
+                  <div class="update-meta-item">
+                    <span class="update-meta-label">Version</span>
+                    <span class="update-meta-val" id="update-cur-ver">v1.0.0</span>
+                  </div>
+                  <div class="update-meta-item">
+                    <span class="update-meta-label">Current Commit</span>
+                    <span class="update-meta-val" id="update-cur-sha">791a8ec</span>
+                  </div>
+                  <div class="update-meta-item">
+                    <span class="update-meta-label">Active Channel</span>
+                    <span class="update-meta-val" id="update-cur-branch">main</span>
+                  </div>
+                </div>
+
+                <div class="update-channel-row">
+                  <label for="update-branch-select" class="update-label">Target Branch:</label>
+                  <div class="update-branch-controls">
+                    <select id="update-branch-select" class="setting-select update-branch-select">
+                      <option value="main">main</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" id="btn-refresh-branches" title="Fetch active branches from GitHub">Refresh</button>
+                  </div>
+                </div>
+
+                <div class="update-status-card" id="update-status-card">
+                  <div class="update-status-msg" id="update-status-msg">Click "Check for Updates" to compare with GitHub.</div>
+                </div>
+
+                <div class="update-actions">
+                  <button class="btn btn-secondary" id="btn-check-update">Check for Updates</button>
+                  <button class="btn btn-primary" id="btn-apply-update" disabled>Update from this Branch</button>
+                </div>
+
+                <!-- Update History & Rollback Sub-section -->
+                <div class="update-history-container">
+                  <div class="update-history-header">
+                    <div class="update-history-title">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                      <span>Update History & Rollback</span>
+                      <span class="history-count-badge" id="history-count-badge">0</span>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" id="btn-toggle-history">Show History</button>
+                  </div>
+
+                  <div class="update-history-list" id="update-history-list" style="display: none;"></div>
+                </div>
+
+                <div class="update-preservation-note">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <span><strong>User State Isolated:</strong> Updates strictly refresh application code. Your chosen themes, custom CSS overrides, keybindings, and preferences remain 100% untouched.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. Custom CSS Tab Pane -->
+            <div class="settings-tab-pane" id="tab-pane-css" data-tab="css">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Custom CSS Override</div>
+                <div class="settings-section-subtitle">Inject arbitrary CSS rules to style any editor component, cursor, scrollbar, or status bar.</div>
+              </div>
+
+              <div class="setting-card">
+                <textarea id="setting-custom-css" class="setting-textarea" placeholder="/* Enter custom CSS rules here */&#10;/* Example: */&#10;/* .cm-cursor { border-left-color: #58a6ff !important; box-shadow: 0 0 8px #58a6ff; } */"></textarea>
               </div>
             </div>
           </div>
 
-          <!-- Files & Auto-Save Section -->
-          <div class="settings-section">
-            <h3>Files & Auto-Save</h3>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Enable Auto Save</span>
-                <span class="setting-desc">Automatically save dirty files after a brief delay (Default: Off)</span>
-              </label>
-              <input type="checkbox" id="setting-auto-save-toggle" class="setting-checkbox" />
-            </div>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Auto Save Delay (ms)</span>
-                <span class="setting-desc">Delay in milliseconds before automatically saving (e.g. 1000)</span>
-              </label>
-              <input type="number" id="setting-auto-save-delay" class="setting-input-small" min="100" max="10000" step="100" value="1000" />
-            </div>
-          </div>
-
-          <!-- Vim Mode Section -->
-          <div class="settings-section">
-            <h3>Vim Mode</h3>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Enable Vim Modal Editing</span>
-                <span class="setting-desc">Full Vim motions, modes, operators, and Ex commands (:w, :q)</span>
-              </label>
-              <input type="checkbox" id="setting-vim-toggle" class="setting-checkbox" />
-            </div>
-          </div>
-
-          <!-- Color Theme Section -->
-          <div class="settings-section">
-            <h3>Color Theme</h3>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Active Theme</span>
-                <span class="setting-desc">Choose from bundled authentic themes</span>
-              </label>
-              <select id="setting-theme-select" class="setting-select"></select>
-            </div>
-          </div>
-
-          <!-- Typography Section -->
-          <div class="settings-section">
-            <h3>Typography & Editor</h3>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Cursor Style</span>
-                <span class="setting-desc">Preferred cursor shape in the editor</span>
-              </label>
-              <select id="setting-cursor-style" class="setting-select">
-                <option value="line">Line / Bar (Default)</option>
-                <option value="block">Block</option>
-                <option value="underline">Underline</option>
-              </select>
-            </div>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Font Family</span>
-                <span class="setting-desc">Monospace font family with ligature support</span>
-              </label>
-              <input type="text" id="setting-font-family" class="setting-input" value="Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace" />
-            </div>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Font Size (px)</span>
-                <span class="setting-desc">Editor text size</span>
-              </label>
-              <input type="number" id="setting-font-size" class="setting-input-small" min="10" max="32" value="14" />
-            </div>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Tab Size</span>
-                <span class="setting-desc">Number of spaces per indentation level</span>
-              </label>
-              <select id="setting-tab-size" class="setting-select">
-                <option value="2">2 Spaces</option>
-                <option value="4">4 Spaces</option>
-                <option value="8">8 Spaces</option>
-              </select>
-            </div>
-            <div class="setting-row">
-              <label class="setting-label">
-                <span>Word Wrap</span>
-                <span class="setting-desc">Wrap long lines to fit viewport width (Alt+Z)</span>
-              </label>
-              <input type="checkbox" id="setting-word-wrap-toggle" class="setting-checkbox" />
-            </div>
-          </div>
-
-          <!-- Keyboard Shortcuts Section -->
-          <div class="settings-section keybindings-section">
-            <div class="keybindings-header">
-              <div>
-                <h3>Keyboard Shortcuts</h3>
-                <p class="setting-desc">Customize keybindings for commands. Click "Change" or press keys to reassign.</p>
-              </div>
-              <button class="btn btn-secondary btn-sm" id="btn-reset-keybindings" title="Reset all keybindings to defaults">Reset to Defaults</button>
-            </div>
-
-            <div class="keybindings-search-box">
-              <input type="text" id="setting-keybinding-search" class="setting-input" placeholder="Search keybindings (e.g. Save, Ctrl+S, Markdown)..." />
-            </div>
-
-            <div class="keybindings-table-wrapper">
-              <table class="keybindings-table">
-                <thead>
-                  <tr>
-                    <th>Command</th>
-                    <th>Keybinding</th>
-                    <th style="width: 110px; text-align: right;">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="keybindings-table-body"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Custom CSS Override Section -->
-          <div class="settings-section">
-            <h3>Custom CSS Override</h3>
-            <p class="setting-desc">Inject custom CSS to customize any pixel, border, glow, opacity, or element.</p>
-            <textarea id="setting-custom-css" class="setting-textarea" placeholder="/* Enter custom CSS rules here */\n/* Example: */\n/* .cm-cursor { border-left-color: #ff007f !important; box-shadow: 0 0 8px #ff007f; } */"></textarea>
-          </div>
+          <!-- Right: Stacked Tabs Sidebar Navigation -->
+          <nav class="settings-tabs-sidebar" aria-label="Settings Categories">
+            <button class="settings-tab-btn active" data-target="editor">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <span>Editor</span>
+            </button>
+            <button class="settings-tab-btn" data-target="files">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span>Files</span>
+            </button>
+            <button class="settings-tab-btn" data-target="appearance">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+              <span>Appearance</span>
+            </button>
+            <button class="settings-tab-btn" data-target="shortcuts">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
+              <span>Shortcuts</span>
+            </button>
+            <button class="settings-tab-btn" data-target="updates">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              <span>Updates</span>
+            </button>
+            <button class="settings-tab-btn" data-target="css">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+              <span>Custom CSS</span>
+            </button>
+          </nav>
         </div>
+
         <div class="settings-footer">
-          <button class="btn btn-secondary" id="settings-cancel">Close</button>
-          <button class="btn btn-primary" id="settings-save">Save & Apply</button>
+          <div class="settings-footer-info">
+            <span>Changes apply immediately upon saving.</span>
+          </div>
+          <div class="settings-footer-actions">
+            <button class="btn btn-secondary" id="settings-cancel">Close</button>
+            <button class="btn btn-primary" id="settings-save">Save & Apply</button>
+          </div>
         </div>
       </div>
     `;
@@ -258,6 +333,15 @@ export class SettingsModalComponent {
 
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) this.close();
+    });
+
+    // Wire up sidebar tab switches
+    const tabBtns = this.overlay.querySelectorAll('.settings-tab-btn');
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-target');
+        if (target) this.switchTab(target);
+      });
     });
 
     this.setupUpdateListeners();
@@ -618,9 +702,55 @@ export class SettingsModalComponent {
     }
   }
 
-  open() {
+  switchTab(tabId: string) {
+    const tabBtns = this.overlay.querySelectorAll('.settings-tab-btn');
+    const tabPanes = this.overlay.querySelectorAll('.settings-tab-pane');
+
+    tabBtns.forEach(btn => {
+      if (btn.getAttribute('data-target') === tabId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    tabPanes.forEach(pane => {
+      if (pane.getAttribute('data-tab') === tabId) {
+        pane.classList.add('active');
+      } else {
+        pane.classList.remove('active');
+      }
+    });
+  }
+
+  private updateThemePreview(themeId: string) {
+    const previewContainer = this.overlay.querySelector('#theme-preview-palette') as HTMLElement | null;
+    if (!previewContainer) return;
+
+    const theme = themeManager.getAllThemes().find(t => t.id === themeId) || themeManager.getCurrentTheme();
+    const c = theme.colors;
+
+    previewContainer.innerHTML = `
+      <div class="theme-swatch-card" style="background: ${c.bgPrimary}; border-color: ${c.borderColor};">
+        <div class="theme-swatch-header" style="background: ${c.bgSecondary}; border-bottom: 1px solid ${c.borderColor};">
+          <span style="color: ${c.fgPrimary}; font-weight: 600;">${theme.name}</span>
+          <span class="theme-type-badge" style="background: ${c.bgActive}; color: ${c.accent};">${theme.isDark ? 'Dark Palette' : 'Light Palette'}</span>
+        </div>
+        <div class="theme-swatch-palette">
+          <div class="swatch-item"><div class="swatch-color" style="background: ${c.bgPrimary};"></div><span>Primary (${c.bgPrimary})</span></div>
+          <div class="swatch-item"><div class="swatch-color" style="background: ${c.bgSidebar};"></div><span>Sidebar (${c.bgSidebar})</span></div>
+          <div class="swatch-item"><div class="swatch-color" style="background: ${c.accent};"></div><span>Accent (${c.accent})</span></div>
+          <div class="swatch-item"><div class="swatch-color" style="background: ${c.fgPrimary};"></div><span>Text (${c.fgPrimary})</span></div>
+          <div class="swatch-item"><div class="swatch-color" style="background: ${c.editorActiveLine};"></div><span>Active Line</span></div>
+        </div>
+      </div>
+    `;
+  }
+
+  open(initialTab: string = 'editor') {
     this.isOpen = true;
     this.overlay.style.display = 'flex';
+    this.switchTab(initialTab);
 
     // Update section meta
     (this.overlay.querySelector('#update-cur-ver') as HTMLElement).textContent = updaterService.getCurrentVersion();
@@ -652,6 +782,13 @@ export class SettingsModalComponent {
       if (t.id === currentTheme.id) opt.selected = true;
       themeSelect.appendChild(opt);
     });
+
+    this.updateThemePreview(currentTheme.id);
+
+    // Update preview when theme selection changes
+    themeSelect.onchange = () => {
+      this.updateThemePreview(themeSelect.value);
+    };
 
     const cursorSelect = this.overlay.querySelector('#setting-cursor-style') as HTMLSelectElement;
     cursorSelect.value = preferencesService.get('editor.cursorStyle');

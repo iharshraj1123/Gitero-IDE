@@ -64,7 +64,7 @@ In Neutralinojs:
   * `editor.cursorBlinking`: `'blink' | 'smooth' | 'solid'` (Default: `'blink'`)
   * `editor.fontFamily`: string (Default: Cascadia Code / Fira Code monospace stack)
   * `editor.fontSize`: number (Default: `14`)
-  * `editor.theme`: string (Default: `'tokyo-night'`)
+  * `editor.theme`: string (Default: `'github-dark'`)
   * `editor.vimEnabled`: boolean (Default: `true`)
   * `editor.customCss`: string (Default: `''`)
   * `editor.tabSize`: number (Default: `2`)

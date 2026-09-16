@@ -44,7 +44,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.cursorBlinking': 'blink',
   'editor.fontFamily': '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace',
   'editor.fontSize': 14,
-  'editor.theme': 'tokyo-night',
+  'editor.theme': 'github-dark',
   'editor.vimEnabled': true,
   'editor.customCss': '',
   'editor.tabSize': 2,
