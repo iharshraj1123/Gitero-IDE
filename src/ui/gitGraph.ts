@@ -516,6 +516,11 @@ export class GitGraphFullComponent {
   private setupListeners() {
     this.branchSelectEl.addEventListener('change', () => {
       this.selectedBranch = this.branchSelectEl.value;
+      if (this.selectedBranch === 'all-with-abandoned' || this.selectedBranch === 'only-abandoned') {
+        this.showAbandoned = true;
+      } else if (this.selectedBranch === 'all') {
+        this.showAbandoned = false;
+      }
       this.reload();
     });
 
@@ -538,10 +543,17 @@ export class GitGraphFullComponent {
       this.tableBodyEl.querySelectorAll('tr.active-commit-row').forEach((r) => r.classList.remove('active-commit-row'));
     });
 
-    this.container.querySelector('#fg-btn-abandoned')?.addEventListener('click', (e) => {
+    this.container.querySelector('#fg-btn-abandoned')?.addEventListener('click', () => {
       this.showAbandoned = !this.showAbandoned;
-      const btn = e.currentTarget as HTMLElement;
-      btn.classList.toggle('active', this.showAbandoned);
+      if (this.showAbandoned) {
+        if (this.selectedBranch === 'all') {
+          this.selectedBranch = 'all-with-abandoned';
+        }
+      } else {
+        if (this.selectedBranch === 'all-with-abandoned' || this.selectedBranch === 'only-abandoned') {
+          this.selectedBranch = 'all';
+        }
+      }
       this.reload();
     });
 
@@ -571,9 +583,9 @@ export class GitGraphFullComponent {
 
     const currentVal = this.selectedBranch;
     this.branchSelectEl.innerHTML = `
-      <option value="all">All Branches</option>
-      <option value="all-with-abandoned">All (Including Abandoned &amp; Reflog)</option>
-      <option value="only-abandoned">Abandoned &amp; Dangling Only</option>
+      <option value="all"${currentVal === 'all' ? ' selected' : ''}>All Branches</option>
+      <option value="all-with-abandoned"${currentVal === 'all-with-abandoned' ? ' selected' : ''}>All (Including Abandoned &amp; Reflog)</option>
+      <option value="only-abandoned"${currentVal === 'only-abandoned' ? ' selected' : ''}>Abandoned &amp; Dangling Only</option>
     `;
 
     for (const b of branches) {
@@ -584,6 +596,16 @@ export class GitGraphFullComponent {
         opt.selected = true;
       }
       this.branchSelectEl.appendChild(opt);
+    }
+
+    // Ensure select element value property matches currentVal
+    this.branchSelectEl.value = currentVal;
+
+    // Synchronize Abandoned / Reflog toggle button styling
+    const btnAbandoned = this.container.querySelector('#fg-btn-abandoned') as HTMLElement | null;
+    if (btnAbandoned) {
+      const isAbandonedActive = this.showAbandoned || currentVal === 'all-with-abandoned' || currentVal === 'only-abandoned';
+      btnAbandoned.classList.toggle('active', isAbandonedActive);
     }
   }
 
