@@ -1,7 +1,7 @@
 {
   "name": "gitero-ide",
   "private": true,
-  "version": "0.1.2-beta",
+  "version": "0.1.2",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "node scripts/sync-version.js && tsc && vite build",
     "sync:version": "node scripts/sync-version.js",
     "version": "node scripts/sync-version.js",
+    "postversion": "git push origin main --follow-tags",
     "build:hotkey": "cmd /c src-native\\explorer-hotkey\\build.bat",
     "neu:build": "npx @neutralinojs/neu build",
     "start": "neu run",
