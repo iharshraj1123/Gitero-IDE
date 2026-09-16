@@ -26,7 +26,7 @@ export class SettingsModalComponent {
         <div class="settings-body">
           <!-- Software Updates Section -->
           <div class="settings-section update-section">
-            <h3>🔄 Software Updates (GitHub Branch Channel)</h3>
+            <h3>Software Updates (GitHub Branch Channel)</h3>
             <p class="setting-desc">Switch and update Gitero IDE directly from any branch on GitHub.</p>
 
             <div class="update-box">
@@ -51,7 +51,7 @@ export class SettingsModalComponent {
                   <select id="update-branch-select" class="setting-select update-branch-select">
                     <option value="main">main</option>
                   </select>
-                  <button class="btn btn-secondary btn-sm" id="btn-refresh-branches" title="Fetch active branches from GitHub">⟳ Refresh</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-refresh-branches" title="Fetch active branches from GitHub">Refresh</button>
                 </div>
               </div>
 
@@ -65,7 +65,7 @@ export class SettingsModalComponent {
               </div>
 
               <div class="update-preservation-note">
-                <span class="shield-icon">🛡️</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <span><strong>User State Isolated:</strong> Updates strictly refresh application code. Your chosen themes, custom CSS overrides, keybindings, and extensions remain 100% untouched.</span>
               </div>
             </div>
@@ -73,7 +73,7 @@ export class SettingsModalComponent {
 
           <!-- Vim Mode Section -->
           <div class="settings-section">
-            <h3>🥷 Vim Mode</h3>
+            <h3>Vim Mode</h3>
             <div class="setting-row">
               <label class="setting-label">
                 <span>Enable Vim Modal Editing</span>
@@ -85,7 +85,7 @@ export class SettingsModalComponent {
 
           <!-- Color Theme Section -->
           <div class="settings-section">
-            <h3>🎨 Color Theme</h3>
+            <h3>Color Theme</h3>
             <div class="setting-row">
               <label class="setting-label">
                 <span>Active Theme</span>
@@ -97,7 +97,7 @@ export class SettingsModalComponent {
 
           <!-- Typography Section -->
           <div class="settings-section">
-            <h3>🔤 Typography & Editor</h3>
+            <h3>Typography & Editor</h3>
             <div class="setting-row">
               <label class="setting-label">
                 <span>Font Family</span>
@@ -116,7 +116,7 @@ export class SettingsModalComponent {
 
           <!-- Custom CSS Override Section -->
           <div class="settings-section">
-            <h3>💅 Custom CSS Override</h3>
+            <h3>Custom CSS Override</h3>
             <p class="setting-desc">Inject custom CSS to customize any pixel, border, glow, opacity, or element.</p>
             <textarea id="setting-custom-css" class="setting-textarea" placeholder="/* Enter custom CSS rules here */\n/* Example: */\n/* .cm-cursor { border-left-color: #ff007f !important; box-shadow: 0 0 8px #ff007f; } */"></textarea>
           </div>
@@ -157,20 +157,20 @@ export class SettingsModalComponent {
       refreshBtn.textContent = 'Refreshing...';
       await this.loadBranches();
       refreshBtn.disabled = false;
-      refreshBtn.textContent = '⟳ Refresh';
+      refreshBtn.textContent = 'Refresh';
     });
 
     checkBtn.addEventListener('click', async () => {
       const branch = branchSelect.value;
       checkBtn.disabled = true;
-      statusMsg.innerHTML = `<span class="loading-spinner">⏳</span> Checking GitHub for branch <strong>${branch}</strong>...`;
+      statusMsg.innerHTML = `<span class="loading-spinner"></span> Checking GitHub for branch <strong>${branch}</strong>...`;
 
       try {
         const result = await updaterService.checkForUpdates(branch);
         if (result.isUpdateAvailable) {
           statusMsg.innerHTML = `
             <div class="update-avail-box">
-              <span class="status-badge badge-avail">⚡ Update Available</span>
+              <span class="status-badge badge-avail">Update Available</span>
               <div class="commit-details">
                 <div><strong>Commit:</strong> <code>${result.latestSha}</code></div>
                 <div><strong>Message:</strong> ${result.latestCommit?.message}</div>
@@ -183,7 +183,7 @@ export class SettingsModalComponent {
         } else {
           statusMsg.innerHTML = `
             <div class="update-uptodate-box">
-              <span class="status-badge badge-latest">✓ Up to Date</span>
+              <span class="status-badge badge-latest">Up to Date</span>
               <span>You are already running the latest commit (<code>${result.currentSha}</code>) on branch <strong>${branch}</strong>.</span>
             </div>
           `;
@@ -191,7 +191,7 @@ export class SettingsModalComponent {
           applyBtn.textContent = `Force Re-sync ${branch}`;
         }
       } catch (err: any) {
-        statusMsg.innerHTML = `<span class="error-text">❌ ${err.message || 'Could not connect to GitHub'}</span>`;
+        statusMsg.innerHTML = `<span class="error-text">${err.message || 'Could not connect to GitHub'}</span>`;
         applyBtn.disabled = true;
       } finally {
         checkBtn.disabled = false;
@@ -205,12 +205,12 @@ export class SettingsModalComponent {
 
       try {
         await updaterService.updateFromBranch(branch, (step) => {
-          statusMsg.innerHTML = `<span class="loading-spinner">📦</span> ${step}`;
+          statusMsg.innerHTML = `<span class="loading-spinner"></span> ${step}`;
         });
 
         statusMsg.innerHTML = `
           <div class="update-success-box">
-            <span class="status-badge badge-latest">🎉 Update Applied Successfully!</span>
+            <span class="status-badge badge-latest">Update Applied Successfully</span>
             <p>Gitero IDE updated to branch <strong>${branch}</strong>.</p>
             <button class="btn btn-primary btn-sm" id="btn-restart-now" style="margin-top: 8px;">Restart Gitero IDE</button>
           </div>
@@ -220,7 +220,7 @@ export class SettingsModalComponent {
           updaterService.restartApp();
         });
       } catch (err: any) {
-        statusMsg.innerHTML = `<span class="error-text">❌ Update failed: ${err.message}</span>`;
+        statusMsg.innerHTML = `<span class="error-text">Update failed: ${err.message}</span>`;
         applyBtn.disabled = false;
         checkBtn.disabled = false;
       }

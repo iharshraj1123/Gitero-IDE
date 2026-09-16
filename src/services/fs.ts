@@ -10,7 +10,7 @@ export interface FileNode {
 
 // Memory fallback store for web preview
 const mockFiles: Record<string, string> = {
-  'README.md': '# Welcome to Gitero IDE ⚡\n\nA blazing-fast, VS Code-styled, Vim-empowered IDE built with instant startup time in mind.\n\n### Features\n- ⚡ Instant startup time (<100ms)\n- 🎨 Complete VS Code themes (One Dark, Tokyo Night, Dracula, Monokai, Catppuccin)\n- 🥷 Full Vim modal editing (`:w`, `:q`, normal/insert/visual modes)\n- 🌐 Multi-language support (JS, TS, Rust, Python, C++, HTML, CSS, JSON, Go, etc.)\n- 💅 User custom CSS injection\n',
+  'README.md': '# Welcome to Gitero IDE\n\nA high-performance, VS Code-styled, Vim-empowered IDE built with instant startup time in mind.\n\n### Features\n- Instant startup time (<100ms)\n- Complete VS Code themes (One Dark, Tokyo Night, Dracula, Monokai, Catppuccin)\n- Full Vim modal editing (`:w`, `:q`, normal/insert/visual modes)\n- Multi-language support (JS, TS, Rust, Python, C++, HTML, CSS, JSON, Go, etc.)\n- User custom CSS injection\n',
   'src/main.rs': 'fn main() {\n    println!("Hello from Gitero IDE!");\n}\n',
   'src/index.ts': 'export const greeting: string = "Hello World!";\nconsole.log(greeting);\n',
   'style.css': '/* Gitero Custom Styles */\nbody {\n  font-family: system-ui, sans-serif;\n}\n'

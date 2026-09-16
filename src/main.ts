@@ -149,11 +149,11 @@ async function bootstrap() {
   if (editorState.getTabs().length === 0) {
     editorState.openFile(
       'README.md',
-      `# ⚡ Gitero IDE
+      `# Gitero IDE
 
-A blazingly fast, VS Code-styled, Vim-customizable IDE.
+A high-performance, VS Code-styled, Vim-customizable IDE.
 
-### 🚀 Key Shortcuts
+### Key Shortcuts
 * **Ctrl + P**: Quick Open File
 * **Ctrl + Shift + P**: Command Palette
 * **Ctrl + S** or **:w**: Save File
@@ -161,7 +161,7 @@ A blazingly fast, VS Code-styled, Vim-customizable IDE.
 * **Ctrl + B**: Toggle Sidebar
 * **Ctrl + ,**: Settings & Custom CSS
 
-### 🥷 Vim Mode
+### Vim Mode
 Vim mode is built-in and enabled by default!
 * Press \`i\` for Insert Mode
 * Press \`Esc\` for Normal Mode
@@ -169,7 +169,7 @@ Vim mode is built-in and enabled by default!
 * Type \`:w\` to save, \`:q\` to close tab
 * Click the Vim pill in the bottom-left status bar to toggle anytime!
 
-### 🎨 Themes & Customization
+### Themes & Customization
 Press **Ctrl + Shift + P** and select **Switch Color Theme** to choose from:
 Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
 `
@@ -296,7 +296,7 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
 
     const items: PaletteItem[] = themes.map(t => ({
       id: t.id,
-      title: `${t.name} ${t.id === current.id ? '✓' : ''}`,
+      title: `${t.name} ${t.id === current.id ? '(Active)' : ''}`,
       detail: t.isDark ? 'Dark Theme' : 'Light Theme',
       category: 'Color Theme',
       action: () => {
@@ -357,8 +357,8 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
   });
 
   const duration = (performance.now() - startTime).toFixed(1);
-  console.log(`[Gitero IDE] Started in ${duration}ms! ⚡`);
-  statusBar.showMessage(`⚡ Gitero IDE ready in ${duration}ms`);
+  console.log(`[Gitero IDE] Started in ${duration}ms`);
+  statusBar.showMessage(`Gitero IDE ready in ${duration}ms`);
 }
 
 // Start app

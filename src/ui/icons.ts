@@ -37,8 +37,9 @@ export function getFileIconSvg(fileName: string, isDirectory: boolean, isOpen: b
     case 'mts':
       return `<span class="icon-badge badge-ts">TS</span>`;
     case 'tsx':
+      return `<span class="icon-badge badge-react">TSX</span>`;
     case 'jsx':
-      return `<span class="icon-badge badge-react">⚛</span>`;
+      return `<span class="icon-badge badge-react">JSX</span>`;
     case 'js':
     case 'mjs':
       return `<span class="icon-badge badge-js">JS</span>`;
@@ -57,7 +58,7 @@ export function getFileIconSvg(fileName: string, isDirectory: boolean, isOpen: b
     case 'json':
       return `<span class="icon-badge badge-json">{}</span>`;
     case 'md':
-      return `<span class="icon-badge badge-md">M↓</span>`;
+      return `<span class="icon-badge badge-md">MD</span>`;
     default:
       return `<svg class="icon icon-file" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
   }

@@ -1,6 +1,6 @@
 # Gitero IDE — Project Reference & Production Locations
 
-## 📍 Production (Installed App) Locations
+## Production (Installed App) Locations
 
 * **Installation Directory**:  
   `C:\Users\ihars\AppData\Local\Programs\Gitero IDE\`
@@ -15,7 +15,7 @@
 
 ---
 
-## 📦 Installer Artifacts
+## Installer Artifacts
 
 * **Output Folder**:  
   `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\`
@@ -26,7 +26,7 @@
 
 ---
 
-## 🔗 Repository & Version Info
+## Repository & Version Info
 
 * **GitHub Repository**: [https://github.com/iharshraj1123/Glitero-IDE](https://github.com/iharshraj1123/Glitero-IDE)
 * **Active Branch**: `main`
@@ -34,7 +34,7 @@
 
 ---
 
-## 🛠 Useful Commands
+## Useful Commands
 
 | Command | Action |
 | :--- | :--- |
@@ -46,10 +46,21 @@
 
 ---
 
-## 🧠 Architecture Note: Why `resources.neu` is Required in Production
+## Architecture Note: Why resources.neu is Required in Production
 
 In Neutralinojs:
 1. When running in developer mode (`neu run` or with `--load-dir-res`), it loads unpackaged files directly from `/dist/`.
 2. In production (`Gitero.exe`), the binary looks for the pre-packaged `resources.neu` archive in its directory.
 3. If `resources.neu` is missing, the binary falls back to its internal fallback default sample page.
 4. The updated installer now bundles `resources.neu` directly beside `Gitero.exe`, launching the real Gitero IDE instantly (<80ms).
+
+---
+
+## Strict Project Rules
+
+1. **Strictly No Emojis**:
+   * This is a serious developer application. Do not use emoji characters anywhere in the UI, modals, buttons, tabs, logs, messages, or codebase.
+   * Always use real vector icons (clean inline SVGs or Lucide icons) or clean text badges.
+
+2. **Git Push on Every Commit**:
+   * Whenever a git commit is made, always immediately `git push` to the respective remote branch on GitHub (`https://github.com/iharshraj1123/Glitero-IDE`).
