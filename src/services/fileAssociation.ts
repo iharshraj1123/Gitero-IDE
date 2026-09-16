@@ -162,7 +162,7 @@ export class FileAssociationService {
     }
 
     const { iconsDir, exePath } = this.getSystemPaths();
-    const fallbackDocIcon = `${iconsDir}\\document.ico,0`;
+    const fallbackDocIcon = `${iconsDir}\\document.ico`;
 
     const commands: string[] = [];
 
@@ -176,7 +176,7 @@ export class FileAssociationService {
     let registeredCount = 0;
 
     for (const type of types) {
-      const iconPath = `${iconsDir}\\${type.iconName},0`;
+      const iconPath = `${iconsDir}\\${type.iconName}`;
 
       // ProgID registration
       commands.push(`reg add "HKCU\\Software\\Classes\\${type.progId}" /ve /t REG_SZ /d "${type.name}" /f`);
@@ -256,9 +256,13 @@ export class FileAssociationService {
     try {
       // ie4uinit.exe -show flushes Windows Explorer icon cache immediately
       await neutralino.os.execCommand('ie4uinit.exe -show');
+      // Also broadcast SHCNE_ASSOCCHANGED to Windows Shell via powershell
+      await neutralino.os.execCommand(
+        `powershell -NoProfile -Command "$type = Add-Type -MemberDefinition '[DllImport(\\"shell32.dll\\")]public static extern void SHChangeNotify(int id, int flags, IntPtr i1, IntPtr i2);' -Name 'ShellApi' -Namespace 'Win32' -PassThru; $type::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)"`
+      );
       return true;
     } catch (err) {
-      console.warn('Failed to invoke ie4uinit:', err);
+      console.warn('Failed to invoke icon cache refresh:', err);
       return false;
     }
   }

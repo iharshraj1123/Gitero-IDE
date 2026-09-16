@@ -99,10 +99,10 @@ Update all three built-in icon themes:
   * Register the ProgID:
     * `HKCU\Software\Classes\Gitero.<Name>`: Default description
     * `HKCU\Software\Classes\Gitero.<Name>\FriendlyTypeName`: Description
-    * `HKCU\Software\Classes\Gitero.<Name>\DefaultIcon`: `"{app}\icons\file-types\document-<name>.ico,0"`
+    * `HKCU\Software\Classes\Gitero.<Name>\DefaultIcon`: `"{app}\icons\file-types\document-<name>.ico"` (clean direct path, no `,0`)
     * `HKCU\Software\Classes\Gitero.<Name>\shell\open\command`: `"""{app}\{#MyAppExeName}"" ""%1"""`
   * Register Explorer auto-file fallback icon so "Open with" -> "Always" never defaults to the app logo:
-    * `HKCU\Software\Classes\<ext>_auto_file\DefaultIcon`: `"{app}\icons\file-types\document-<name>.ico,0"`
+    * `HKCU\Software\Classes\<ext>_auto_file\DefaultIcon`: `"{app}\icons\file-types\document-<name>.ico"` (clean direct path, no `,0`)
   * Register `OpenWithProgids`:
     * `HKCU\Software\Classes\.<ext>\OpenWithProgids`: `Gitero.<Name>` = `""`
   * Add to association tasks (e.g. `assoc_code` or `assoc_md`).
