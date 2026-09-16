@@ -45,7 +45,7 @@
 | `npm run build` | Compile TypeScript and bundle frontend to `dist/` |
 | `npm run build:hotkey` | Compile Windows Explorer `Ctrl+.` background companion (`gitero_explorer_hotkey.exe`) |
 | `npm run neu:build` | Package `dist/` into `dist/gitero/resources.neu` |
-| `npm run installer` | Complete build: compile frontend, hotkey companion, bundle `resources.neu`, and generate `Gitero-Setup-0.1.2-beta.exe` |
+| `npm run installer` | Complete build: compile frontend, hotkey companion, bundle `resources.neu`, and generate installer (Run ONLY when explicitly instructed by user) |
 
 ---
 
@@ -130,7 +130,7 @@ Update all three built-in icon themes:
 ### 7. Verification & Production Build
 1. `npm run build` — TypeScript typecheck and Vite frontend bundling.
 2. `npm run neu:build` — Package web bundle into `dist/gitero/resources.neu`.
-3. `npm run installer` — Compile Inno Setup installer executable (`installer-output/Gitero-Setup-<version>.exe`).
+3. `npm run installer` — Compile Inno Setup installer executable (`installer-output/Gitero-Setup-<version>.exe`) when explicitly instructed by user.
 4. Test opening sample files in the app and verifying syntax highlighting and file tree icons.
 
 ---
@@ -167,3 +167,11 @@ Update all three built-in icon themes:
 
 3. **Keybindings in Settings**:
    * Whenever a new keybinding is introduced, it must also be added to the Settings modal where it can be customized and edited. Persist mappings in `PreferencesService`.
+
+4. **Do Not Run `npm run installer` Automatically**:
+   * Do not run `npm run installer` unless the user explicitly tells you to run it. The user manages building and running the installer executable themselves.
+
+5. **Never Directly Modify Installed Production Files**:
+   * Never copy files directly into the installed production app directory (`C:\Users\ihars\AppData\Local\Programs\Gitero IDE\`).
+   * The user uses the generated installer to perform updates.
+   * All focus and testing should be placed on ensuring the installer script (`installer/gitero.iss`) and build outputs (`dist/`, `resources.neu`, `bin/`) package everything cleanly so the installer can seamlessly update all files, shortcuts, hotkeys, and registry associations.
