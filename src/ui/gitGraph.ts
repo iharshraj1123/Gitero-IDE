@@ -413,6 +413,7 @@ export class GitGraphFullComponent {
   private branches: { name: string; isCurrent: boolean }[] = [];
   private selectedBranch: string = 'all';
   private searchQuery: string = '';
+  private showAbandoned: boolean = false;
   private isLoading: boolean = false;
   private hasMore: boolean = true;
   private pageSize: number = 50;
@@ -443,8 +444,15 @@ export class GitGraphFullComponent {
               <label for="fg-branch-select">Branch:</label>
               <select class="gitgraph-select" id="fg-branch-select">
                 <option value="all">All Branches</option>
+                <option value="all-with-abandoned">All (Including Abandoned &amp; Reflog)</option>
+                <option value="only-abandoned">Abandoned &amp; Dangling Only</option>
               </select>
             </div>
+
+            <button class="btn-toolbar-toggle" id="fg-btn-abandoned" title="Show Abandoned & Dangling Commits (from Git Reflog & fsck)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="M2 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="M12 22v-4"/><path d="m19.07 19.07-2.83-2.83"/><path d="M22 12h-4"/><path d="m19.07 4.93-2.83 2.83"/></svg>
+              <span>Abandoned / Reflog</span>
+            </button>
 
             <div class="toolbar-search-wrap">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -530,6 +538,13 @@ export class GitGraphFullComponent {
       this.tableBodyEl.querySelectorAll('tr.active-commit-row').forEach((r) => r.classList.remove('active-commit-row'));
     });
 
+    this.container.querySelector('#fg-btn-abandoned')?.addEventListener('click', (e) => {
+      this.showAbandoned = !this.showAbandoned;
+      const btn = e.currentTarget as HTMLElement;
+      btn.classList.toggle('active', this.showAbandoned);
+      this.reload();
+    });
+
     // Infinite Scroll
     this.scrollContainerEl.addEventListener('scroll', () => {
       if (this.isLoading || !this.hasMore) return;
@@ -555,12 +570,16 @@ export class GitGraphFullComponent {
     this.branches = branches;
 
     const currentVal = this.selectedBranch;
-    this.branchSelectEl.innerHTML = '<option value="all">All Branches</option>';
+    this.branchSelectEl.innerHTML = `
+      <option value="all">All Branches</option>
+      <option value="all-with-abandoned">All (Including Abandoned &amp; Reflog)</option>
+      <option value="only-abandoned">Abandoned &amp; Dangling Only</option>
+    `;
 
     for (const b of branches) {
       const opt = document.createElement('option');
       opt.value = b.name;
-      opt.textContent = `${b.name}${b.isCurrent ? ' (HEAD)' : ''}`;
+      opt.textContent = `Branch: ${b.name}${b.isCurrent ? ' (HEAD)' : ''}`;
       if (b.name === currentVal) {
         opt.selected = true;
       }
@@ -575,13 +594,23 @@ export class GitGraphFullComponent {
 
     try {
       const skip = this.commits.length;
-      const branch = this.selectedBranch === 'all' ? undefined : this.selectedBranch;
+      const isOnlyDangling = this.selectedBranch === 'only-abandoned';
+      const isIncludeReflog = this.showAbandoned || this.selectedBranch === 'all-with-abandoned' || isOnlyDangling;
+      const branch =
+        this.selectedBranch === 'all' ||
+        this.selectedBranch === 'all-with-abandoned' ||
+        this.selectedBranch === 'only-abandoned'
+          ? undefined
+          : this.selectedBranch;
+
       const newCommits = await gitService.getCommitLog({
         maxCount: this.pageSize,
         skip,
-        all: this.selectedBranch === 'all',
+        all: !branch && !isOnlyDangling,
         branch,
-        search: this.searchQuery
+        search: this.searchQuery,
+        includeReflog: isIncludeReflog,
+        onlyDangling: isOnlyDangling
       });
 
       if (newCommits.length < this.pageSize) {
@@ -610,7 +639,7 @@ export class GitGraphFullComponent {
 
     for (const row of this.rowsData) {
       const tr = document.createElement('tr');
-      tr.className = `gitgraph-tr ${row.isHead ? 'is-head-tr' : ''}`;
+      tr.className = `gitgraph-tr ${row.isHead ? 'is-head-tr' : ''} ${row.commit.isDangling ? 'is-dangling-tr' : ''}`;
       tr.dataset.hash = row.commit.hash;
 
       // 1. Graph SVG Column
@@ -630,6 +659,8 @@ export class GitGraphFullComponent {
           ? 'ref-badge-tag'
           : r.type === 'remote'
           ? 'ref-badge-remote'
+          : r.type === 'dangling'
+          ? 'ref-badge-dangling'
           : 'ref-badge-branch';
 
         refsHtml += `
@@ -725,7 +756,25 @@ export class GitGraphFullComponent {
       `;
     }
 
+    const isDangling = rowEl.classList.contains('is-dangling-tr') || this.commits.find((c) => c.hash === hash)?.isDangling;
+    let abandonedBannerHtml = '';
+    if (isDangling) {
+      abandonedBannerHtml = `
+        <div class="drawer-abandoned-banner">
+          <div class="banner-text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span><strong>Abandoned / Dangling Commit:</strong> This commit is unreferenced by any active branch (from Git reflog or fsck).</span>
+          </div>
+          <button class="btn-restore-branch" id="btn-restore-commit" title="Restore this commit to a new branch">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Restore to Branch...</span>
+          </button>
+        </div>
+      `;
+    }
+
     contentEl.innerHTML = `
+      ${abandonedBannerHtml}
       <div class="drawer-metadata-grid">
         <div class="drawer-meta-item">
           <span class="meta-label">Author:</span>
@@ -748,6 +797,20 @@ export class GitGraphFullComponent {
       </div>
       <div class="drawer-files-list">${filesListHtml || '<div class="drawer-clean-files">No files changed.</div>'}</div>
     `;
+
+    // Wire restore commit button
+    contentEl.querySelector('#btn-restore-commit')?.addEventListener('click', async () => {
+      const defaultName = `recovered-${detail.shortHash}`;
+      const branchName = prompt('Enter new branch name to restore this commit to:', defaultName);
+      if (!branchName?.trim()) return;
+      const res = await gitService.restoreCommitToBranch(detail.hash, branchName.trim());
+      if (res.success) {
+        alert(`Successfully restored commit ${detail.shortHash} to new branch "${branchName.trim()}".`);
+        this.reload();
+      } else {
+        alert(`Failed to restore commit: ${res.error}`);
+      }
+    });
 
     // Wire clicking parents
     contentEl.querySelectorAll('.parent-sha').forEach((el) => {

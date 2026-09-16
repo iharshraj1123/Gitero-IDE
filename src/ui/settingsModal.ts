@@ -358,6 +358,21 @@ export class SettingsModalComponent {
                   </div>
                 </div>
 
+                <!-- Refractive Atmosphere Mood Engine -->
+                <div class="setting-item-stack" style="margin-top: 14px; margin-bottom: 14px;">
+                  <div class="setting-label" style="margin-bottom: 6px;">
+                    <span class="setting-title">Refractive Atmosphere Mood</span>
+                    <span class="setting-description">Luminous ambient underglow diffused through frosted acrylic surfaces</span>
+                  </div>
+                  <div class="transparency-presets-row" id="transparency-mood-container">
+                    <button type="button" class="preset-chip-btn" data-mood="deep-space">Deep Space</button>
+                    <button type="button" class="preset-chip-btn" data-mood="aurora">Aurora</button>
+                    <button type="button" class="preset-chip-btn" data-mood="monochrome">Monochrome</button>
+                    <button type="button" class="preset-chip-btn" data-mood="accent">Theme Accent</button>
+                    <button type="button" class="preset-chip-btn" data-mood="none">Off</button>
+                  </div>
+                </div>
+
                 <!-- Master Global Controls -->
                 <div class="transparency-master-sliders" id="transparency-master-sliders-box">
                   <div class="transparency-slider-group">
@@ -366,6 +381,14 @@ export class SettingsModalComponent {
                       <span class="transparency-slider-val" id="val-master-bg">100%</span>
                     </div>
                     <input type="range" id="setting-master-bg-opacity" class="transparency-range-input" min="10" max="100" step="1" value="100" />
+                  </div>
+
+                  <div class="transparency-slider-group">
+                    <div class="transparency-slider-header">
+                      <span>Atmosphere Luminance</span>
+                      <span class="transparency-slider-val" id="val-master-atmosphere">65%</span>
+                    </div>
+                    <input type="range" id="setting-master-atmosphere" class="transparency-range-input" min="0" max="100" step="1" value="65" />
                   </div>
 
                   <div class="transparency-slider-group">
@@ -379,9 +402,9 @@ export class SettingsModalComponent {
                   <div class="transparency-slider-group">
                     <div class="transparency-slider-header">
                       <span>Backdrop Blur (Frosted)</span>
-                      <span class="transparency-slider-val" id="val-master-blur">12px</span>
+                      <span class="transparency-slider-val" id="val-master-blur">14px</span>
                     </div>
-                    <input type="range" id="setting-master-blur" class="transparency-range-input" min="0" max="32" step="1" value="12" />
+                    <input type="range" id="setting-master-blur" class="transparency-range-input" min="0" max="32" step="1" value="14" />
                   </div>
                 </div>
 
@@ -1692,10 +1715,12 @@ export class SettingsModalComponent {
   private setupTransparencyStudioListeners() {
     const enableToggle = this.overlay.querySelector('#setting-transparency-enable-toggle') as HTMLInputElement;
     const masterBgSlider = this.overlay.querySelector('#setting-master-bg-opacity') as HTMLInputElement;
+    const masterAtmosphereSlider = this.overlay.querySelector('#setting-master-atmosphere') as HTMLInputElement;
     const masterTextSlider = this.overlay.querySelector('#setting-master-text-opacity') as HTMLInputElement;
     const masterBlurSlider = this.overlay.querySelector('#setting-master-blur') as HTMLInputElement;
     const categoryTabs = this.overlay.querySelectorAll('#transparency-category-tabs .transparency-tab-btn');
     const presetBtns = this.overlay.querySelectorAll('#transparency-presets-container .preset-chip-btn');
+    const moodBtns = this.overlay.querySelectorAll('#transparency-mood-container .preset-chip-btn');
 
     // Toggle Transparency
     enableToggle?.addEventListener('change', () => {
@@ -1710,6 +1735,13 @@ export class SettingsModalComponent {
       if (label) label.textContent = `${val}%`;
       preferencesService.set('transparency.master.bgOpacity', val);
       this.updateAllSectionChips();
+    });
+
+    masterAtmosphereSlider?.addEventListener('input', () => {
+      const val = parseInt(masterAtmosphereSlider.value, 10) || 0;
+      const label = this.overlay.querySelector('#val-master-atmosphere');
+      if (label) label.textContent = `${val}%`;
+      preferencesService.set('transparency.atmosphereIntensity', val);
     });
 
     masterTextSlider?.addEventListener('input', () => {
@@ -1733,6 +1765,17 @@ export class SettingsModalComponent {
         const presetId = btn.getAttribute('data-preset');
         if (presetId) {
           transparencyService.applyPreset(presetId);
+          this.refreshTransparencyStudioUi();
+        }
+      });
+    });
+
+    // Mood Engine Chips
+    moodBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mood = btn.getAttribute('data-mood') as any;
+        if (mood) {
+          preferencesService.set('transparency.atmosphereMood', mood);
           this.refreshTransparencyStudioUi();
         }
       });
@@ -1915,9 +1958,11 @@ export class SettingsModalComponent {
 
   private refreshTransparencyStudioUi() {
     const enabled = preferencesService.get('transparency.enabled');
-    const blur = preferencesService.get('transparency.blur') ?? 12;
+    const blur = preferencesService.get('transparency.blur') ?? 14;
     const masterBg = preferencesService.get('transparency.master.bgOpacity') ?? 100;
     const masterText = preferencesService.get('transparency.master.textOpacity') ?? 100;
+    const atmosphereMood = preferencesService.get('transparency.atmosphereMood') ?? 'deep-space';
+    const atmosphereIntensity = preferencesService.get('transparency.atmosphereIntensity') ?? 65;
 
     const enableToggle = this.overlay.querySelector('#setting-transparency-enable-toggle') as HTMLInputElement;
     if (enableToggle) enableToggle.checked = enabled;
@@ -1926,6 +1971,11 @@ export class SettingsModalComponent {
     if (masterBgSlider) masterBgSlider.value = String(masterBg);
     const valMasterBg = this.overlay.querySelector('#val-master-bg');
     if (valMasterBg) valMasterBg.textContent = `${masterBg}%`;
+
+    const masterAtmosphereSlider = this.overlay.querySelector('#setting-master-atmosphere') as HTMLInputElement;
+    if (masterAtmosphereSlider) masterAtmosphereSlider.value = String(atmosphereIntensity);
+    const valMasterAtmosphere = this.overlay.querySelector('#val-master-atmosphere');
+    if (valMasterAtmosphere) valMasterAtmosphere.textContent = `${atmosphereIntensity}%`;
 
     const masterTextSlider = this.overlay.querySelector('#setting-master-text-opacity') as HTMLInputElement;
     if (masterTextSlider) masterTextSlider.value = String(masterText);
@@ -1952,6 +2002,13 @@ export class SettingsModalComponent {
         );
         btn.classList.toggle('active', !!matches);
       }
+    });
+
+    // Refresh active atmosphere mood button highlight
+    const moodBtns = this.overlay.querySelectorAll('#transparency-mood-container .preset-chip-btn');
+    moodBtns.forEach(btn => {
+      const m = btn.getAttribute('data-mood');
+      btn.classList.toggle('active', m === atmosphereMood);
     });
 
     // Refresh Section Card Sliders

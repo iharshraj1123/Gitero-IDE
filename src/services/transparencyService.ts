@@ -20,6 +20,8 @@ export interface TransparencyPreset {
   blur: number;
   masterBg: number;
   masterText: number;
+  atmosphereMood?: 'deep-space' | 'aurora' | 'monochrome' | 'accent' | 'none';
+  atmosphereIntensity?: number;
   sections: Record<string, { bg: number; text: number }>;
 }
 
@@ -114,6 +116,8 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     blur: 0,
     masterBg: 100,
     masterText: 100,
+    atmosphereMood: 'none',
+    atmosphereIntensity: 0,
     sections: {
       titleBar: { bg: 100, text: 100 },
       activityBar: { bg: 100, text: 100 },
@@ -129,12 +133,14 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     id: 'subtle-glass',
     name: 'Subtle Glass',
     description: 'Gentle transparency with smooth frosted backdrop blur',
-    blur: 12,
-    masterBg: 88,
+    blur: 14,
+    masterBg: 85,
     masterText: 100,
+    atmosphereMood: 'deep-space',
+    atmosphereIntensity: 55,
     sections: {
       titleBar: { bg: 85, text: 100 },
-      activityBar: { bg: 82, text: 100 },
+      activityBar: { bg: 80, text: 100 },
       sidebar: { bg: 85, text: 100 },
       tabBar: { bg: 85, text: 100 },
       editor: { bg: 92, text: 100 },
@@ -148,17 +154,19 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     name: 'Frosted Acrylic',
     description: 'Modern Windows Acrylic aesthetic with rich 20px blur and luminous glass chrome',
     blur: 20,
-    masterBg: 75,
+    masterBg: 70,
     masterText: 100,
+    atmosphereMood: 'aurora',
+    atmosphereIntensity: 75,
     sections: {
       titleBar: { bg: 70, text: 100 },
-      activityBar: { bg: 65, text: 100 },
-      sidebar: { bg: 72, text: 100 },
-      tabBar: { bg: 72, text: 100 },
-      editor: { bg: 82, text: 100 },
-      terminal: { bg: 75, text: 100 },
-      statusBar: { bg: 65, text: 100 },
-      overlays: { bg: 80, text: 100 }
+      activityBar: { bg: 60, text: 100 },
+      sidebar: { bg: 68, text: 100 },
+      tabBar: { bg: 70, text: 100 },
+      editor: { bg: 80, text: 100 },
+      terminal: { bg: 72, text: 100 },
+      statusBar: { bg: 60, text: 100 },
+      overlays: { bg: 78, text: 100 }
     }
   },
   {
@@ -166,8 +174,10 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     name: 'Code Focus',
     description: 'Translucent sidebars and chrome with 100% solid, distraction-free code canvas',
     blur: 16,
-    masterBg: 85,
+    masterBg: 80,
     masterText: 100,
+    atmosphereMood: 'monochrome',
+    atmosphereIntensity: 45,
     sections: {
       titleBar: { bg: 60, text: 100 },
       activityBar: { bg: 55, text: 100 },
@@ -183,6 +193,28 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
 
 export class TransparencyService {
   private isInitialized = false;
+  private atmosphereEl: HTMLElement | null = null;
+
+  private ensureAtmosphereElement(): HTMLElement {
+    if (this.atmosphereEl && document.body.contains(this.atmosphereEl)) {
+      return this.atmosphereEl;
+    }
+    let el = document.getElementById('gitero-glass-atmosphere');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'gitero-glass-atmosphere';
+      el.className = 'gitero-glass-atmosphere';
+      el.innerHTML = `
+        <div class="glass-orb glass-orb-1"></div>
+        <div class="glass-orb glass-orb-2"></div>
+        <div class="glass-orb glass-orb-3"></div>
+        <div class="glass-mesh-overlay"></div>
+      `;
+      document.body.prepend(el);
+    }
+    this.atmosphereEl = el;
+    return el;
+  }
 
   init() {
     if (this.isInitialized) return;
@@ -193,6 +225,8 @@ export class TransparencyService {
     // Subscribe to all transparency preferences
     const keys: (keyof GiteroPreferences)[] = [
       'transparency.enabled',
+      'transparency.atmosphereMood',
+      'transparency.atmosphereIntensity',
       'transparency.blur',
       'transparency.master.bgOpacity',
       'transparency.master.textOpacity',
@@ -226,6 +260,9 @@ export class TransparencyService {
 
     if (!enabled) {
       body.classList.remove('transparency-active');
+      if (this.atmosphereEl) {
+        this.atmosphereEl.style.display = 'none';
+      }
       root.style.setProperty('--transparency-blur', '0px');
       root.style.setProperty('--opacity-master-bg', '1');
       root.style.setProperty('--opacity-master-fg', '1');
@@ -239,7 +276,16 @@ export class TransparencyService {
 
     body.classList.add('transparency-active');
 
-    const blur = preferencesService.get('transparency.blur') ?? 12;
+    // Manage Ambient Atmosphere Element & Properties
+    const atmosphere = this.ensureAtmosphereElement();
+    const mood = preferencesService.get('transparency.atmosphereMood') ?? 'deep-space';
+    const intensity = preferencesService.get('transparency.atmosphereIntensity') ?? 65;
+
+    atmosphere.className = `gitero-glass-atmosphere mood-${mood}`;
+    atmosphere.style.display = mood === 'none' ? 'none' : 'block';
+    root.style.setProperty('--glass-atmosphere-intensity', (intensity / 100).toFixed(2));
+
+    const blur = preferencesService.get('transparency.blur') ?? 14;
     const masterBg = (preferencesService.get('transparency.master.bgOpacity') ?? 100) / 100;
     const masterText = (preferencesService.get('transparency.master.textOpacity') ?? 100) / 100;
 
@@ -268,6 +314,8 @@ export class TransparencyService {
     if (preset.id === 'solid') {
       preferencesService.update({
         'transparency.enabled': false,
+        'transparency.atmosphereMood': 'none',
+        'transparency.atmosphereIntensity': 0,
         'transparency.blur': 0,
         'transparency.master.bgOpacity': 100,
         'transparency.master.textOpacity': 100,
@@ -297,6 +345,13 @@ export class TransparencyService {
       'transparency.master.bgOpacity': preset.masterBg,
       'transparency.master.textOpacity': preset.masterText
     };
+
+    if (preset.atmosphereMood) {
+      updates['transparency.atmosphereMood'] = preset.atmosphereMood;
+    }
+    if (preset.atmosphereIntensity !== undefined) {
+      updates['transparency.atmosphereIntensity'] = preset.atmosphereIntensity;
+    }
 
     for (const [secId, vals] of Object.entries(preset.sections)) {
       const meta = TRANSPARENCY_SECTIONS.find(s => s.id === secId);

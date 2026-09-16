@@ -3939,10 +3939,170 @@ body.window-maximized .win-resize-handle {
    ========================================================================== */
 
 body.transparency-active {
-  background-color: transparent !important;
+  background-color: var(--bg-primary, #0d1117) !important;
+}
+
+/* 0. Luminous Ambient Atmosphere Canvas */
+.gitero-glass-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: var(--glass-atmosphere-intensity, 0.65);
+  transition: opacity 0.3s ease;
+  background-color: #06090e;
+  display: none;
+}
+
+body.transparency-active .gitero-glass-atmosphere {
+  display: block;
+}
+
+body.transparency-active .gitero-glass-atmosphere.mood-none {
+  display: none;
+}
+
+.gitero-glass-atmosphere .glass-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.gitero-glass-atmosphere .glass-mesh-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, transparent 40%, rgba(0, 0, 0, 0.45) 100%);
+  pointer-events: none;
+}
+
+/* Atmosphere Mood 1: Deep Space */
+.gitero-glass-atmosphere.mood-deep-space .glass-orb-1 {
+  width: 720px;
+  height: 720px;
+  top: -12%;
+  left: 8%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.55) 0%, rgba(67, 56, 202, 0.25) 55%, transparent 75%);
+  animation: glassOrbFloat1 22s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-deep-space .glass-orb-2 {
+  width: 820px;
+  height: 820px;
+  bottom: -15%;
+  right: 5%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.5) 0%, rgba(126, 34, 206, 0.2) 60%, transparent 75%);
+  animation: glassOrbFloat2 26s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-deep-space .glass-orb-3 {
+  width: 550px;
+  height: 550px;
+  top: 25%;
+  right: 30%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, rgba(14, 165, 233, 0.15) 55%, transparent 75%);
+  animation: glassOrbFloat3 20s infinite alternate ease-in-out;
+}
+
+/* Atmosphere Mood 2: Aurora */
+.gitero-glass-atmosphere.mood-aurora .glass-orb-1 {
+  width: 750px;
+  height: 750px;
+  top: -15%;
+  left: 10%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.55) 0%, rgba(5, 150, 105, 0.25) 55%, transparent 75%);
+  animation: glassOrbFloat1 24s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-aurora .glass-orb-2 {
+  width: 800px;
+  height: 800px;
+  bottom: -10%;
+  right: 8%;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.5) 0%, rgba(14, 116, 144, 0.2) 60%, transparent 75%);
+  animation: glassOrbFloat2 28s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-aurora .glass-orb-3 {
+  width: 600px;
+  height: 600px;
+  top: 30%;
+  right: 25%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.45) 0%, rgba(109, 40, 217, 0.18) 55%, transparent 75%);
+  animation: glassOrbFloat3 22s infinite alternate ease-in-out;
+}
+
+/* Atmosphere Mood 3: Monochrome */
+.gitero-glass-atmosphere.mood-monochrome .glass-orb-1 {
+  width: 700px;
+  height: 700px;
+  top: -10%;
+  left: 15%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, rgba(203, 213, 225, 0.15) 55%, transparent 75%);
+  animation: glassOrbFloat1 20s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-monochrome .glass-orb-2 {
+  width: 750px;
+  height: 750px;
+  bottom: -15%;
+  right: 10%;
+  background: radial-gradient(circle, rgba(148, 163, 184, 0.3) 0%, rgba(100, 116, 139, 0.12) 60%, transparent 75%);
+  animation: glassOrbFloat2 25s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-monochrome .glass-orb-3 {
+  width: 500px;
+  height: 500px;
+  top: 35%;
+  right: 35%;
+  background: radial-gradient(circle, rgba(226, 232, 240, 0.25) 0%, rgba(148, 163, 184, 0.1) 55%, transparent 75%);
+  animation: glassOrbFloat3 18s infinite alternate ease-in-out;
+}
+
+/* Atmosphere Mood 4: Theme Accent */
+.gitero-glass-atmosphere.mood-accent .glass-orb-1 {
+  width: 700px;
+  height: 700px;
+  top: -10%;
+  left: 8%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-color, #58a6ff) 50%, transparent) 0%, color-mix(in srgb, var(--accent-color, #58a6ff) 20%, transparent) 55%, transparent 75%);
+  animation: glassOrbFloat1 22s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-accent .glass-orb-2 {
+  width: 800px;
+  height: 800px;
+  bottom: -12%;
+  right: 5%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-color, #58a6ff) 40%, #a855f7 30%) 0%, color-mix(in srgb, var(--accent-color, #58a6ff) 15%, transparent) 60%, transparent 75%);
+  animation: glassOrbFloat2 26s infinite alternate ease-in-out;
+}
+.gitero-glass-atmosphere.mood-accent .glass-orb-3 {
+  width: 550px;
+  height: 550px;
+  top: 25%;
+  right: 28%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-color, #58a6ff) 30%, #38bdf8 30%) 0%, transparent 75%);
+  animation: glassOrbFloat3 20s infinite alternate ease-in-out;
+}
+
+@keyframes glassOrbFloat1 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, 35px) scale(1.08); }
+  100% { transform: translate(-35px, 65px) scale(0.96); }
+}
+
+@keyframes glassOrbFloat2 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-65px, -45px) scale(1.1); }
+  100% { transform: translate(45px, -25px) scale(0.92); }
+}
+
+@keyframes glassOrbFloat3 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, -50px) scale(1.05); }
+  100% { transform: translate(-50px, 25px) scale(1.12); }
 }
 
 body.transparency-active #app {
+  position: relative;
+  z-index: 1;
   background-color: color-mix(in srgb, var(--bg-primary) calc(var(--opacity-master-bg, 1) * 100%), transparent);
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
@@ -3957,6 +4117,7 @@ body.transparency-active .app-titlebar {
   background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-titlebar-bg, 1) * 100%), transparent) !important;
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.08);
 }
 body.transparency-active .app-titlebar .titlebar-app-icon,
 body.transparency-active .app-titlebar .menubar-button,
@@ -3970,6 +4131,7 @@ body.transparency-active .activity-bar {
   background-color: color-mix(in srgb, var(--bg-activity) calc(var(--opacity-activitybar-bg, 1) * 100%), transparent) !important;
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+  box-shadow: inset -1px 0 0 0 rgba(255, 255, 255, 0.08);
 }
 body.transparency-active .activity-bar .activity-btn svg {
   opacity: var(--opacity-activitybar-fg, 1);
@@ -3983,6 +4145,7 @@ body.transparency-active .sidebar-workspace-btn-container {
   background-color: color-mix(in srgb, var(--bg-sidebar) calc(var(--opacity-sidebar-bg, 1) * 100%), transparent) !important;
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+  box-shadow: inset -1px 0 0 0 rgba(255, 255, 255, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
 }
 body.transparency-active .sidebar-header #workspace-title,
 body.transparency-active .sidebar-actions,
@@ -3998,6 +4161,7 @@ body.transparency-active .breadcrumbs-bar {
   background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-tabbar-bg, 1) * 100%), transparent) !important;
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
 }
 body.transparency-active .tab-bar-container .tab-item {
   background-color: color-mix(in srgb, var(--tab-inactive-bg) calc(var(--opacity-tabbar-bg, 1) * 100%), transparent);
@@ -4005,6 +4169,7 @@ body.transparency-active .tab-bar-container .tab-item {
 }
 body.transparency-active .tab-bar-container .tab-item.active {
   background-color: color-mix(in srgb, var(--tab-active-bg) calc(var(--opacity-tabbar-bg, 1) * 100%), transparent) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.18), 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 body.transparency-active .breadcrumbs-bar {
   opacity: var(--opacity-tabbar-fg, 1);
@@ -4040,6 +4205,7 @@ body.transparency-active .terminal-panel {
   background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-terminal-bg, 1) * 100%), transparent) !important;
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 body.transparency-active .bottom-panel-header,
 body.transparency-active .terminal-header,
@@ -4054,6 +4220,7 @@ body.transparency-active .status-bar {
   background-color: color-mix(in srgb, var(--status-bg) calc(var(--opacity-statusbar-bg, 1) * 100%), transparent) !important;
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 body.transparency-active .status-bar .status-item,
 body.transparency-active .status-bar span {
@@ -4070,6 +4237,8 @@ body.transparency-active .cm-panels {
   background-color: color-mix(in srgb, var(--bg-sidebar) calc(var(--opacity-overlays-bg, 1) * 100%), transparent) !important;
   backdrop-filter: blur(var(--transparency-blur, 0px));
   -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 body.transparency-active .command-palette-item,
 body.transparency-active .settings-header,
@@ -4996,4 +5165,84 @@ body.transparency-active .settings-body-wrapper {
 .btn-diff-file:hover {
   color: var(--accent-color, #3794ff);
 }
+
+/* Abandoned & Dangling Commits UI */
+.btn-toolbar-toggle {
+  background: var(--bg-input, #2a2d2e);
+  border: 1px solid var(--border-color, #3c3c3c);
+  color: var(--fg-muted, #858585);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-toolbar-toggle:hover {
+  background-color: var(--bg-hover, #37373d);
+  color: var(--fg-primary, #ffffff);
+}
+
+.btn-toolbar-toggle.active {
+  background-color: rgba(234, 179, 8, 0.15);
+  border-color: #eab308;
+  color: #eab308;
+}
+
+.ref-badge-dangling {
+  background-color: rgba(234, 179, 8, 0.15);
+  border: 1px dashed #eab308;
+  color: #eab308;
+}
+
+.gitgraph-tr.is-dangling-tr {
+  opacity: 0.85;
+}
+
+.gitgraph-tr.is-dangling-tr:hover {
+  opacity: 1;
+}
+
+.drawer-abandoned-banner {
+  background-color: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  border-radius: 4px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.drawer-abandoned-banner .banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #eab308;
+}
+
+.btn-restore-branch {
+  background: #eab308;
+  color: #111111;
+  border: none;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  transition: filter 0.15s ease;
+}
+
+.btn-restore-branch:hover {
+  filter: brightness(1.1);
+}
+
 

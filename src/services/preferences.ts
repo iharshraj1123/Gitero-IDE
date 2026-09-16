@@ -45,6 +45,8 @@ export interface GiteroPreferences {
 
   // Transparency & Glassmorphism
   'transparency.enabled': boolean;
+  'transparency.atmosphereMood': 'deep-space' | 'aurora' | 'monochrome' | 'accent' | 'none';
+  'transparency.atmosphereIntensity': number;
   'transparency.blur': number;
   'transparency.master.bgOpacity': number;
   'transparency.master.textOpacity': number;
@@ -137,7 +139,9 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'search.useRegex': false,
   'updater.githubToken': '',
   'transparency.enabled': false,
-  'transparency.blur': 12,
+  'transparency.atmosphereMood': 'deep-space',
+  'transparency.atmosphereIntensity': 65,
+  'transparency.blur': 14,
   'transparency.master.bgOpacity': 100,
   'transparency.master.textOpacity': 100,
   'transparency.titleBar.bgOpacity': 100,

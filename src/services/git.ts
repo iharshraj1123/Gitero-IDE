@@ -15,7 +15,7 @@ export interface GitBranch {
 
 export interface GitRef {
   name: string;
-  type: 'head' | 'branch' | 'remote' | 'tag';
+  type: 'head' | 'branch' | 'remote' | 'tag' | 'reflog' | 'dangling';
   isCurrentHead?: boolean;
 }
 
@@ -29,6 +29,7 @@ export interface GitCommit {
   relativeDate: string;
   message: string;
   refs: GitRef[];
+  isDangling?: boolean;
 }
 
 export interface GitCommitFile {
@@ -570,15 +571,39 @@ export class GitService {
     all?: boolean;
     branch?: string;
     search?: string;
+    includeReflog?: boolean;
+    onlyDangling?: boolean;
   }): Promise<GitCommit[]> {
     const max = options?.maxCount ?? 50;
     const skip = options?.skip ?? 0;
     const isAll = options?.all !== false && !options?.branch;
     let branchArg = '';
-    if (options?.branch && options.branch !== 'all') {
+    if (options?.onlyDangling) {
+      branchArg = '--reflog --not --all';
+    } else if (options?.branch && options.branch !== 'all') {
       branchArg = `"${options.branch}"`;
     } else if (isAll) {
       branchArg = '--all';
+    }
+
+    const danglingSet = new Set<string>();
+    if (options?.includeReflog || options?.onlyDangling) {
+      if (!options?.onlyDangling) {
+        branchArg += ' --reflog';
+      }
+      // Query reflog unreachable and fsck lost-found
+      const resDangling = await this.runGitCommand('log --reflog --not --all --format="%H"', true);
+      if (resDangling.exitCode === 0) {
+        resDangling.stdout
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .forEach((h) => danglingSet.add(h.trim()));
+      }
+      const lostFound = await this.getDanglingCommitHashes();
+      lostFound.forEach((h) => danglingSet.add(h));
+      if (lostFound.length > 0 && !options?.onlyDangling) {
+        branchArg += ` ${lostFound.slice(0, 20).join(' ')}`;
+      }
     }
 
     let grepArg = '';
@@ -609,6 +634,13 @@ export class GitService {
 
       const parentHashes = parentsStr ? parentsStr.split(/\s+/).filter(Boolean) : [];
       const refs = this.parseRefs(refsStr);
+      const isDangling = danglingSet.has(hash);
+      if (isDangling) {
+        refs.push({
+          name: 'abandoned',
+          type: 'dangling'
+        });
+      }
 
       commits.push({
         hash,
@@ -619,11 +651,42 @@ export class GitService {
         timestamp,
         relativeDate: this.formatRelativeTime(timestamp),
         message,
-        refs
+        refs,
+        isDangling
       });
     }
 
     return commits;
+  }
+
+  /**
+   * Retrieve dangling commit hashes from git fsck
+   */
+  public async getDanglingCommitHashes(): Promise<string[]> {
+    const res = await this.runGitCommand('fsck --lost-found', true);
+    if (res.exitCode !== 0) return [];
+    const hashes: string[] = [];
+    const lines = res.stdout.split(/\r?\n/).filter(Boolean);
+    for (const l of lines) {
+      if (l.includes('dangling commit')) {
+        const h = l.replace(/.*dangling commit\s+([0-9a-f]+).*/i, '$1').trim();
+        if (h) hashes.push(h);
+      }
+    }
+    return hashes;
+  }
+
+  /**
+   * Restore an abandoned or dangling commit by creating a new branch pointing to it
+   */
+  public async restoreCommitToBranch(hash: string, branchName: string): Promise<{ success: boolean; error?: string }> {
+    const clean = branchName.trim().replace(/\s+/g, '-');
+    const res = await this.runGitCommand(`branch "${clean}" ${hash}`, false);
+    await this.refresh();
+    if (res.exitCode === 0) {
+      return { success: true };
+    }
+    return { success: false, error: res.stderr || res.stdout };
   }
 
   private parseRefs(refsStr: string): GitRef[] {
