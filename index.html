@@ -81,9 +81,15 @@
         <!-- Breadcrumbs Navigation -->
         <div class="breadcrumbs-bar" id="breadcrumbs-bar">
           <span class="breadcrumb-part" id="breadcrumb-text">Gitero IDE</span>
+          <div class="breadcrumbs-actions">
+            <button class="btn-md-toggle" id="btn-md-toggle" style="display: none;" title="Toggle Markdown Preview / Raw Editor (Ctrl+Shift+V)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span id="md-toggle-text">Preview</span>
+            </button>
+          </div>
         </div>
 
-        <!-- CodeMirror Editor Viewport -->
+        <!-- CodeMirror & Markdown Editor Viewport -->
         <div class="editor-viewport" id="editor-viewport">
           <div class="editor-empty-state" id="empty-state">
             <div class="empty-logo">
@@ -95,10 +101,12 @@
               <div class="shortcut-row"><span>Command Palette</span><span class="shortcut-key">Ctrl + Shift + P</span></div>
               <div class="shortcut-row"><span>Save Active File</span><span class="shortcut-key">Ctrl + S / :w</span></div>
               <div class="shortcut-row"><span>Toggle Sidebar</span><span class="shortcut-key">Ctrl + B</span></div>
+              <div class="shortcut-row"><span>Toggle Markdown Preview</span><span class="shortcut-key">Ctrl + Shift + V</span></div>
               <div class="shortcut-row"><span>Open Settings</span><span class="shortcut-key">Ctrl + ,</span></div>
             </div>
           </div>
           <div id="codemirror-root" style="height: 100%; display: none;"></div>
+          <div id="markdown-viewport" style="height: 100%; display: none; overflow-y: auto;"></div>
         </div>
 
         <!-- Bottom Dock Panel (Terminal & Output) -->

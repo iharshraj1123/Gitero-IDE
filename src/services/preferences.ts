@@ -13,9 +13,29 @@ export interface GiteroPreferences {
   'editor.wordWrap': boolean;
   'files.autoSave': boolean;
   'files.autoSaveDelay': number;
+  'keybindings': Record<string, string>;
 }
 
 const STORAGE_KEY = 'gitero_preferences_v1';
+
+export const DEFAULT_KEYBINDINGS: Record<string, string> = {
+  'workbench.action.quickOpen': 'Ctrl+P',
+  'workbench.action.showCommands': 'Ctrl+Shift+P',
+  'workbench.action.files.save': 'Ctrl+S',
+  'workbench.action.files.saveAs': 'Ctrl+Shift+S',
+  'workbench.action.files.newUntitledFile': 'Ctrl+N',
+  'workbench.action.files.openFile': 'Ctrl+O',
+  'workbench.action.closeActiveEditor': 'Ctrl+W',
+  'workbench.action.toggleSidebarVisibility': 'Ctrl+B',
+  'workbench.action.terminal.toggleTerminal': 'Ctrl+`',
+  'workbench.action.findInFiles': 'Ctrl+Shift+F',
+  'workbench.view.scm': 'Ctrl+Shift+G',
+  'workbench.action.gotoLine': 'Ctrl+G',
+  'editor.action.toggleWordWrap': 'Alt+Z',
+  'markdown.showPreview': 'Ctrl+Shift+V',
+  'workbench.action.openSettings': 'Ctrl+,',
+  'workbench.action.openShortcuts': 'Ctrl+K Ctrl+S'
+};
 
 export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.cursorStyle': 'line',
@@ -28,7 +48,8 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.tabSize': 2,
   'editor.wordWrap': false,
   'files.autoSave': false,
-  'files.autoSaveDelay': 1000
+  'files.autoSaveDelay': 1000,
+  'keybindings': { ...DEFAULT_KEYBINDINGS }
 };
 
 type PreferenceChangeListener<T> = (newValue: T, oldValue: T) => void;
@@ -226,6 +247,21 @@ export class PreferencesService {
 
   getAll(): GiteroPreferences {
     return { ...this.preferences };
+  }
+
+  getKeybinding(actionId: string): string {
+    const map = this.preferences.keybindings || DEFAULT_KEYBINDINGS;
+    return map[actionId] || DEFAULT_KEYBINDINGS[actionId] || '';
+  }
+
+  setKeybinding(actionId: string, shortcut: string): void {
+    const currentMap = this.preferences.keybindings || { ...DEFAULT_KEYBINDINGS };
+    const updated = { ...currentMap, [actionId]: shortcut };
+    this.set('keybindings', updated);
+  }
+
+  resetKeybindings(): void {
+    this.set('keybindings', { ...DEFAULT_KEYBINDINGS });
   }
 
   reset(key?: keyof GiteroPreferences): void {

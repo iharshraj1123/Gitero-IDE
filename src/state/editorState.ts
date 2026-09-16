@@ -9,6 +9,7 @@ export interface EditorTab {
   isDirty: boolean;
   language: string;
   cursor: { line: number; col: number };
+  viewMode?: 'raw' | 'rendered';
 }
 
 export interface StateChangeListener {
@@ -33,7 +34,8 @@ export class EditorStateManager {
           this.tabs = parsed.map((t: any) => ({
             ...t,
             originalContent: t.content,
-            isDirty: false
+            isDirty: false,
+            viewMode: t.viewMode || 'raw'
           }));
           this.activeTabId = localStorage.getItem('gitero_active_tab') || this.tabs[0].id;
         }
@@ -51,7 +53,8 @@ export class EditorStateManager {
         path: t.path,
         content: t.content,
         language: t.language,
-        cursor: t.cursor
+        cursor: t.cursor,
+        viewMode: t.viewMode
       }));
       localStorage.setItem('gitero_open_tabs', JSON.stringify(lightweight));
       if (this.activeTabId) {
@@ -70,9 +73,13 @@ export class EditorStateManager {
     return this.tabs.find(t => t.id === this.activeTabId) || null;
   }
 
-  openFile(filePath: string, content: string): EditorTab {
+  openFile(filePath: string, content: string, options?: { viewMode?: 'raw' | 'rendered' }): EditorTab {
+    const isMd = /\.md$/i.test(filePath) || /\.markdown$/i.test(filePath);
     const existing = this.tabs.find(t => t.id === filePath);
     if (existing) {
+      if (options?.viewMode) {
+        existing.viewMode = options.viewMode;
+      }
       this.activeTabId = filePath;
       this.notify();
       return existing;
@@ -80,6 +87,7 @@ export class EditorStateManager {
 
     const name = filePath.split(/[/\\]/).pop() || filePath;
     const lang = detectLanguage(filePath).name;
+    const viewMode = options?.viewMode || 'raw';
 
     const newTab: EditorTab = {
       id: filePath,
@@ -89,7 +97,8 @@ export class EditorStateManager {
       originalContent: content,
       isDirty: false,
       language: lang,
-      cursor: { line: 1, col: 1 }
+      cursor: { line: 1, col: 1 },
+      viewMode: isMd ? viewMode : 'raw'
     };
 
     this.tabs.push(newTab);
@@ -211,6 +220,18 @@ export class EditorStateManager {
       this.persist();
       this.notify();
     }
+  }
+
+  toggleActiveTabRenderMode(): 'raw' | 'rendered' | null {
+    const active = this.getActiveTab();
+    if (!active) return null;
+    const isMd = /\.md$/i.test(active.path) || /\.markdown$/i.test(active.path);
+    if (!isMd) return null;
+
+    active.viewMode = active.viewMode === 'rendered' ? 'raw' : 'rendered';
+    this.persist();
+    this.notify();
+    return active.viewMode;
   }
 
   onChange(listener: StateChangeListener) {

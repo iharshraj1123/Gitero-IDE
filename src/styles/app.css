@@ -414,18 +414,27 @@ body, html {
 
 .sidebar-action-btn {
   background: none;
-  border: none;
+  border: 0;
   color: var(--fg-muted);
   cursor: pointer;
-  padding: 2px;
-  border-radius: 3px;
-  display: flex;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
 .sidebar-action-btn:hover {
-  color: var(--fg-primary);
-  background-color: var(--bg-hover);
+  color: #ffffff;
+  background: rgb(86 82 108 / 50%);
+  background: color-mix(in srgb, var(--bg-active, #3b4261) 75%, transparent);
+}
+
+.sidebar-action-btn:active {
+  transform: scale(0.92);
 }
 
 .sidebar-workspace-btn-container {
@@ -567,6 +576,19 @@ body, html {
   color: #ffffff;
 }
 
+.context-menu-shortcut {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-left: 20px;
+  opacity: 0.75;
+  font-family: inherit;
+}
+
+.context-menu-item:hover .context-menu-shortcut {
+  color: rgba(255, 255, 255, 0.9);
+  opacity: 1;
+}
+
 .context-menu-item.danger:hover {
   background-color: #f7768e;
   color: #ffffff;
@@ -644,41 +666,91 @@ body, html {
 .tab-icon {
   display: flex;
   align-items: center;
-}
-
-.tab-title {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-size: 13px;
 }
 
-.tab-close {
-  background: none;
+.tab-title {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.tab-dirty-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  display: inline-block;
+  margin-left: 2px;
+}
+
+.tab-close-btn {
+  background: transparent;
   border: none;
   color: var(--fg-muted);
-  width: 18px;
-  height: 18px;
+  cursor: pointer;
+  padding: 2px 4px;
   border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.6;
+  transition: all 0.1s ease;
 }
 
-.tab-close:hover {
-  background-color: var(--bg-hover);
+.editor-tab:hover .tab-close-btn {
+  opacity: 1;
+}
+
+.tab-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
   color: var(--fg-primary);
-}
-
-.dirty-indicator {
-  font-size: 10px;
-  color: var(--accent-color);
 }
 
 .close-x {
   font-size: 14px;
+}
+
+/* Plus Button (New Tab / File) */
+.tab-new-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  align-self: center;
+  margin-left: 6px;
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  border-radius: 4px;
+  background: rgb(86 82 108 / 50%);
+  background: color-mix(in srgb, var(--bg-active, #3b4261) 75%, transparent);
+  color: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.tab-new-btn:hover {
+  background: rgb(86 82 108 / 85%);
+  background: color-mix(in srgb, var(--bg-active, #3b4261) 95%, white 15%);
+  color: #ffffff;
+}
+
+.tab-new-btn:active {
+  transform: scale(0.92);
+}
+
+.tab-new-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  display: block;
 }
 
 /* Breadcrumbs */
@@ -688,7 +760,7 @@ body, html {
   padding: 0 16px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   font-size: 11px;
   color: var(--fg-muted);
   border-bottom: 1px solid var(--border-color);
@@ -698,6 +770,38 @@ body, html {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.breadcrumbs-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.btn-md-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--fg-muted);
+  border-radius: 3px;
+  padding: 1px 8px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-md-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--fg-primary);
+  border-color: var(--accent-color);
+}
+
+.btn-md-toggle.active {
+  background: var(--accent-color);
+  color: #ffffff;
+  border-color: var(--accent-color);
 }
 
 .breadcrumb-sep {
@@ -2174,6 +2278,291 @@ body, html {
   font-style: italic;
   text-align: center;
   padding: 20px;
+}
+
+/* ==========================================================================
+   Markdown Viewer Styles
+   ========================================================================== */
+
+#markdown-viewport {
+  height: 100%;
+  background-color: var(--editor-bg);
+  overflow-y: auto;
+}
+
+.markdown-preview-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  color: var(--fg-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.markdown-preview-container h1,
+.markdown-preview-container h2,
+.markdown-preview-container h3,
+.markdown-preview-container h4,
+.markdown-preview-container h5,
+.markdown-preview-container h6 {
+  color: var(--fg-primary);
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  line-height: 1.25;
+}
+
+.markdown-preview-container h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.markdown-preview-container h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.markdown-preview-container h3 { font-size: 1.25em; }
+.markdown-preview-container h4 { font-size: 1em; }
+
+.markdown-preview-container p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-preview-container a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.markdown-preview-container a:hover {
+  text-decoration: underline;
+}
+
+.markdown-preview-container ul,
+.markdown-preview-container ol {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding-left: 2em;
+}
+
+.markdown-preview-container li {
+  margin-top: 4px;
+}
+
+.markdown-preview-container blockquote {
+  margin: 0 0 16px 0;
+  padding: 4px 1em;
+  color: var(--fg-muted);
+  border-left: 4px solid var(--accent-color);
+  background: var(--bg-hover);
+  border-radius: 0 4px 4px 0;
+}
+
+.markdown-preview-container code {
+  font-family: var(--editor-font-family);
+  font-size: 85%;
+  background-color: var(--bg-secondary);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.markdown-preview-container pre {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+  margin-bottom: 16px;
+}
+
+.markdown-preview-container pre code {
+  background-color: transparent;
+  padding: 0;
+  border: none;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.markdown-preview-container hr {
+  height: 1px;
+  background-color: var(--border-color);
+  border: none;
+  margin: 24px 0;
+}
+
+.markdown-preview-container table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.markdown-preview-container table th,
+.markdown-preview-container table td {
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+}
+
+.markdown-preview-container table th {
+  background-color: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.markdown-preview-container table tr:nth-child(2n) {
+  background-color: var(--bg-hover);
+}
+
+.markdown-preview-container img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* ==========================================================================
+   Keybindings Manager Styles in Settings Modal
+   ========================================================================== */
+
+.keybindings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.keybindings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.keybindings-search-box {
+  width: 100%;
+}
+
+.keybindings-search-box input {
+  width: 100%;
+}
+
+.keybindings-table-wrapper {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+}
+
+.keybindings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.keybindings-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  color: var(--fg-muted);
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  z-index: 1;
+}
+
+.keybinding-row {
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.1s ease;
+}
+
+.keybinding-row:hover {
+  background-color: var(--bg-hover);
+}
+
+.keybinding-row.is-editing {
+  background-color: var(--bg-hover);
+}
+
+.keybinding-row td {
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+
+.keybinding-col-cmd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.keybinding-cmd-name {
+  font-weight: 500;
+  color: var(--fg-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.keybinding-cat-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--fg-muted);
+}
+
+.keybinding-cmd-id code {
+  font-size: 10px;
+  color: var(--fg-muted);
+  font-family: var(--editor-font-family);
+}
+
+.keybinding-kbd {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--editor-font-family);
+  font-size: 11px;
+  color: var(--fg-primary);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  display: inline-block;
+}
+
+.keybinding-none {
+  color: var(--fg-muted);
+  font-style: italic;
+  font-size: 11px;
+}
+
+.keybinding-recorder-input {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--accent-color);
+  color: var(--fg-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--editor-font-family);
+  font-size: 11px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.2);
+}
+
+.keybinding-edit-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.keybindings-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--fg-muted);
+  font-style: italic;
 }
 
 

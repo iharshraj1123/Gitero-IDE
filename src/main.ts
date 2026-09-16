@@ -16,6 +16,7 @@ import { GitPanelComponent } from './ui/gitPanel';
 import { TerminalPanelComponent } from './ui/terminalPanel';
 import { ShortcutsModalComponent } from './ui/shortcutsModal';
 import { SUPPORTED_LANGUAGES } from './editor/languages';
+import { MarkdownViewerComponent } from './ui/markdownViewer';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -51,6 +52,18 @@ async function bootstrap() {
   const breadcrumbText = document.getElementById('breadcrumb-text') as HTMLElement;
   const emptyStateEl = document.getElementById('empty-state') as HTMLElement;
   const cmRoot = document.getElementById('codemirror-root') as HTMLElement;
+  const markdownViewport = document.getElementById('markdown-viewport') as HTMLElement;
+  const btnMdToggle = document.getElementById('btn-md-toggle') as HTMLElement;
+  const mdToggleText = document.getElementById('md-toggle-text') as HTMLElement;
+  const markdownViewer = new MarkdownViewerComponent(markdownViewport);
+
+  btnMdToggle.addEventListener('click', () => {
+    const nextMode = editorState.toggleActiveTabRenderMode();
+    if (nextMode) {
+      statusBar.showMessage(`Markdown: ${nextMode.toUpperCase()} mode`);
+    }
+  });
+
   const workspaceTitle = document.getElementById('workspace-title') as HTMLElement;
 
   const btnActExplorer = document.getElementById('btn-act-explorer') as HTMLElement;
@@ -390,8 +403,14 @@ async function bootstrap() {
   );
 
   // 10. Initialize File Tree
-  const fileTree = new FileTreeComponent(fileTreeContainer, (filePath, content) => {
-    editorState.openFile(filePath, content);
+  const fileTree = new FileTreeComponent(fileTreeContainer, {
+    onFileOpen: (filePath, content, options) => {
+      // Opening from left sidebar -> always open in RAW mode per specification
+      editorState.openFile(filePath, content, { viewMode: options?.viewMode || 'raw' });
+    },
+    onFindInFolder: () => {
+      showSidebarPane('search');
+    }
   });
 
   // 11. Listen to Editor State changes (active tab, dirty indicators, etc.)
@@ -403,20 +422,45 @@ async function bootstrap() {
 
     if (!activeTab) {
       cmRoot.style.display = 'none';
+      markdownViewport.style.display = 'none';
+      btnMdToggle.style.display = 'none';
       emptyStateEl.style.display = 'flex';
       breadcrumbText.textContent = 'Gitero IDE';
       currentLoadedTabId = null;
       return;
     }
 
-    cmRoot.style.display = 'block';
     emptyStateEl.style.display = 'none';
     breadcrumbText.textContent = activeTab.path.replace(/\\/g, ' > ').replace(/\//g, ' > ');
 
-    // Only reload document if active tab changed
-    if (currentLoadedTabId !== activeTab.id) {
-      currentLoadedTabId = activeTab.id;
-      editorManager.loadDocument(activeTab.content, activeTab.path);
+    const isMd = /\.md$/i.test(activeTab.path) || /\.markdown$/i.test(activeTab.path);
+
+    if (isMd) {
+      btnMdToggle.style.display = 'inline-flex';
+      if (activeTab.viewMode === 'rendered') {
+        cmRoot.style.display = 'none';
+        markdownViewport.style.display = 'block';
+        btnMdToggle.classList.add('active');
+        mdToggleText.textContent = 'Edit Raw';
+        markdownViewer.render(activeTab.content, activeTab.path);
+      } else {
+        markdownViewport.style.display = 'none';
+        cmRoot.style.display = 'block';
+        btnMdToggle.classList.remove('active');
+        mdToggleText.textContent = 'Preview';
+        if (currentLoadedTabId !== activeTab.id) {
+          currentLoadedTabId = activeTab.id;
+          editorManager.loadDocument(activeTab.content, activeTab.path);
+        }
+      }
+    } else {
+      btnMdToggle.style.display = 'none';
+      markdownViewport.style.display = 'none';
+      cmRoot.style.display = 'block';
+      if (currentLoadedTabId !== activeTab.id) {
+        currentLoadedTabId = activeTab.id;
+        editorManager.loadDocument(activeTab.content, activeTab.path);
+      }
     }
   });
 
@@ -437,8 +481,51 @@ async function bootstrap() {
   const initialWorkspace = fsService.getWorkspace() || '.';
   loadWorkspace(initialWorkspace);
 
-  // If no tabs are open, open a friendly README welcome
-  if (editorState.getTabs().length === 0) {
+  // Check if Gitero was opened with an external file argument (e.g. Windows "Open with" or double-click)
+  const checkExternalFileOpen = async (): Promise<boolean> => {
+    try {
+      const nlArgs = (window as any).NL_ARGS;
+      if (Array.isArray(nlArgs)) {
+        for (let i = 1; i < nlArgs.length; i++) {
+          const arg = nlArgs[i];
+          if (arg && !arg.startsWith('--') && !arg.startsWith('-') && !arg.startsWith('/')) {
+            try {
+              const content = await fsService.readFile(arg);
+              const isMd = /\.md$/i.test(arg) || /\.markdown$/i.test(arg);
+              // Opened externally / double-click in Windows -> open in rendered mode if markdown!
+              editorState.openFile(arg, content, { viewMode: isMd ? 'rendered' : 'raw' });
+              return true;
+            } catch (e) {
+              // Not a readable file path
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not check external file arguments:', err);
+    }
+    return false;
+  };
+
+  if ((window as any).Neutralino?.events) {
+    (window as any).Neutralino.events.on('openedFile', async (evt: any) => {
+      if (evt?.detail) {
+        try {
+          const path = evt.detail;
+          const content = await fsService.readFile(path);
+          const isMd = /\.md$/i.test(path) || /\.markdown$/i.test(path);
+          editorState.openFile(path, content, { viewMode: isMd ? 'rendered' : 'raw' });
+        } catch (e) {
+          console.warn('Failed to open file via openedFile event:', e);
+        }
+      }
+    });
+  }
+
+  const openedExternal = await checkExternalFileOpen();
+
+  // If no tabs are open and no external file was opened, open a friendly README welcome
+  if (!openedExternal && editorState.getTabs().length === 0) {
     editorState.openFile(
       'README.md',
       `# Gitero IDE
@@ -467,7 +554,8 @@ Vim mode is built-in and enabled by default!
 ### Themes & Customization
 Press **Ctrl + Shift + P** and select **Switch Color Theme** to choose from:
 Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
-`
+`,
+      { viewMode: 'rendered' }
     );
   }
 
@@ -783,6 +871,30 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
   }
 
   // 15. Global Keyboard Shortcuts
+  function matchesKeybinding(e: KeyboardEvent, shortcutStr: string): boolean {
+    if (!shortcutStr) return false;
+    const parts = shortcutStr.split('+').map(p => p.trim().toLowerCase());
+    const hasCtrl = parts.includes('ctrl') || parts.includes('control');
+    const hasShift = parts.includes('shift');
+    const hasAlt = parts.includes('alt');
+    const hasMeta = parts.includes('meta') || parts.includes('cmd') || parts.includes('win');
+
+    if (e.ctrlKey !== hasCtrl) return false;
+    if (e.shiftKey !== hasShift) return false;
+    if (e.altKey !== hasAlt) return false;
+    if (e.metaKey !== hasMeta) return false;
+
+    const keyPart = parts.find(p => !['ctrl', 'control', 'shift', 'alt', 'meta', 'cmd', 'win'].includes(p));
+    if (!keyPart) return false;
+
+    const eventKey = e.key.toLowerCase();
+    if (keyPart === 'space' && (eventKey === ' ' || eventKey === 'space')) return true;
+    if (keyPart === '`' && (eventKey === '`' || eventKey === '~')) return true;
+    if (keyPart === ',' && eventKey === ',') return true;
+
+    return eventKey === keyPart;
+  }
+
   let isCtrlK = false;
   let ctrlKTimer: any = null;
 
@@ -813,100 +925,115 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       isCtrlK = false;
     }
 
-    // Ctrl + ` (Toggle Integrated Terminal)
-    if (e.ctrlKey && e.key === '`') {
+    const matchAction = (actionId: string) => {
+      const binding = preferencesService.getKeybinding(actionId);
+      return matchesKeybinding(e, binding);
+    };
+
+    // Toggle Integrated Terminal
+    if (matchAction('workbench.action.terminal.toggleTerminal')) {
       e.preventDefault();
       terminalPanel.toggle();
       return;
     }
 
-    // Ctrl + Shift + F (Global Search)
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f') {
+    // Global Search in Files
+    if (matchAction('workbench.action.findInFiles')) {
       e.preventDefault();
       showSidebarPane('search');
       return;
     }
 
-    // Ctrl + Shift + G (Git Source Control)
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') {
+    // Git Source Control
+    if (matchAction('workbench.view.scm')) {
       e.preventDefault();
       showSidebarPane('git');
       return;
     }
 
-    // Ctrl + P (Quick Open)
-    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'p') {
+    // Quick Open File
+    if (matchAction('workbench.action.quickOpen')) {
       e.preventDefault();
       openQuickFilePicker();
       return;
     }
 
-    // Ctrl + Shift + P or F1 (Command Palette)
-    if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') || e.key === 'F1') {
+    // Command Palette
+    if (matchAction('workbench.action.showCommands') || e.key === 'F1') {
       e.preventDefault();
       openCommandPalette();
       return;
     }
 
-    // Ctrl + Shift + S (Save As)
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+    // Save As
+    if (matchAction('workbench.action.files.saveAs')) {
       e.preventDefault();
       saveAsActiveFile();
       return;
     }
 
-    // Ctrl + S (Save)
-    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 's') {
+    // Save Active File
+    if (matchAction('workbench.action.files.save')) {
       e.preventDefault();
       saveActiveFile();
       return;
     }
 
-    // Ctrl + O (Open File)
-    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'o') {
+    // Open File
+    if (matchAction('workbench.action.files.openFile')) {
       e.preventDefault();
       openFilePicker();
       return;
     }
 
-    // Ctrl + N (New Untitled File)
-    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'n') {
+    // New Untitled File
+    if (matchAction('workbench.action.files.newUntitledFile')) {
       e.preventDefault();
       editorState.openUntitledFile();
       return;
     }
 
-    // Ctrl + G (Go to Line/Column)
-    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'g') {
+    // Go to Line/Column
+    if (matchAction('workbench.action.gotoLine')) {
       e.preventDefault();
       triggerGotoLine();
       return;
     }
 
-    // Alt + Z (Toggle Word Wrap)
-    if (e.altKey && e.key.toLowerCase() === 'z') {
+    // Toggle Word Wrap
+    if (matchAction('editor.action.toggleWordWrap')) {
       e.preventDefault();
       const isWrap = editorManager.toggleWordWrap();
       statusBar.showMessage(`Word Wrap: ${isWrap ? 'ENABLED' : 'DISABLED'}`);
       return;
     }
 
-    // Ctrl + B (Toggle Sidebar)
-    if (e.ctrlKey && e.key.toLowerCase() === 'b') {
+    // Toggle Sidebar Visibility
+    if (matchAction('workbench.action.toggleSidebarVisibility')) {
       e.preventDefault();
       sidebarEl.classList.toggle('collapsed');
       return;
     }
 
-    // Ctrl + , (Settings)
-    if (e.ctrlKey && e.key === ',') {
+    // Toggle Markdown Preview / Raw
+    if (matchAction('markdown.showPreview')) {
+      e.preventDefault();
+      const nextMode = editorState.toggleActiveTabRenderMode();
+      if (nextMode) {
+        statusBar.showMessage(`Markdown: ${nextMode.toUpperCase()} mode`);
+      }
+      return;
+    }
+
+    // Open Settings
+    if (matchAction('workbench.action.openSettings')) {
       e.preventDefault();
       settingsModal.open();
       return;
     }
 
-    // Ctrl + W (Close Active Tab)
-    if (e.ctrlKey && e.key.toLowerCase() === 'w') {
+    // Close Active Tab
+    if (matchAction('workbench.action.closeActiveEditor')) {
       const activeTab = editorState.getActiveTab();
       if (activeTab) {
         e.preventDefault();

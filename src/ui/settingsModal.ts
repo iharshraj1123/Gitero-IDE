@@ -3,6 +3,31 @@ import { vimIntegration } from '../editor/vim';
 import { updaterService } from '../services/updater';
 import { preferencesService, CursorStyle } from '../services/preferences';
 
+export interface KeybindingDefinition {
+  id: string;
+  name: string;
+  category: string;
+}
+
+export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
+  { id: 'workbench.action.quickOpen', name: 'Quick Open File', category: 'File' },
+  { id: 'workbench.action.showCommands', name: 'Command Palette', category: 'View' },
+  { id: 'workbench.action.files.save', name: 'Save File', category: 'File' },
+  { id: 'workbench.action.files.saveAs', name: 'Save File As...', category: 'File' },
+  { id: 'workbench.action.files.newUntitledFile', name: 'New Untitled File', category: 'File' },
+  { id: 'workbench.action.files.openFile', name: 'Open File...', category: 'File' },
+  { id: 'workbench.action.closeActiveEditor', name: 'Close Active Editor', category: 'View' },
+  { id: 'workbench.action.toggleSidebarVisibility', name: 'Toggle Sidebar Visibility', category: 'View' },
+  { id: 'workbench.action.terminal.toggleTerminal', name: 'Toggle Integrated Terminal', category: 'Terminal' },
+  { id: 'workbench.action.findInFiles', name: 'Find in Files (Global Search)', category: 'Search' },
+  { id: 'workbench.view.scm', name: 'Source Control (Git)', category: 'Git' },
+  { id: 'workbench.action.gotoLine', name: 'Go to Line/Column...', category: 'Go' },
+  { id: 'editor.action.toggleWordWrap', name: 'Toggle Word Wrap', category: 'Editor' },
+  { id: 'markdown.showPreview', name: 'Toggle Markdown Preview / Raw Editor', category: 'Markdown' },
+  { id: 'workbench.action.openSettings', name: 'Open Settings & Custom CSS', category: 'Preferences' },
+  { id: 'workbench.action.openShortcuts', name: 'Keyboard Shortcuts Reference', category: 'Help' }
+];
+
 export class SettingsModalComponent {
   private overlay!: HTMLElement;
   private isOpen: boolean = false;
@@ -177,6 +202,34 @@ export class SettingsModalComponent {
             </div>
           </div>
 
+          <!-- Keyboard Shortcuts Section -->
+          <div class="settings-section keybindings-section">
+            <div class="keybindings-header">
+              <div>
+                <h3>Keyboard Shortcuts</h3>
+                <p class="setting-desc">Customize keybindings for commands. Click "Change" or press keys to reassign.</p>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-reset-keybindings" title="Reset all keybindings to defaults">Reset to Defaults</button>
+            </div>
+
+            <div class="keybindings-search-box">
+              <input type="text" id="setting-keybinding-search" class="setting-input" placeholder="Search keybindings (e.g. Save, Ctrl+S, Markdown)..." />
+            </div>
+
+            <div class="keybindings-table-wrapper">
+              <table class="keybindings-table">
+                <thead>
+                  <tr>
+                    <th>Command</th>
+                    <th>Keybinding</th>
+                    <th style="width: 110px; text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="keybindings-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- Custom CSS Override Section -->
           <div class="settings-section">
             <h3>Custom CSS Override</h3>
@@ -206,6 +259,7 @@ export class SettingsModalComponent {
     });
 
     this.setupUpdateListeners();
+    this.setupKeybindingsListeners();
   }
 
   private setupUpdateListeners() {
@@ -413,6 +467,155 @@ export class SettingsModalComponent {
     });
   }
 
+  private editingActionId: string | null = null;
+
+  private setupKeybindingsListeners() {
+    const searchInput = this.overlay.querySelector('#setting-keybinding-search') as HTMLInputElement;
+    const resetBtn = this.overlay.querySelector('#btn-reset-keybindings') as HTMLButtonElement;
+
+    searchInput.addEventListener('input', () => {
+      this.renderKeybindingsTable(searchInput.value.trim());
+    });
+
+    resetBtn.addEventListener('click', () => {
+      const confirmReset = confirm('Reset all keyboard shortcuts to their default combinations?');
+      if (confirmReset) {
+        preferencesService.resetKeybindings();
+        this.renderKeybindingsTable(searchInput.value.trim());
+      }
+    });
+  }
+
+  private renderKeybindingsTable(filterQuery: string = '') {
+    const tbody = this.overlay.querySelector('#keybindings-table-body') as HTMLElement;
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    const q = filterQuery.toLowerCase();
+
+    const filtered = KEYBINDING_DEFINITIONS.filter(def => {
+      const shortcut = preferencesService.getKeybinding(def.id);
+      return (
+        !q ||
+        def.name.toLowerCase().includes(q) ||
+        def.category.toLowerCase().includes(q) ||
+        def.id.toLowerCase().includes(q) ||
+        shortcut.toLowerCase().includes(q)
+      );
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="keybindings-empty">No matching keyboard shortcuts found</td></tr>`;
+      return;
+    }
+
+    for (const def of filtered) {
+      const tr = document.createElement('tr');
+      tr.className = 'keybinding-row';
+
+      const currentShortcut = preferencesService.getKeybinding(def.id);
+      const isEditing = this.editingActionId === def.id;
+
+      if (isEditing) {
+        tr.classList.add('is-editing');
+        tr.innerHTML = `
+          <td class="keybinding-col-cmd">
+            <div class="keybinding-cmd-name">${def.name}</div>
+            <div class="keybinding-cmd-id"><code>${def.id}</code></div>
+          </td>
+          <td class="keybinding-col-keys">
+            <input type="text" class="keybinding-recorder-input" value="${currentShortcut}" placeholder="Press keys..." />
+          </td>
+          <td class="keybinding-col-action">
+            <div class="keybinding-edit-btns">
+              <button class="btn btn-primary btn-sm btn-save-kb" title="Save keybinding">Save</button>
+              <button class="btn btn-secondary btn-sm btn-cancel-kb" title="Cancel">Cancel</button>
+            </div>
+          </td>
+        `;
+
+        const recorderInput = tr.querySelector('.keybinding-recorder-input') as HTMLInputElement;
+        const saveBtn = tr.querySelector('.btn-save-kb') as HTMLButtonElement;
+        const cancelBtn = tr.querySelector('.btn-cancel-kb') as HTMLButtonElement;
+
+        setTimeout(() => recorderInput.focus(), 30);
+
+        recorderInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            this.editingActionId = null;
+            this.renderKeybindingsTable(filterQuery);
+            return;
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            preferencesService.setKeybinding(def.id, recorderInput.value.trim());
+            this.editingActionId = null;
+            this.renderKeybindingsTable(filterQuery);
+            return;
+          }
+
+          if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+          e.preventDefault();
+          e.stopPropagation();
+
+          const parts: string[] = [];
+          if (e.ctrlKey) parts.push('Ctrl');
+          if (e.altKey) parts.push('Alt');
+          if (e.shiftKey) parts.push('Shift');
+          if (e.metaKey) parts.push('Meta');
+
+          let k = e.key;
+          if (k === ' ') k = 'Space';
+          else if (k.length === 1) k = k.toUpperCase();
+
+          parts.push(k);
+          recorderInput.value = parts.join('+');
+        });
+
+        saveBtn.addEventListener('click', () => {
+          preferencesService.setKeybinding(def.id, recorderInput.value.trim());
+          this.editingActionId = null;
+          this.renderKeybindingsTable(filterQuery);
+        });
+
+        cancelBtn.addEventListener('click', () => {
+          this.editingActionId = null;
+          this.renderKeybindingsTable(filterQuery);
+        });
+      } else {
+        const kbdHtml = currentShortcut
+          ? `<kbd class="keybinding-kbd">${currentShortcut}</kbd>`
+          : `<span class="keybinding-none">Unassigned</span>`;
+
+        tr.innerHTML = `
+          <td class="keybinding-col-cmd">
+            <div class="keybinding-cmd-name">${def.name} <span class="keybinding-cat-badge">${def.category}</span></div>
+            <div class="keybinding-cmd-id"><code>${def.id}</code></div>
+          </td>
+          <td class="keybinding-col-keys">${kbdHtml}</td>
+          <td class="keybinding-col-action">
+            <button class="btn btn-secondary btn-sm btn-change-kb" data-id="${def.id}">Change</button>
+          </td>
+        `;
+
+        const changeBtn = tr.querySelector('.btn-change-kb') as HTMLButtonElement;
+        changeBtn.addEventListener('click', () => {
+          this.editingActionId = def.id;
+          this.renderKeybindingsTable(filterQuery);
+        });
+
+        tr.addEventListener('dblclick', () => {
+          this.editingActionId = def.id;
+          this.renderKeybindingsTable(filterQuery);
+        });
+      }
+
+      tbody.appendChild(tr);
+    }
+  }
+
   open() {
     this.isOpen = true;
     this.overlay.style.display = 'flex';
@@ -424,6 +627,8 @@ export class SettingsModalComponent {
 
     this.loadBranches();
     this.renderUpdateHistory();
+    this.editingActionId = null;
+    this.renderKeybindingsTable();
 
     const autoSaveToggle = this.overlay.querySelector('#setting-auto-save-toggle') as HTMLInputElement;
     autoSaveToggle.checked = preferencesService.get('files.autoSave');
