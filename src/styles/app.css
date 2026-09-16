@@ -394,6 +394,16 @@ body.window-maximized #app {
   transition: width 0.2s ease;
 }
 
+.sidebar.no-transition {
+  transition: none !important;
+}
+
+html.init-sidebar-collapsed .sidebar {
+  width: 0 !important;
+  border-right: none !important;
+  transition: none !important;
+}
+
 .sidebar.collapsed {
   width: 0;
   border-right: none;

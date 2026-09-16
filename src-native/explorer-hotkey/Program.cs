@@ -236,10 +236,21 @@ namespace GiteroExplorerHotkey
 
             try
             {
+                string safeArg = targetPath;
+                if (safeArg.EndsWith("\\") && !safeArg.EndsWith(":\\"))
+                {
+                    safeArg = safeArg.TrimEnd('\\');
+                }
+                else if (safeArg.EndsWith("\\"))
+                {
+                    // For drive roots like C:\, double the trailing backslash so \" is not treated as escaped quote
+                    safeArg += "\\";
+                }
+
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = giteroExe,
-                    Arguments = "\"" + targetPath + "\"",
+                    Arguments = "\"" + safeArg + "\"",
                     UseShellExecute = true,
                     WorkingDirectory = targetPath
                 };

@@ -22,6 +22,7 @@ import { gitService } from './services/git';
 import { WindowResizer } from './ui/windowResizer';
 import { SNIPPETS } from './editor/snippets';
 import { fileAssociationService } from './services/fileAssociation';
+import { persistentStorage } from './services/storage';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -29,6 +30,10 @@ async function bootstrap() {
 
   // 1. Initialize native platform (if running in Neutralino binary)
   await initNeutralino();
+  await persistentStorage.init();
+  preferencesService.reload();
+  fsService.reloadWorkspaceFromStorage();
+  editorState.reloadPersistedTabs();
   new WindowResizer();
 
   // 2. Initialize Themes and User CSS
@@ -123,8 +128,27 @@ async function bootstrap() {
     }
   }
 
-  // Restore sidebar visibility & active pane from preferences
-  if (!preferencesService.get('workbench.sidebarVisible')) {
+  // Helper to detect if Gitero was launched directly with an external file argument
+  const hasExternalFileArg = (): boolean => {
+    try {
+      const nlArgs = (window as any).NL_ARGS;
+      if (Array.isArray(nlArgs)) {
+        const noExtFiles = ['dockerfile', 'makefile', 'license', 'procfile', 'gemfile', 'readme'];
+        for (let i = 1; i < nlArgs.length; i++) {
+          const a = nlArgs[i];
+          if (!a || a === '.' || a.startsWith('-') || a.startsWith('/')) continue;
+          const base = a.split(/[/\\]/).pop()?.toLowerCase() || '';
+          if (base && (base.includes('.') || noExtFiles.includes(base))) return true;
+        }
+      }
+    } catch {}
+    return false;
+  };
+
+  const isExternalFileBoot = document.documentElement.classList.contains('init-sidebar-collapsed') || hasExternalFileArg();
+
+  // Restore sidebar visibility & active pane from preferences (or keep collapsed if opening external file)
+  if (isExternalFileBoot || !preferencesService.get('workbench.sidebarVisible')) {
     sidebarEl.classList.add('collapsed');
   } else {
     sidebarEl.classList.remove('collapsed');
@@ -688,6 +712,16 @@ async function bootstrap() {
         await loadWorkspace(dir);
       }
     }));
+    items.push({
+      id: 'recent.clear',
+      title: 'Clear Recently Opened...',
+      detail: 'Clear all entries from recent workspaces list',
+      category: 'Recent Workspaces',
+      action: () => {
+        preferencesService.set('workbench.recentWorkspaces', []);
+        statusBar.showMessage('Recent workspaces cleared');
+      }
+    });
     commandPalette.open(items);
   }
 
@@ -707,9 +741,17 @@ async function bootstrap() {
       const nlArgs = (window as any).NL_ARGS;
       if (Array.isArray(nlArgs)) {
         for (let i = 1; i < nlArgs.length; i++) {
-          const arg = nlArgs[i];
-          if (!arg || arg.startsWith('--') || arg.startsWith('-') || arg.startsWith('/')) {
+          const rawArg = nlArgs[i];
+          if (!rawArg || rawArg.startsWith('--') || rawArg.startsWith('-') || rawArg.startsWith('/')) {
             continue;
+          }
+
+          let arg = rawArg.trim();
+          if ((arg.startsWith('"') && arg.endsWith('"')) || (arg.startsWith("'") && arg.endsWith("'"))) {
+            arg = arg.slice(1, -1).trim();
+          }
+          if (arg.length > 3 && (arg.endsWith('\\') || arg.endsWith('/'))) {
+            arg = arg.slice(0, -1);
           }
 
           // 1. Check if argument is a directory (e.g. from `gcode .` or `gcode <folder>`)
@@ -804,8 +846,14 @@ async function bootstrap() {
             console.warn('Failed to open file via openedFile event:', e);
           }
         }
-        // Collapse sidebar so the editor takes full focus when opening from outside the app
+        // Collapse sidebar instantaneously so the editor takes full focus when opening from outside the app
+        sidebarEl.classList.add('no-transition');
         sidebarEl.classList.add('collapsed');
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            sidebarEl.classList.remove('no-transition');
+          }, 100);
+        });
       }
     });
   }
@@ -821,6 +869,8 @@ async function bootstrap() {
   // Collapse sidebar when launched with an external file so the editor gets full focus
   if (openedFile) {
     sidebarEl.classList.add('collapsed');
+  } else if (!isExternalFileBoot && preferencesService.get('workbench.sidebarVisible')) {
+    sidebarEl.classList.remove('collapsed');
   }
 
   // If no tabs are open and no external file was opened, open a friendly README welcome
@@ -1576,6 +1626,14 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       statusBar.showMessage(`Cursor Style: ${style.toUpperCase()} (Saved as preference)`);
       return;
     }
+  });
+
+  // Re-enable smooth interactive transitions after initial boot is settled
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      document.documentElement.classList.remove('init-sidebar-collapsed');
+      sidebarEl.classList.remove('no-transition');
+    }, 150);
   });
 
   const duration = (performance.now() - startTime).toFixed(1);

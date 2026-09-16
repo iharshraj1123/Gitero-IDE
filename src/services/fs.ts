@@ -43,6 +43,15 @@ export class FileSystemService {
     return this.currentWorkspace;
   }
 
+  reloadWorkspaceFromStorage(): string | null {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('gitero_workspace_path') || null : null;
+    this.currentWorkspace = saved;
+    if (saved) {
+      this.watchWorkspace(saved);
+    }
+    return saved;
+  }
+
   setWorkspace(path: string | null) {
     this.currentWorkspace = path;
     this.invalidateFilesCache();

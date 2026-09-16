@@ -6,6 +6,8 @@
   "port": 0,
   "documentRoot": "/dist/",
   "url": "/",
+  "storageLocation": "system",
+  "dataLocation": "system",
   "enableServer": true,
   "enableNativeAPI": true,
   "tokenSecurity": "one-time",

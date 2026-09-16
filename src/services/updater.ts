@@ -2,6 +2,7 @@
 // Updates application code from any GitHub branch while preserving all user settings, themes, and extensions.
 
 import { isNative } from './neutralino';
+import { preferencesService } from './preferences';
 
 export interface BranchInfo {
   name: string;
@@ -128,19 +129,33 @@ export class UpdaterService {
     this.ensureInitialHistory();
   }
 
+  private getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github.v3+json'
+    };
+    const token = preferencesService.get('updater.githubToken') || localStorage.getItem('gitero_github_token') || '';
+    if (token && token.trim()) {
+      headers['Authorization'] = `Bearer ${token.trim()}`;
+    }
+    return headers;
+  }
+
   /**
    * Fetch all active branches from the GitHub repository
    */
   async fetchBranches(): Promise<string[]> {
     try {
       const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/branches`, {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json'
-        }
+        headers: this.getHeaders()
       });
 
       if (!res.ok) {
-        throw new Error(`GitHub API error: ${res.statusText}`);
+        if (res.status === 404) {
+          console.info(`[UpdaterService] Repository ${GITHUB_REPO} returned 404. If the repository is private, configure a GitHub Personal Access Token in Settings -> Software Updates.`);
+        } else {
+          console.warn(`[UpdaterService] GitHub API error (${res.status}): ${res.statusText}`);
+        }
+        return ['main', 'dev'];
       }
 
       const data = await res.json();
@@ -154,7 +169,7 @@ export class UpdaterService {
       }
       return ['main'];
     } catch (err) {
-      console.warn('Failed to fetch GitHub branches, fallback to defaults:', err);
+      console.warn('[UpdaterService] Failed to fetch GitHub branches, fallback to defaults:', err);
       return ['main', 'dev'];
     }
   }
@@ -164,13 +179,14 @@ export class UpdaterService {
    */
   async fetchLatestCommit(branch: string): Promise<CommitInfo> {
     const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits/${branch}`, {
-      headers: {
-        'Accept': 'application/vnd.github.v3+json'
-      }
+      headers: this.getHeaders()
     });
 
     if (!res.ok) {
-      throw new Error(`Could not fetch branch info: ${res.statusText}`);
+      if (res.status === 404) {
+        throw new Error(`Repository or branch "${branch}" was not found (HTTP 404). If this repository is private, please configure a GitHub Personal Access Token in the Software Updates tab.`);
+      }
+      throw new Error(`Could not fetch branch info (${res.status}): ${res.statusText}`);
     }
 
     const data = await res.json();

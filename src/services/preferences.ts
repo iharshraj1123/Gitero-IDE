@@ -40,6 +40,9 @@ export interface GiteroPreferences {
   'search.matchWholeWord': boolean;
   'search.useRegex': boolean;
 
+  // Software Updates
+  'updater.githubToken': string;
+
   // Keybindings
   'keybindings': Record<string, string>;
 }
@@ -108,6 +111,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'search.matchCase': false,
   'search.matchWholeWord': false,
   'search.useRegex': false,
+  'updater.githubToken': '',
   'keybindings': { ...DEFAULT_KEYBINDINGS }
 };
 
@@ -191,6 +195,35 @@ export class PreferencesService {
 
   get<K extends keyof GiteroPreferences>(key: K): GiteroPreferences[K] {
     return this.preferences[key] ?? DEFAULT_PREFERENCES[key];
+  }
+
+  reload(): void {
+    const oldPrefs = { ...this.preferences };
+    this.preferences = this.loadPreferences();
+
+    for (const [k, val] of Object.entries(this.preferences)) {
+      const key = k as keyof GiteroPreferences;
+      if (oldPrefs[key] !== val) {
+        const keyListeners = this.listeners.get(key);
+        if (keyListeners) {
+          keyListeners.forEach(listener => {
+            try {
+              listener(val, oldPrefs[key]);
+            } catch (err) {
+              console.error(`[PreferencesService] Error in listener for ${String(key)}:`, err);
+            }
+          });
+        }
+      }
+    }
+
+    this.anyListeners.forEach(listener => {
+      try {
+        listener(this.preferences);
+      } catch (err) {
+        console.error('[PreferencesService] Error in anyListener:', err);
+      }
+    });
   }
 
   set<K extends keyof GiteroPreferences>(key: K, value: GiteroPreferences[K]): void {

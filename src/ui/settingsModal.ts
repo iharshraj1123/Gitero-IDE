@@ -491,6 +491,18 @@ export class SettingsModalComponent {
 
                 <div class="update-status" id="update-status-msg">Click "Check for Updates" to query the repository.</div>
 
+                <div class="update-token-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+                  <div style="margin-bottom: 6px;">
+                    <label for="setting-github-token" style="font-size: 12px; font-weight: 600; color: var(--fg-primary);">GitHub Personal Access Token (Optional):</label>
+                    <div style="font-size: 11px; color: var(--fg-muted); margin-top: 2px;">Required to fetch branches and updates if the Gitero repository is private.</div>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <input type="password" id="setting-github-token" class="setting-input" style="flex: 1;" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" spellcheck="false" />
+                    <button class="btn btn-secondary btn-sm" id="btn-toggle-github-token" type="button">Show</button>
+                    <button class="btn btn-primary btn-sm" id="btn-save-github-token" type="button">Save Token</button>
+                  </div>
+                </div>
+
                 <div class="update-history-section">
                   <div class="update-history-header">
                     <div class="history-title-group">
@@ -714,8 +726,29 @@ export class SettingsModalComponent {
     const applyBtn = this.overlay.querySelector('#btn-apply-update') as HTMLButtonElement;
     const statusMsg = this.overlay.querySelector('#update-status-msg') as HTMLElement;
 
-    // Populate branch list on startup
-    this.loadBranches();
+    const tokenInput = this.overlay.querySelector('#setting-github-token') as HTMLInputElement;
+    const toggleTokenBtn = this.overlay.querySelector('#btn-toggle-github-token') as HTMLButtonElement;
+    const saveTokenBtn = this.overlay.querySelector('#btn-save-github-token') as HTMLButtonElement;
+
+    toggleTokenBtn?.addEventListener('click', () => {
+      if (tokenInput.type === 'password') {
+        tokenInput.type = 'text';
+        toggleTokenBtn.textContent = 'Hide';
+      } else {
+        tokenInput.type = 'password';
+        toggleTokenBtn.textContent = 'Show';
+      }
+    });
+
+    saveTokenBtn?.addEventListener('click', async () => {
+      const val = tokenInput.value.trim();
+      preferencesService.set('updater.githubToken', val);
+      try {
+        localStorage.setItem('gitero_github_token', val);
+      } catch {}
+      statusMsg.innerHTML = '<span style="color: #4ade80;">GitHub token saved. Fetching branches...</span>';
+      await this.loadBranches();
+    });
 
     checkBtn.addEventListener('click', async () => {
       const branch = branchSelect.value;
@@ -1075,6 +1108,10 @@ export class SettingsModalComponent {
         pane.classList.remove('active');
       }
     });
+
+    if (tabId === 'updates') {
+      this.loadBranches();
+    }
   }
 
   private workingTheme: ThemeDefinition | null = null;
@@ -1345,7 +1382,11 @@ export class SettingsModalComponent {
     (this.overlay.querySelector('#update-cur-sha') as HTMLElement).textContent = updaterService.getCurrentSha();
     (this.overlay.querySelector('#update-cur-branch') as HTMLElement).textContent = updaterService.getCurrentBranch();
 
-    this.loadBranches();
+    const tokenInput = this.overlay.querySelector('#setting-github-token') as HTMLInputElement;
+    if (tokenInput) {
+      tokenInput.value = preferencesService.get('updater.githubToken') || '';
+    }
+
     this.renderUpdateHistory();
     this.editingActionId = null;
     this.renderKeybindingsTable();
@@ -1559,6 +1600,16 @@ export class SettingsModalComponent {
     const customTextarea = this.overlay.querySelector('#setting-custom-icon-json') as HTMLTextAreaElement;
     if (customTextarea && customTextarea.value.trim()) {
       preferencesService.set('workbench.customIconPackage', customTextarea.value.trim());
+    }
+
+    // Save GitHub Token for private repository updates
+    const tokenInput = this.overlay.querySelector('#setting-github-token') as HTMLInputElement;
+    if (tokenInput) {
+      const val = tokenInput.value.trim();
+      preferencesService.set('updater.githubToken', val);
+      try {
+        localStorage.setItem('gitero_github_token', val);
+      } catch {}
     }
 
     this.close();

@@ -45,6 +45,15 @@ export class EditorStateManager {
     }
   }
 
+  reloadPersistedTabs(): void {
+    if (this.tabs.length === 0) {
+      this.loadPersistedTabs();
+      if (this.tabs.length > 0) {
+        this.notify();
+      }
+    }
+  }
+
   private persist() {
     try {
       const lightweight = this.tabs.map(t => ({

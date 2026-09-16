@@ -5,8 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gitero IDE</title>
   <link rel="icon" type="image/svg+xml" href="/icons/appIcon.svg" />
-  <link rel="alternate icon" href="/icons/appIcon.png" />
   <link rel="stylesheet" href="/src/styles/app.css" />
+  <script>
+    (function() {
+      try {
+        var args = window.NL_ARGS || [];
+        var isExternalFile = false;
+        var noExtFiles = ['dockerfile', 'makefile', 'license', 'procfile', 'gemfile', 'readme'];
+        for (var i = 1; i < args.length; i++) {
+          var a = args[i];
+          if (!a || a === '.' || a.startsWith('-') || a.startsWith('/')) continue;
+          var base = a.split(/[/\\]/).pop().toLowerCase();
+          if (base && (base.includes('.') || noExtFiles.indexOf(base) !== -1)) {
+            isExternalFile = true;
+            break;
+          }
+        }
+        var prefs = localStorage.getItem('gitero_preferences_v1');
+        var sidebarVisible = true;
+        if (prefs) {
+          var parsed = JSON.parse(prefs);
+          if (parsed && parsed['workbench.sidebarVisible'] === false) {
+            sidebarVisible = false;
+          }
+        }
+        if (isExternalFile || !sidebarVisible) {
+          document.documentElement.classList.add('init-sidebar-collapsed');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <div id="app">
@@ -38,7 +66,7 @@
       </aside>
 
       <!-- Sidebar (Multi-Pane: Explorer, Search, Source Control) -->
-      <section class="sidebar" id="sidebar">
+      <section class="sidebar no-transition" id="sidebar">
         <!-- Explorer Pane -->
         <div class="sidebar-pane" id="explorer-pane">
           <div class="sidebar-header">

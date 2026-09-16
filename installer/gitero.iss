@@ -57,8 +57,8 @@ Source: "..\bin\gitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignore
 Source: "..\bin\glitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Tasks: explorer_hotkey
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Registry]
 ; 1. Right-click ANY FILE context menu: "Open with Gitero"
