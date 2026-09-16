@@ -1,11 +1,11 @@
 ; Inno Setup Script for Gitero IDE Production Installer
-; Generates a lightweight (~4-5MB) Windows Installer with desktop icon, Start menu, and "Open with Gitero" context menu.
+; Generates a lightweight (~3.5MB) native Windows Installer with desktop icon, Start menu, and "Open with Gitero" context menu.
 
 #define MyAppName "Gitero IDE"
 #define MyAppVersion "0.0.1-alpha"
 #define MyAppPublisher "Gitero Team"
 #define MyAppURL "https://github.com/iharshraj1123/Glitero-IDE"
-#define MyAppExeName "gitero-win_x64.exe"
+#define MyAppExeName "Gitero.exe"
 
 [Setup]
 ; Per-user installation in Local AppData allows in-app updates without UAC elevation prompts
@@ -34,26 +34,26 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "contextmenu"; Description: "Add 'Open with Gitero' to Windows Explorer context menu"; GroupDescription: "Windows Explorer Integration:"
 
 [Files]
-Source: "..\bin\{#MyAppExeName}"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "..\bin\neutralino-win_x64.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
+; Primary application executable and packaged resources
+Source: "..\dist\gitero\gitero-win_x64.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+Source: "..\dist\gitero\resources.neu"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\neutralino.config.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\Gitero.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\*"; DestDir: "{app}\dist"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\public\icons\appIcon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\Gitero.bat"; IconFilename: "{app}\dist\icons\appIcon.ico"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\Gitero.bat"; IconFilename: "{app}\dist\icons\appIcon.ico"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"; Tasks: desktopicon
 
 [Registry]
 ; Right-click directory context menu: "Open with Gitero"
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\dist\icons\appIcon.ico"""; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\Gitero.bat"" ""%1"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\appIcon.ico"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: contextmenu
 
 ; Right-click background context menu
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\dist\icons\appIcon.ico"""; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\Gitero.bat"" ""%V"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\appIcon.ico"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%V"""; Tasks: contextmenu
 
 [Run]
-Filename: "{app}\Gitero.bat"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: shellexec postinstall nowait skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

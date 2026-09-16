@@ -44,7 +44,7 @@
   "cli": {
     "binaryName": "gitero",
     "resourcesPath": "/dist/",
-    "clientLibrary": "/js/neutralino.js",
+    "clientLibrary": "/dist/js/neutralino.js",
     "binaryVersion": "6.9.0",
     "clientVersion": "6.9.0"
   }

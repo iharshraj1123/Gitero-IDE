@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "neu:build": "npx @neutralinojs/neu build",
     "start": "neu run",
-    "installer": "npm run build && iscc installer/gitero.iss",
+    "installer": "npm run build && npx @neutralinojs/neu build && iscc installer/gitero.iss",
     "preview": "vite preview",
     "neu:run": "neu run"
   },
