@@ -45,15 +45,30 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFile
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\appIcon.ico"; Tasks: desktopicon
 
 [Registry]
-; Right-click directory context menu: "Open with Gitero"
+; 1. Right-click ANY FILE context menu: "Open with Gitero"
+Root: HKCU; Subkey: "Software\Classes\*\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\*\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\appIcon.ico"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\*\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: contextmenu
+
+; 2. Right-click DIRECTORY / FOLDER context menu: "Open with Gitero"
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\appIcon.ico"""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: contextmenu
 
-; Right-click background context menu
+; 3. Right-click DIRECTORY BACKGROUND context menu (inside empty space)
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\appIcon.ico"""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%V"""; Tasks: contextmenu
+
+; 4. Right-click DRIVE context menu (C:, D:)
+Root: HKCU; Subkey: "Software\Classes\Drive\shell\GiteroIDE"; ValueType: string; ValueData: "Open with Gitero"; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Drive\shell\GiteroIDE"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\appIcon.ico"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Drive\shell\GiteroIDE\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: contextmenu
+
+; 5. Windows Official "Open With" Application List
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "{#MyAppName}"; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".*"; ValueData: ""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: contextmenu
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
