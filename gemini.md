@@ -71,6 +71,7 @@ In Neutralinojs:
   * `editor.wordWrap`: boolean (Default: `false`)
   * `files.autoSave`: boolean (Default: `false`)
   * `files.autoSaveDelay`: number in ms (Default: `1000`)
+  * `keybindings`: Record<string, string> (customizable shortcut mappings)
 * **Legacy Sync**: Automatically migrates and two-way mirrors legacy keys (`gitero_theme_id`, `gitero_font_family`, `gitero_font_size`, `gitero_vim_enabled`, `gitero_custom_css`) for zero data loss.
 * **Reactivity**: Components subscribe via `preferencesService.subscribe(key, callback)` for instant live updates across the app.
 
@@ -84,3 +85,6 @@ In Neutralinojs:
 
 2. **Git Push on Every Commit**:
    * Whenever a git commit is made, always immediately `git push` to the respective remote branch on GitHub (`https://github.com/iharshraj1123/Glitero-IDE`).
+
+3. **Keybindings in Settings**:
+   * Whenever a new keybinding is introduced, it must also be added to the Settings modal where it can be customized and edited. Persist mappings in `PreferencesService`.
