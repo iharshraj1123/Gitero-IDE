@@ -65,6 +65,20 @@ export class SettingsModalComponent {
                 <button class="btn btn-primary" id="btn-apply-update" disabled>Update from this Branch</button>
               </div>
 
+              <!-- Update History & Rollback Sub-section -->
+              <div class="update-history-container">
+                <div class="update-history-header">
+                  <div class="update-history-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                    <span>Update History & Rollback</span>
+                    <span class="history-count-badge" id="history-count-badge">0</span>
+                  </div>
+                  <button class="btn btn-secondary btn-sm" id="btn-toggle-history">Show History</button>
+                </div>
+
+                <div class="update-history-list" id="update-history-list" style="display: none;"></div>
+              </div>
+
               <div class="update-preservation-note">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <span><strong>User State Isolated:</strong> Updates strictly refresh application code. Your chosen themes, custom CSS overrides, keybindings, and extensions remain 100% untouched.</span>
@@ -142,6 +156,24 @@ export class SettingsModalComponent {
                 <span class="setting-desc">Editor text size</span>
               </label>
               <input type="number" id="setting-font-size" class="setting-input-small" min="10" max="32" value="14" />
+            </div>
+            <div class="setting-row">
+              <label class="setting-label">
+                <span>Tab Size</span>
+                <span class="setting-desc">Number of spaces per indentation level</span>
+              </label>
+              <select id="setting-tab-size" class="setting-select">
+                <option value="2">2 Spaces</option>
+                <option value="4">4 Spaces</option>
+                <option value="8">8 Spaces</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label class="setting-label">
+                <span>Word Wrap</span>
+                <span class="setting-desc">Wrap long lines to fit viewport width (Alt+Z)</span>
+              </label>
+              <input type="checkbox" id="setting-word-wrap-toggle" class="setting-checkbox" />
             </div>
           </div>
 
@@ -250,10 +282,29 @@ export class SettingsModalComponent {
         this.overlay.querySelector('#btn-restart-now')?.addEventListener('click', () => {
           updaterService.restartApp();
         });
+
+        (this.overlay.querySelector('#update-cur-sha') as HTMLElement).textContent = updaterService.getCurrentSha();
+        (this.overlay.querySelector('#update-cur-branch') as HTMLElement).textContent = updaterService.getCurrentBranch();
+        this.renderUpdateHistory();
       } catch (err: any) {
         statusMsg.innerHTML = `<span class="error-text">Update failed: ${err.message}</span>`;
         applyBtn.disabled = false;
         checkBtn.disabled = false;
+      }
+    });
+
+    const toggleHistoryBtn = this.overlay.querySelector('#btn-toggle-history') as HTMLButtonElement;
+    const historyList = this.overlay.querySelector('#update-history-list') as HTMLElement;
+
+    toggleHistoryBtn.addEventListener('click', () => {
+      const isHidden = historyList.style.display === 'none';
+      if (isHidden) {
+        historyList.style.display = 'flex';
+        toggleHistoryBtn.textContent = 'Hide History';
+        this.renderUpdateHistory();
+      } else {
+        historyList.style.display = 'none';
+        toggleHistoryBtn.textContent = 'Show History';
       }
     });
   }
@@ -277,6 +328,91 @@ export class SettingsModalComponent {
     }
   }
 
+  private renderUpdateHistory() {
+    const historyList = this.overlay.querySelector('#update-history-list') as HTMLElement;
+    const countBadge = this.overlay.querySelector('#history-count-badge') as HTMLElement;
+    const statusMsg = this.overlay.querySelector('#update-status-msg') as HTMLElement;
+    const applyBtn = this.overlay.querySelector('#btn-apply-update') as HTMLButtonElement;
+    const checkBtn = this.overlay.querySelector('#btn-check-update') as HTMLButtonElement;
+
+    if (!historyList) return;
+
+    const history = updaterService.getHistory();
+    if (countBadge) countBadge.textContent = String(history.length);
+    const currentSha = updaterService.getCurrentSha().toLowerCase();
+
+    if (history.length === 0) {
+      historyList.innerHTML = '<div class="history-empty-msg">No update history recorded yet.</div>';
+      return;
+    }
+
+    historyList.innerHTML = history.map(entry => {
+      const isCurrent = entry.toSha.toLowerCase() === currentSha;
+      const isRollback = entry.type === 'rollback';
+      return `
+        <div class="history-card ${isCurrent ? 'is-current' : ''}">
+          <div class="history-card-header">
+            <div class="history-badges">
+              <span class="history-type-badge ${isRollback ? 'badge-rollback' : 'badge-update'}">${entry.type}</span>
+              <span class="history-branch-badge">${entry.branch}</span>
+              <span class="history-sha-badge"><code>${entry.toSha}</code></span>
+            </div>
+            <span class="history-timestamp" title="${entry.timestamp}">${entry.formattedTime}</span>
+          </div>
+          <div class="history-message">${entry.commitMessage}</div>
+          <div class="history-card-footer">
+            <span class="history-author">Author: ${entry.author}</span>
+            ${isCurrent 
+              ? `<span class="badge-active-state"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Current State</span>`
+              : `<button class="btn btn-secondary btn-sm btn-rollback-state" data-entry-id="${entry.id}">Rollback to this state</button>`
+            }
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach rollback handlers
+    historyList.querySelectorAll('.btn-rollback-state').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const entryId = btn.getAttribute('data-entry-id');
+        const targetEntry = history.find(h => h.id === entryId);
+        if (!targetEntry) return;
+
+        applyBtn.disabled = true;
+        checkBtn.disabled = true;
+        statusMsg.innerHTML = `<span class="loading-spinner"></span> Initializing rollback to commit <code>${targetEntry.toSha}</code>...`;
+
+        try {
+          await updaterService.rollbackTo(targetEntry, (step) => {
+            statusMsg.innerHTML = `<span class="loading-spinner"></span> ${step}`;
+          });
+
+          (this.overlay.querySelector('#update-cur-sha') as HTMLElement).textContent = updaterService.getCurrentSha();
+          (this.overlay.querySelector('#update-cur-branch') as HTMLElement).textContent = updaterService.getCurrentBranch();
+
+          statusMsg.innerHTML = `
+            <div class="update-success-box">
+              <span class="status-badge badge-latest">Rollback Applied</span>
+              <p>Gitero IDE restored to commit <strong>${targetEntry.toSha}</strong> (${targetEntry.branch}).</p>
+              <button class="btn btn-primary btn-sm" id="btn-restart-rollback" style="margin-top: 8px;">Restart Gitero IDE</button>
+            </div>
+          `;
+
+          this.overlay.querySelector('#btn-restart-rollback')?.addEventListener('click', () => {
+            updaterService.restartApp();
+          });
+
+          this.renderUpdateHistory();
+        } catch (err: any) {
+          statusMsg.innerHTML = `<span class="error-text">Rollback failed: ${err.message}</span>`;
+        } finally {
+          applyBtn.disabled = false;
+          checkBtn.disabled = false;
+        }
+      });
+    });
+  }
+
   open() {
     this.isOpen = true;
     this.overlay.style.display = 'flex';
@@ -287,6 +423,7 @@ export class SettingsModalComponent {
     (this.overlay.querySelector('#update-cur-branch') as HTMLElement).textContent = updaterService.getCurrentBranch();
 
     this.loadBranches();
+    this.renderUpdateHistory();
 
     const autoSaveToggle = this.overlay.querySelector('#setting-auto-save-toggle') as HTMLInputElement;
     autoSaveToggle.checked = preferencesService.get('files.autoSave');
@@ -318,6 +455,12 @@ export class SettingsModalComponent {
     const sizeInput = this.overlay.querySelector('#setting-font-size') as HTMLInputElement;
     sizeInput.value = String(preferencesService.get('editor.fontSize'));
 
+    const tabSelect = this.overlay.querySelector('#setting-tab-size') as HTMLSelectElement;
+    tabSelect.value = String(preferencesService.get('editor.tabSize') || 2);
+
+    const wrapToggle = this.overlay.querySelector('#setting-word-wrap-toggle') as HTMLInputElement;
+    wrapToggle.checked = preferencesService.get('editor.wordWrap');
+
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
     cssText.value = themeManager.getCustomCss();
   }
@@ -335,7 +478,13 @@ export class SettingsModalComponent {
     const cursorSelect = this.overlay.querySelector('#setting-cursor-style') as HTMLSelectElement;
     const fontInput = this.overlay.querySelector('#setting-font-family') as HTMLInputElement;
     const sizeInput = this.overlay.querySelector('#setting-font-size') as HTMLInputElement;
+    const tabSelect = this.overlay.querySelector('#setting-tab-size') as HTMLSelectElement;
+    const wrapToggle = this.overlay.querySelector('#setting-word-wrap-toggle') as HTMLInputElement;
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
+
+    // Save Tab Size & Word Wrap
+    preferencesService.set('editor.tabSize', parseInt(tabSelect.value, 10) || 2);
+    preferencesService.set('editor.wordWrap', wrapToggle.checked);
 
     // Save Auto Save
     preferencesService.set('files.autoSave', autoSaveToggle.checked);

@@ -14,6 +14,7 @@ export class CommandPaletteComponent {
   private filteredItems: PaletteItem[] = [];
   private selectedIndex: number = 0;
   private isOpen: boolean = false;
+  private promptModeCallback: ((val: string) => void) | null = null;
 
   constructor() {
     this.createDom();
@@ -52,6 +53,25 @@ export class CommandPaletteComponent {
     });
 
     this.input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (this.promptModeCallback) {
+          const cb = this.promptModeCallback;
+          const val = this.input.value;
+          this.close();
+          cb(val);
+          return;
+        }
+        const selected = this.filteredItems[this.selectedIndex];
+        if (selected) {
+          this.close();
+          selected.action();
+        }
+        return;
+      }
+
+      if (this.promptModeCallback) return;
+
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredItems.length - 1);
@@ -60,13 +80,6 @@ export class CommandPaletteComponent {
         e.preventDefault();
         this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
         this.renderList();
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        const selected = this.filteredItems[this.selectedIndex];
-        if (selected) {
-          this.close();
-          selected.action();
-        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         this.close();
@@ -86,9 +99,26 @@ export class CommandPaletteComponent {
     }, 20);
   }
 
+  promptInput(options: { placeholder: string; initialValue?: string; onAccept: (value: string) => void }) {
+    this.items = [];
+    this.filteredItems = [];
+    this.promptModeCallback = options.onAccept;
+    this.isOpen = true;
+    this.overlay.style.display = 'flex';
+    this.input.placeholder = options.placeholder;
+    this.input.value = options.initialValue || '';
+    this.listEl.innerHTML = '';
+    setTimeout(() => {
+      this.input.focus();
+      this.input.select();
+    }, 20);
+  }
+
   close() {
     this.isOpen = false;
     this.overlay.style.display = 'none';
+    this.promptModeCallback = null;
+    this.input.placeholder = 'Type a command or filename...';
   }
 
   isPaletteOpen(): boolean {

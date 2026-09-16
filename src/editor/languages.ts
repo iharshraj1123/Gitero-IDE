@@ -73,3 +73,31 @@ export function detectLanguage(filePath: string): LanguageInfo {
       return { name: 'Plain Text', extension: () => [] };
   }
 }
+
+export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
+  { name: 'TypeScript', extension: () => javascript({ typescript: true }) },
+  { name: 'React TSX', extension: () => javascript({ jsx: true, typescript: true }) },
+  { name: 'JavaScript', extension: () => javascript() },
+  { name: 'React JSX', extension: () => javascript({ jsx: true }) },
+  { name: 'Python', extension: () => python() },
+  { name: 'Rust', extension: () => rust() },
+  { name: 'C / C++', extension: () => cpp() },
+  { name: 'HTML', extension: () => html() },
+  { name: 'CSS', extension: () => css() },
+  { name: 'JSON', extension: () => json() },
+  { name: 'Markdown', extension: () => markdown() },
+  { name: 'Go', extension: () => go() },
+  { name: 'Java', extension: () => java() },
+  { name: 'YAML', extension: () => yaml() },
+  { name: 'SQL', extension: () => sql() },
+  { name: 'XML', extension: () => xml() },
+  { name: 'Plain Text', extension: () => [] }
+];
+
+export function getLanguageByName(name: string): LanguageInfo {
+  return SUPPORTED_LANGUAGES.find(l => l.name.toLowerCase() === name.toLowerCase()) || {
+    name: 'Plain Text',
+    extension: () => []
+  };
+}
+

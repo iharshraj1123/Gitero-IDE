@@ -11,6 +11,11 @@ import { commandPalette, PaletteItem } from './ui/commandPalette';
 import { SettingsModalComponent } from './ui/settingsModal';
 import { TitleBarComponent } from './ui/titleBar';
 import { preferencesService } from './services/preferences';
+import { SearchPanelComponent } from './ui/searchPanel';
+import { GitPanelComponent } from './ui/gitPanel';
+import { TerminalPanelComponent } from './ui/terminalPanel';
+import { ShortcutsModalComponent } from './ui/shortcutsModal';
+import { SUPPORTED_LANGUAGES } from './editor/languages';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -36,6 +41,10 @@ async function bootstrap() {
   // 3. UI DOM References
   const titleBarContainer = document.getElementById('app-titlebar') as HTMLElement;
   const sidebarEl = document.getElementById('sidebar') as HTMLElement;
+  const explorerPane = document.getElementById('explorer-pane') as HTMLElement;
+  const searchPane = document.getElementById('search-pane') as HTMLElement;
+  const gitPane = document.getElementById('git-pane') as HTMLElement;
+  const bottomPanelEl = document.getElementById('bottom-panel') as HTMLElement;
   const fileTreeContainer = document.getElementById('file-tree-container') as HTMLElement;
   const tabBarContainer = document.getElementById('tab-bar') as HTMLElement;
   const statusBarContainer = document.getElementById('status-bar') as HTMLElement;
@@ -44,7 +53,11 @@ async function bootstrap() {
   const cmRoot = document.getElementById('codemirror-root') as HTMLElement;
   const workspaceTitle = document.getElementById('workspace-title') as HTMLElement;
 
-  // 4. Initialize Settings Modal
+  const btnActExplorer = document.getElementById('btn-act-explorer') as HTMLElement;
+  const btnActSearch = document.getElementById('btn-act-search') as HTMLElement;
+  const btnActGit = document.getElementById('btn-act-git') as HTMLElement;
+
+  // 4. Initialize Settings & Shortcuts Modals
   const settingsModal = new SettingsModalComponent({
     onVimToggled: (enabled) => {
       editorManager.toggleVim(enabled);
@@ -53,7 +66,75 @@ async function bootstrap() {
     }
   });
 
-  // 5. Initialize Status Bar
+  const shortcutsModal = new ShortcutsModalComponent();
+
+  // 5. Initialize Side Panes & Bottom Panels
+  const searchPanel = new SearchPanelComponent(searchPane);
+  const gitPanel = new GitPanelComponent(gitPane);
+  const terminalPanel = new TerminalPanelComponent(bottomPanelEl);
+
+  let activeSidebarPane: 'explorer' | 'search' | 'git' = 'explorer';
+
+  function showSidebarPane(pane: 'explorer' | 'search' | 'git') {
+    if (sidebarEl.classList.contains('collapsed')) {
+      sidebarEl.classList.remove('collapsed');
+    } else if (activeSidebarPane === pane) {
+      sidebarEl.classList.add('collapsed');
+      return;
+    }
+
+    activeSidebarPane = pane;
+    explorerPane.style.display = pane === 'explorer' ? 'flex' : 'none';
+    searchPane.style.display = pane === 'search' ? 'flex' : 'none';
+    gitPane.style.display = pane === 'git' ? 'flex' : 'none';
+
+    btnActExplorer.classList.toggle('active', pane === 'explorer');
+    btnActSearch.classList.toggle('active', pane === 'search');
+    btnActGit.classList.toggle('active', pane === 'git');
+
+    if (pane === 'search') {
+      searchPanel.focus();
+    } else if (pane === 'git') {
+      gitPanel.refresh();
+    }
+  }
+
+  // Quick Pickers
+  function openLanguagePicker() {
+    const activeTab = editorState.getActiveTab();
+    const items: PaletteItem[] = SUPPORTED_LANGUAGES.map(lang => ({
+      id: lang.name,
+      title: lang.name,
+      detail: activeTab && activeTab.language === lang.name ? 'Currently Active' : 'Syntax Mode',
+      category: 'Languages',
+      action: () => {
+        if (activeTab) {
+          editorState.setTabLanguage(activeTab.id, lang.name);
+          editorManager.setLanguageByName(lang.name);
+          statusBar.showMessage(`Language: ${lang.name}`);
+        }
+      }
+    }));
+    commandPalette.open(items);
+  }
+
+  function openIndentationPicker() {
+    const sizes = [2, 4, 8];
+    const curSize = preferencesService.get('editor.tabSize') || 2;
+    const items: PaletteItem[] = sizes.map(sz => ({
+      id: `indent-${sz}`,
+      title: `Indent Using Spaces: ${sz}`,
+      detail: sz === curSize ? 'Currently Active' : 'Tab Size',
+      category: 'Indentation',
+      action: () => {
+        preferencesService.set('editor.tabSize', sz);
+        statusBar.showMessage(`Indentation set to ${sz} spaces`);
+      }
+    }));
+    commandPalette.open(items);
+  }
+
+  // 6. Initialize Status Bar
   const statusBar = new StatusBarComponent(statusBarContainer, {
     onToggleVim: () => {
       const next = !vimIntegration.isEnabled();
@@ -64,10 +145,19 @@ async function bootstrap() {
     },
     onOpenThemePicker: () => {
       openThemePicker();
+    },
+    onOpenLanguagePicker: () => {
+      openLanguagePicker();
+    },
+    onOpenIndentationPicker: () => {
+      openIndentationPicker();
+    },
+    onOpenGit: () => {
+      showSidebarPane('git');
     }
   });
 
-  // 6. Initialize Tab Bar
+  // 7. Initialize Tab Bar
   new TabBarComponent(tabBarContainer);
 
   // Auto-Save Engine
@@ -83,7 +173,7 @@ async function bootstrap() {
     const delay = preferencesService.get('files.autoSaveDelay') || 1000;
     autoSaveTimer = setTimeout(async () => {
       const activeTab = editorState.getActiveTab();
-      if (activeTab && activeTab.isDirty) {
+      if (activeTab && activeTab.isDirty && !activeTab.path.startsWith('Untitled-')) {
         try {
           const content = editorManager.getContent();
           await fsService.writeFile(activeTab.path, content);
@@ -101,6 +191,10 @@ async function bootstrap() {
     const activeTab = editorState.getActiveTab();
     if (!activeTab) return;
 
+    if (activeTab.path.startsWith('Untitled-')) {
+      return saveAsActiveFile();
+    }
+
     try {
       const currentContent = editorManager.getContent();
       await fsService.writeFile(activeTab.path, currentContent);
@@ -115,7 +209,7 @@ async function bootstrap() {
   async function saveAsActiveFile() {
     const activeTab = editorState.getActiveTab();
     const currentContent = editorManager.getContent();
-    const defaultPath = activeTab ? activeTab.path : (fsService.getWorkspace() || '');
+    const defaultPath = activeTab && !activeTab.path.startsWith('Untitled-') ? activeTab.path : (fsService.getWorkspace() || '');
 
     const newPath = await fsService.saveFileDialog(defaultPath);
     if (!newPath) return;
@@ -152,11 +246,25 @@ async function bootstrap() {
     }
   }
 
+  // Go to Line prompt handler
+  function triggerGotoLine() {
+    commandPalette.promptInput({
+      placeholder: 'Go to line:column (e.g. 42 or 42:5)...',
+      onAccept: (val) => {
+        const parts = val.replace(':', ' ').trim().split(/\s+/);
+        const line = parseInt(parts[0], 10);
+        const col = parts[1] ? parseInt(parts[1], 10) : 1;
+        if (!isNaN(line)) {
+          editorManager.gotoLine(line, col);
+        }
+      }
+    });
+  }
+
   // 7. Initialize Title Bar & Top Nav
   const titleBar = new TitleBarComponent(titleBarContainer, {
     onNewFile: () => {
-      const ws = fsService.getWorkspace() || '.';
-      fileTree.promptCreateFile(ws);
+      editorState.openUntitledFile();
     },
     onOpenFile: () => {
       openFilePicker();
@@ -196,19 +304,38 @@ async function bootstrap() {
       statusBar.showMessage(`Cursor Style: ${style.toUpperCase()} (Saved as preference)`);
     },
     onUndo: () => {
-      document.execCommand('undo');
+      editorManager.undo();
     },
     onRedo: () => {
-      document.execCommand('redo');
+      editorManager.redo();
     },
     onSelectAll: () => {
-      document.execCommand('selectAll');
+      editorManager.selectAll();
     },
     onFind: () => {
-      openCommandPalette();
+      editorManager.openSearch();
     },
     onReplace: () => {
-      openCommandPalette();
+      editorManager.openSearch();
+    },
+    onToggleWordWrap: () => {
+      const isWrap = editorManager.toggleWordWrap();
+      statusBar.showMessage(`Word Wrap: ${isWrap ? 'ENABLED' : 'DISABLED'}`);
+    },
+    onGotoLine: () => {
+      triggerGotoLine();
+    },
+    onToggleTerminal: () => {
+      terminalPanel.toggle();
+    },
+    onOpenSearch: () => {
+      showSidebarPane('search');
+    },
+    onOpenGit: () => {
+      showSidebarPane('git');
+    },
+    onOpenShortcuts: () => {
+      shortcutsModal.open();
     },
     onCheckUpdates: () => {
       settingsModal.open();
@@ -300,6 +427,9 @@ async function bootstrap() {
     workspaceTitle.textContent = folderName.toUpperCase();
     await fileTree.loadWorkspace(dirPath);
     updateAppTitle(editorState.getActiveTab());
+    terminalPanel.setCwd(dirPath);
+    terminalPanel.logOutput(`Opened workspace folder: ${dirPath}`);
+    gitPanel.refresh();
     statusBar.showMessage(`Opened folder: ${folderName}`);
   }
 
@@ -321,6 +451,9 @@ A high-performance, VS Code-styled, Vim-customizable IDE.
 * **Ctrl + S** or **:w**: Save File
 * **Ctrl + W** or **:q**: Close File
 * **Ctrl + B**: Toggle Sidebar
+* **Ctrl + \`**: Toggle Integrated Terminal
+* **Ctrl + Shift + F**: Search in Files
+* **Ctrl + Shift + G**: Source Control (Git)
 * **Ctrl + ,**: Settings & Custom CSS
 
 ### Vim Mode
@@ -361,8 +494,16 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
     fileTree.loadWorkspace(ws);
   });
 
-  document.getElementById('btn-act-explorer')?.addEventListener('click', () => {
-    sidebarEl.classList.toggle('collapsed');
+  btnActExplorer.addEventListener('click', () => {
+    showSidebarPane('explorer');
+  });
+
+  btnActSearch.addEventListener('click', () => {
+    showSidebarPane('search');
+  });
+
+  btnActGit.addEventListener('click', () => {
+    showSidebarPane('git');
   });
 
   document.getElementById('btn-act-theme')?.addEventListener('click', () => {
@@ -374,8 +515,9 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
   });
 
   // 14. Command Palette Handlers
-  function openQuickFilePicker() {
+  async function openQuickFilePicker() {
     const tabs = editorState.getTabs();
+    const openTabPaths = new Set(tabs.map(t => t.path));
     const items: PaletteItem[] = tabs.map(t => ({
       id: t.id,
       title: t.name,
@@ -383,6 +525,34 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       category: 'Open Tab',
       action: () => editorState.selectTab(t.id)
     }));
+
+    const ws = fsService.getWorkspace();
+    if (ws) {
+      try {
+        const allFiles = await fsService.scanAllFiles(ws, 1500);
+        for (const file of allFiles) {
+          if (openTabPaths.has(file)) continue;
+          const fileName = file.split(/[/\\]/).pop() || file;
+          const rel = file.startsWith(ws) ? file.slice(ws.length).replace(/^[/\\]/, '') : file;
+          items.push({
+            id: file,
+            title: fileName,
+            detail: rel,
+            category: 'Workspace',
+            action: async () => {
+              try {
+                const content = await fsService.readFile(file);
+                editorState.openFile(file, content);
+              } catch (err) {
+                alert(`Could not open file: ${err}`);
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to scan workspace files for quick picker:', err);
+      }
+    }
 
     commandPalette.open(items);
   }
@@ -475,6 +645,37 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         action: () => sidebarEl.classList.toggle('collapsed')
       },
       {
+        id: 'view.toggleWordWrap',
+        title: 'View: Toggle Word Wrap',
+        detail: 'Alt+Z',
+        category: 'View',
+        action: () => {
+          const isWrap = editorManager.toggleWordWrap();
+          statusBar.showMessage(`Word Wrap: ${isWrap ? 'ENABLED' : 'DISABLED'}`);
+        }
+      },
+      {
+        id: 'edit.find',
+        title: 'Edit: Find',
+        detail: 'Ctrl+F',
+        category: 'Edit',
+        action: () => editorManager.openSearch()
+      },
+      {
+        id: 'edit.replace',
+        title: 'Edit: Replace',
+        detail: 'Ctrl+H',
+        category: 'Edit',
+        action: () => editorManager.openSearch()
+      },
+      {
+        id: 'go.gotoLine',
+        title: 'Go: Go to Line/Column...',
+        detail: 'Ctrl+G',
+        category: 'Go',
+        action: () => triggerGotoLine()
+      },
+      {
         id: 'preferences.cursor.cycle',
         title: 'Preferences: Cycle Cursor Style (Line / Block / Underline)',
         detail: 'Num 0 / Insert or Alt+0',
@@ -517,6 +718,46 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         detail: 'Ctrl+,',
         category: 'Settings',
         action: () => settingsModal.open()
+      },
+      {
+        id: 'view.terminal',
+        title: 'View: Toggle Integrated Terminal',
+        detail: 'Ctrl+`',
+        category: 'View',
+        action: () => terminalPanel.toggle()
+      },
+      {
+        id: 'view.search',
+        title: 'View: Show Global Search in Files',
+        detail: 'Ctrl+Shift+F',
+        category: 'View',
+        action: () => showSidebarPane('search')
+      },
+      {
+        id: 'view.git',
+        title: 'View: Show Source Control (Git)',
+        detail: 'Ctrl+Shift+G',
+        category: 'View',
+        action: () => showSidebarPane('git')
+      },
+      {
+        id: 'preferences.language',
+        title: 'Preferences: Change Language Mode',
+        category: 'Preferences',
+        action: () => openLanguagePicker()
+      },
+      {
+        id: 'preferences.indentation',
+        title: 'Preferences: Change Tab Size (Indentation)',
+        category: 'Preferences',
+        action: () => openIndentationPicker()
+      },
+      {
+        id: 'help.shortcuts',
+        title: 'Help: Keyboard Shortcuts Reference',
+        detail: 'Ctrl+K Ctrl+S',
+        category: 'Help',
+        action: () => shortcutsModal.open()
       }
     ];
 
@@ -542,7 +783,57 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
   }
 
   // 15. Global Keyboard Shortcuts
+  let isCtrlK = false;
+  let ctrlKTimer: any = null;
+
   window.addEventListener('keydown', (e) => {
+    // Ctrl + K chord handling
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+      isCtrlK = true;
+      clearTimeout(ctrlKTimer);
+      ctrlKTimer = setTimeout(() => { isCtrlK = false; }, 1500);
+      return;
+    }
+
+    if (isCtrlK) {
+      if (e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        isCtrlK = false;
+        shortcutsModal.open();
+        return;
+      }
+      if (e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        isCtrlK = false;
+        fsService.selectFolder().then(f => {
+          if (f) loadWorkspace(f);
+        });
+        return;
+      }
+      isCtrlK = false;
+    }
+
+    // Ctrl + ` (Toggle Integrated Terminal)
+    if (e.ctrlKey && e.key === '`') {
+      e.preventDefault();
+      terminalPanel.toggle();
+      return;
+    }
+
+    // Ctrl + Shift + F (Global Search)
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      showSidebarPane('search');
+      return;
+    }
+
+    // Ctrl + Shift + G (Git Source Control)
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') {
+      e.preventDefault();
+      showSidebarPane('git');
+      return;
+    }
+
     // Ctrl + P (Quick Open)
     if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'p') {
       e.preventDefault();
@@ -578,11 +869,25 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       return;
     }
 
-    // Ctrl + N (New File)
+    // Ctrl + N (New Untitled File)
     if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'n') {
       e.preventDefault();
-      const ws = fsService.getWorkspace() || '.';
-      fileTree.promptCreateFile(ws);
+      editorState.openUntitledFile();
+      return;
+    }
+
+    // Ctrl + G (Go to Line/Column)
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'g') {
+      e.preventDefault();
+      triggerGotoLine();
+      return;
+    }
+
+    // Alt + Z (Toggle Word Wrap)
+    if (e.altKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      const isWrap = editorManager.toggleWordWrap();
+      statusBar.showMessage(`Word Wrap: ${isWrap ? 'ENABLED' : 'DISABLED'}`);
       return;
     }
 

@@ -34,6 +34,12 @@ export interface TitleBarOptions {
   onSelectAll?: () => void;
   onFind?: () => void;
   onReplace?: () => void;
+  onToggleWordWrap?: () => void;
+  onGotoLine?: () => void;
+  onToggleTerminal?: () => void;
+  onOpenSearch?: () => void;
+  onOpenGit?: () => void;
+  onOpenShortcuts?: () => void;
   onCheckUpdates?: () => void;
   onAbout?: () => void;
 }
@@ -113,6 +119,16 @@ export class TitleBarComponent {
         items: [
           { label: 'Command Palette...', shortcut: 'Ctrl+Shift+P', action: this.options.onOpenCommandPalette },
           { label: 'Toggle Primary Sidebar', shortcut: 'Ctrl+B', action: this.options.onToggleSidebar },
+          { label: 'Search in Files', shortcut: 'Ctrl+Shift+F', action: this.options.onOpenSearch },
+          { label: 'Source Control', shortcut: 'Ctrl+Shift+G', action: this.options.onOpenGit },
+          { label: 'Integrated Terminal', shortcut: 'Ctrl+`', action: this.options.onToggleTerminal },
+          { label: '', divider: true },
+          {
+            label: 'Toggle Word Wrap',
+            shortcut: 'Alt+Z',
+            checked: () => preferencesService.get('editor.wordWrap'),
+            action: this.options.onToggleWordWrap
+          },
           { label: '', divider: true },
           { label: 'Switch Color Theme...', action: this.options.onOpenThemePicker },
           { label: 'Cycle Cursor Style', shortcut: 'Num 0', action: this.options.onCycleCursor }
@@ -122,7 +138,8 @@ export class TitleBarComponent {
         id: 'go',
         label: 'Go',
         items: [
-          { label: 'Go to File...', shortcut: 'Ctrl+P', action: this.options.onQuickOpen }
+          { label: 'Go to File...', shortcut: 'Ctrl+P', action: this.options.onQuickOpen },
+          { label: 'Go to Line/Column...', shortcut: 'Ctrl+G', action: this.options.onGotoLine }
         ]
       },
       {
@@ -143,11 +160,9 @@ export class TitleBarComponent {
         label: 'Terminal',
         items: [
           {
-            label: 'New Terminal',
+            label: 'Toggle Integrated Terminal',
             shortcut: 'Ctrl+`',
-            action: () => {
-              alert('Integrated terminal instance requested.');
-            }
+            action: this.options.onToggleTerminal
           }
         ]
       },
@@ -155,6 +170,7 @@ export class TitleBarComponent {
         id: 'help',
         label: 'Help',
         items: [
+          { label: 'Keyboard Shortcuts Reference', shortcut: 'Ctrl+K Ctrl+S', action: this.options.onOpenShortcuts },
           { label: 'Check for Updates...', action: this.options.onCheckUpdates },
           { label: '', divider: true },
           { label: 'About Gitero IDE', action: this.options.onAbout }

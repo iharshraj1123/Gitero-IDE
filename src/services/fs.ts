@@ -196,11 +196,7 @@ export class FileSystemService {
   async deleteItem(itemPath: string, isDirectory: boolean): Promise<void> {
     if (isNative()) {
       try {
-        if (isDirectory) {
-          await window.Neutralino.filesystem.remove(itemPath);
-        } else {
-          await window.Neutralino.filesystem.remove(itemPath);
-        }
+        await window.Neutralino.filesystem.remove(itemPath);
       } catch (err) {
         console.error('Error deleting item:', err);
         throw err;
@@ -208,6 +204,108 @@ export class FileSystemService {
     } else {
       delete mockFiles[itemPath];
     }
+  }
+
+  async renameItem(oldPath: string, newPath: string): Promise<void> {
+    if (isNative()) {
+      try {
+        await window.Neutralino.filesystem.move(oldPath, newPath);
+      } catch (err) {
+        console.error('Error renaming item:', err);
+        throw err;
+      }
+    } else {
+      if (mockFiles[oldPath] !== undefined) {
+        mockFiles[newPath] = mockFiles[oldPath];
+        delete mockFiles[oldPath];
+      }
+    }
+  }
+
+  async revealInExplorer(filePath: string): Promise<void> {
+    if (isNative()) {
+      try {
+        await window.Neutralino.os.execCommand(`explorer.exe /select,"${filePath}"`);
+      } catch (err) {
+        console.error('Failed to reveal in explorer:', err);
+      }
+    }
+  }
+
+  async scanAllFiles(dirPath: string, maxFiles: number = 2000): Promise<string[]> {
+    const result: string[] = [];
+    if (!isNative()) {
+      return Object.keys(mockFiles);
+    }
+
+    const ignored = new Set(['.git', 'node_modules', 'dist', 'target', '.vscode', '.idea', 'build', 'out']);
+
+    const traverse = async (currentDir: string) => {
+      if (result.length >= maxFiles) return;
+      try {
+        const entries = await window.Neutralino.filesystem.readDirectory(currentDir);
+        for (const entry of entries) {
+          if (entry.entry === '.' || entry.entry === '..' || ignored.has(entry.entry)) continue;
+          const sep = currentDir.includes('/') ? '/' : '\\';
+          const fullPath = currentDir.endsWith(sep) ? `${currentDir}${entry.entry}` : `${currentDir}${sep}${entry.entry}`;
+          if (entry.type === 'DIRECTORY') {
+            await traverse(fullPath);
+          } else {
+            result.push(fullPath);
+            if (result.length >= maxFiles) return;
+          }
+        }
+      } catch (e) {
+        // Ignore unreadable
+      }
+    };
+
+    await traverse(dirPath);
+    return result;
+  }
+
+  async searchInFiles(
+    dirPath: string,
+    query: string,
+    options: { isRegex?: boolean; caseSensitive?: boolean; wholeWord?: boolean } = {}
+  ): Promise<Array<{ file: string; line: number; text: string }>> {
+    const matches: Array<{ file: string; line: number; text: string }> = [];
+    if (!query.trim()) return matches;
+
+    const allFiles = await this.scanAllFiles(dirPath, 1000);
+    let regex: RegExp;
+    try {
+      let pattern = options.isRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (options.wholeWord) {
+        pattern = `\\b${pattern}\\b`;
+      }
+      regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+    } catch (e) {
+      return matches;
+    }
+
+    for (const file of allFiles) {
+      if (/\.(exe|png|jpg|jpeg|ico|gif|mp4|zip|tar|gz|pdf|woff|woff2|neu|dat)$/i.test(file)) continue;
+
+      try {
+        const content = await this.readFile(file);
+        const lines = content.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i++) {
+          regex.lastIndex = 0;
+          if (regex.test(lines[i])) {
+            matches.push({
+              file,
+              line: i + 1,
+              text: lines[i].trim()
+            });
+            if (matches.length >= 500) return matches;
+          }
+        }
+      } catch (e) {
+        // Ignore unreadable
+      }
+    }
+    return matches;
   }
 
   private getMockDirectoryNodes(): FileNode[] {

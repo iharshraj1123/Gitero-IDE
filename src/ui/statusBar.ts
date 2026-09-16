@@ -1,6 +1,7 @@
 import { vimIntegration, VimMode } from '../editor/vim';
 import { themeManager } from '../themes/themeManager';
 import { EditorTab } from '../state/editorState';
+import { preferencesService } from '../services/preferences';
 
 export class StatusBarComponent {
   private container: HTMLElement;
@@ -16,14 +17,23 @@ export class StatusBarComponent {
 
   private onToggleVim?: () => void;
   private onOpenThemePicker?: () => void;
+  private onOpenLanguagePicker?: () => void;
+  private onOpenIndentationPicker?: () => void;
+  private onOpenGit?: () => void;
 
   constructor(container: HTMLElement, options?: {
     onToggleVim?: () => void;
     onOpenThemePicker?: () => void;
+    onOpenLanguagePicker?: () => void;
+    onOpenIndentationPicker?: () => void;
+    onOpenGit?: () => void;
   }) {
     this.container = container;
     this.onToggleVim = options?.onToggleVim;
     this.onOpenThemePicker = options?.onOpenThemePicker;
+    this.onOpenLanguagePicker = options?.onOpenLanguagePicker;
+    this.onOpenIndentationPicker = options?.onOpenIndentationPicker;
+    this.onOpenGit = options?.onOpenGit;
     this.build();
     this.setupListeners();
   }
@@ -34,7 +44,7 @@ export class StatusBarComponent {
         <div class="status-item status-vim-badge" id="status-vim" title="Click to toggle Vim Mode">
           <span class="vim-indicator">NORMAL</span>
         </div>
-        <div class="status-item" id="status-git">
+        <div class="status-item" id="status-git" title="Click to open Source Control">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
           <span class="git-branch-name">main</span>
         </div>
@@ -42,9 +52,9 @@ export class StatusBarComponent {
       </div>
       <div class="status-right">
         <div class="status-item" id="status-cursor">Ln 1, Col 1</div>
-        <div class="status-item" id="status-spaces">Spaces: 2</div>
+        <div class="status-item" id="status-spaces" title="Click to select Indentation">Spaces: 2</div>
         <div class="status-item" id="status-encoding">UTF-8</div>
-        <div class="status-item" id="status-language">Plain Text</div>
+        <div class="status-item" id="status-language" title="Click to change Language Mode">Plain Text</div>
         <div class="status-item status-theme" id="status-theme" title="Click to change color theme">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
           <span class="theme-name">Tokyo Night</span>
@@ -62,11 +72,23 @@ export class StatusBarComponent {
     this.themeEl = this.container.querySelector('#status-theme') as HTMLElement;
 
     this.vimModeEl.addEventListener('click', () => {
-      if (this.onToggleVim) this.onToggleVim();
+      this.onToggleVim?.();
+    });
+
+    this.gitBranchEl.addEventListener('click', () => {
+      this.onOpenGit?.();
+    });
+
+    this.spacesEl.addEventListener('click', () => {
+      this.onOpenIndentationPicker?.();
+    });
+
+    this.languageEl.addEventListener('click', () => {
+      this.onOpenLanguagePicker?.();
     });
 
     this.themeEl.addEventListener('click', () => {
-      if (this.onOpenThemePicker) this.onOpenThemePicker();
+      this.onOpenThemePicker?.();
     });
   }
 
@@ -82,11 +104,23 @@ export class StatusBarComponent {
       if (nameSpan) nameSpan.textContent = theme.name;
     });
 
+    // Tab size updates
+    preferencesService.subscribe('editor.tabSize', (size) => {
+      this.spacesEl.textContent = `Spaces: ${size}`;
+    });
+
     // Initial values
     this.updateVimMode(vimIntegration.getCurrentMode());
     const initialTheme = themeManager.getCurrentTheme();
     const nameSpan = this.themeEl.querySelector('.theme-name');
     if (nameSpan) nameSpan.textContent = initialTheme.name;
+    const initialTabSize = preferencesService.get('editor.tabSize') || 2;
+    this.spacesEl.textContent = `Spaces: ${initialTabSize}`;
+  }
+
+  updateGitBranch(branch: string) {
+    const span = this.gitBranchEl.querySelector('.git-branch-name');
+    if (span) span.textContent = branch;
   }
 
   updateVimMode(mode: VimMode) {

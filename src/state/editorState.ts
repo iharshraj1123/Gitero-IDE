@@ -99,6 +99,29 @@ export class EditorStateManager {
     return newTab;
   }
 
+  private untitledCounter: number = 0;
+
+  openUntitledFile(initialContent: string = ''): EditorTab {
+    this.untitledCounter++;
+    const name = `Untitled-${this.untitledCounter}`;
+    const newTab: EditorTab = {
+      id: name,
+      name,
+      path: name,
+      content: initialContent,
+      originalContent: '',
+      isDirty: initialContent.length > 0,
+      language: 'plaintext',
+      cursor: { line: 1, col: 1 }
+    };
+
+    this.tabs.push(newTab);
+    this.activeTabId = name;
+    this.persist();
+    this.notify();
+    return newTab;
+  }
+
   selectTab(id: string) {
     if (this.activeTabId !== id && this.tabs.some(t => t.id === id)) {
       this.activeTabId = id;
@@ -176,6 +199,15 @@ export class EditorStateManager {
       if (this.activeTabId === oldId) {
         this.activeTabId = newPath;
       }
+      this.persist();
+      this.notify();
+    }
+  }
+
+  setTabLanguage(id: string, language: string) {
+    const tab = this.tabs.find(t => t.id === id);
+    if (tab) {
+      tab.language = language;
       this.persist();
       this.notify();
     }
