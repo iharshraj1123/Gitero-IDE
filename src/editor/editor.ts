@@ -8,6 +8,7 @@ import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { themeManager } from '../themes/themeManager';
 import { vimIntegration } from './vim';
 import { detectLanguage } from './languages';
+import { preferencesService, CursorStyle } from '../services/preferences';
 
 export interface CursorPosition {
   line: number;
@@ -93,6 +94,7 @@ export class EditorManager {
       parent: container
     });
 
+    this.applyCursorPreferences();
     vimIntegration.attachView(this.view);
 
     // React to theme changes
@@ -101,6 +103,22 @@ export class EditorManager {
         this.view.dispatch({
           effects: this.themeCompartment.reconfigure(themeManager.createCodeMirrorTheme())
         });
+      }
+    });
+
+    // React to cursor style & blinking changes
+    preferencesService.subscribe('editor.cursorStyle', (style) => {
+      if (this.view) {
+        this.view.dom.setAttribute('data-cursor-style', style);
+        if (vimIntegration.isEnabled()) {
+          vimIntegration.applyCursorStyle(this.view, style);
+        }
+      }
+    });
+
+    preferencesService.subscribe('editor.cursorBlinking', (blinking) => {
+      if (this.view) {
+        this.view.dom.setAttribute('data-cursor-blinking', blinking);
       }
     });
   }
@@ -158,6 +176,7 @@ export class EditorManager {
       })
     );
 
+    this.applyCursorPreferences();
     vimIntegration.attachView(this.view);
     this.view.focus();
   }
@@ -197,6 +216,37 @@ export class EditorManager {
 
   focus() {
     this.view?.focus();
+  }
+
+  private applyCursorPreferences() {
+    if (!this.view) return;
+    const style = preferencesService.get('editor.cursorStyle');
+    const blinking = preferencesService.get('editor.cursorBlinking');
+    this.view.dom.setAttribute('data-cursor-style', style);
+    this.view.dom.setAttribute('data-cursor-blinking', blinking);
+  }
+
+  getCursorStyle(): CursorStyle {
+    return preferencesService.get('editor.cursorStyle');
+  }
+
+  setCursorStyle(style: CursorStyle) {
+    preferencesService.set('editor.cursorStyle', style);
+    if (this.view) {
+      this.view.dom.setAttribute('data-cursor-style', style);
+      if (vimIntegration.isEnabled()) {
+        vimIntegration.applyCursorStyle(this.view, style);
+      }
+    }
+  }
+
+  cycleCursorStyle(): CursorStyle {
+    const current = preferencesService.get('editor.cursorStyle');
+    const styles: CursorStyle[] = ['line', 'block', 'underline'];
+    const nextIdx = (styles.indexOf(current) + 1) % styles.length;
+    const nextStyle = styles[nextIdx];
+    this.setCursorStyle(nextStyle);
+    return nextStyle;
   }
 
   destroy() {

@@ -441,6 +441,34 @@ body, html {
   outline: none;
 }
 
+/* Cursor Styles (Line, Block, Underline) */
+.cm-editor[data-cursor-style="line"] .cm-cursor {
+  border-left: 2px solid var(--editor-cursor) !important;
+  border-bottom: none !important;
+  background: transparent !important;
+  width: 0 !important;
+}
+
+.cm-editor[data-cursor-style="block"] .cm-cursor {
+  border-left: none !important;
+  border-bottom: none !important;
+  background-color: var(--editor-cursor) !important;
+  width: 0.6em !important;
+  opacity: 0.75 !important;
+}
+
+.cm-editor[data-cursor-style="underline"] .cm-cursor {
+  border-left: none !important;
+  border-bottom: 2px solid var(--editor-cursor) !important;
+  background: transparent !important;
+  width: 0.6em !important;
+}
+
+.cm-editor[data-cursor-blinking="solid"] .cm-cursor {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
 .editor-empty-state {
   display: flex;
   flex-direction: column;

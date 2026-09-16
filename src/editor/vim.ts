@@ -1,6 +1,7 @@
 import { Extension } from '@codemirror/state';
 import { vim as cmVim, Vim, getCM } from '@replit/codemirror-vim';
 import { EditorView } from '@codemirror/view';
+import { preferencesService, CursorStyle } from '../services/preferences';
 
 export type VimMode = 'NORMAL' | 'INSERT' | 'VISUAL' | 'V-LINE' | 'V-BLOCK' | 'COMMAND';
 
@@ -16,7 +17,10 @@ export class VimIntegration {
   private onCloseCallback: (() => void) | null = null;
 
   constructor() {
-    this.enabled = localStorage.getItem('gitero_vim_enabled') !== 'false'; // default true
+    this.enabled = preferencesService.get('editor.vimEnabled');
+    preferencesService.subscribe('editor.vimEnabled', (enabled) => {
+      this.enabled = enabled;
+    });
     this.setupExCommands();
   }
 
@@ -26,7 +30,7 @@ export class VimIntegration {
 
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
-    localStorage.setItem('gitero_vim_enabled', enabled ? 'true' : 'false');
+    preferencesService.set('editor.vimEnabled', enabled);
   }
 
   setCallbacks(onSave: () => void, onClose: () => void) {
@@ -73,6 +77,10 @@ export class VimIntegration {
     setTimeout(() => {
       const cm = getCM(view);
       if (cm) {
+        // Apply user preferred initial cursor style
+        const prefStyle = preferencesService.get('editor.cursorStyle');
+        this.applyCursorStyleToCm(cm, prefStyle);
+
         // Listen to vim mode change events
         cm.on('vim-mode-change', (arg: { mode: string; subMode?: string }) => {
           let mode: VimMode = 'NORMAL';
@@ -91,6 +99,36 @@ export class VimIntegration {
         });
       }
     }, 50);
+  }
+
+  applyCursorStyle(view: EditorView, style: CursorStyle) {
+    if (!this.enabled) return;
+    const cm = getCM(view);
+    if (!cm) return;
+    this.applyCursorStyleToCm(cm, style);
+  }
+
+  private applyCursorStyleToCm(cm: any, style: CursorStyle) {
+    try {
+      if (style === 'line') {
+        if (this.currentMode !== 'INSERT') {
+          Vim.handleKey(cm, 'i', 'user');
+        }
+      } else if (style === 'block') {
+        if (this.currentMode !== 'NORMAL') {
+          Vim.handleKey(cm, '<Esc>', 'user');
+        }
+      } else if (style === 'underline') {
+        if (this.currentMode === 'NORMAL') {
+          Vim.handleKey(cm, 'R', 'user');
+        } else {
+          Vim.handleKey(cm, '<Esc>', 'user');
+          Vim.handleKey(cm, 'R', 'user');
+        }
+      }
+    } catch (e) {
+      console.warn('[VimIntegration] Failed to set mode for cursor style:', e);
+    }
   }
 
   getCurrentMode(): VimMode {

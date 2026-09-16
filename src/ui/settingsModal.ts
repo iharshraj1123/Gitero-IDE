@@ -1,6 +1,7 @@
 import { themeManager } from '../themes/themeManager';
 import { vimIntegration } from '../editor/vim';
 import { updaterService } from '../services/updater';
+import { preferencesService, CursorStyle } from '../services/preferences';
 
 export class SettingsModalComponent {
   private overlay!: HTMLElement;
@@ -98,6 +99,17 @@ export class SettingsModalComponent {
           <!-- Typography Section -->
           <div class="settings-section">
             <h3>Typography & Editor</h3>
+            <div class="setting-row">
+              <label class="setting-label">
+                <span>Cursor Style</span>
+                <span class="setting-desc">Preferred cursor shape in the editor</span>
+              </label>
+              <select id="setting-cursor-style" class="setting-select">
+                <option value="line">Line / Bar (Default)</option>
+                <option value="block">Block</option>
+                <option value="underline">Underline</option>
+              </select>
+            </div>
             <div class="setting-row">
               <label class="setting-label">
                 <span>Font Family</span>
@@ -272,11 +284,14 @@ export class SettingsModalComponent {
       themeSelect.appendChild(opt);
     });
 
+    const cursorSelect = this.overlay.querySelector('#setting-cursor-style') as HTMLSelectElement;
+    cursorSelect.value = preferencesService.get('editor.cursorStyle');
+
     const fontInput = this.overlay.querySelector('#setting-font-family') as HTMLInputElement;
-    fontInput.value = localStorage.getItem('gitero_font_family') || '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace';
+    fontInput.value = preferencesService.get('editor.fontFamily');
 
     const sizeInput = this.overlay.querySelector('#setting-font-size') as HTMLInputElement;
-    sizeInput.value = localStorage.getItem('gitero_font_size') || '14';
+    sizeInput.value = String(preferencesService.get('editor.fontSize'));
 
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
     cssText.value = themeManager.getCustomCss();
@@ -290,12 +305,18 @@ export class SettingsModalComponent {
   private save() {
     const vimToggle = this.overlay.querySelector('#setting-vim-toggle') as HTMLInputElement;
     const themeSelect = this.overlay.querySelector('#setting-theme-select') as HTMLSelectElement;
+    const cursorSelect = this.overlay.querySelector('#setting-cursor-style') as HTMLSelectElement;
     const fontInput = this.overlay.querySelector('#setting-font-family') as HTMLInputElement;
     const sizeInput = this.overlay.querySelector('#setting-font-size') as HTMLInputElement;
     const cssText = this.overlay.querySelector('#setting-custom-css') as HTMLTextAreaElement;
 
+    // Save Cursor Style
+    const newCursor = (cursorSelect.value as CursorStyle) || 'line';
+    preferencesService.set('editor.cursorStyle', newCursor);
+
     // Save Vim
     const newVim = vimToggle.checked;
+    preferencesService.set('editor.vimEnabled', newVim);
     vimIntegration.setEnabled(newVim);
     if (this.onVimToggled) this.onVimToggled(newVim);
 
@@ -303,13 +324,13 @@ export class SettingsModalComponent {
     themeManager.applyTheme(themeSelect.value);
 
     // Save Typography
-    const fontFamily = fontInput.value.trim();
-    const fontSize = `${sizeInput.value.trim()}px`;
-    localStorage.setItem('gitero_font_family', fontFamily);
-    localStorage.setItem('gitero_font_size', sizeInput.value.trim());
+    const fontFamily = fontInput.value.trim() || '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace';
+    const fontSizeNum = parseInt(sizeInput.value.trim(), 10) || 14;
+    preferencesService.set('editor.fontFamily', fontFamily);
+    preferencesService.set('editor.fontSize', fontSizeNum);
 
     document.documentElement.style.setProperty('--editor-font-family', fontFamily);
-    document.documentElement.style.setProperty('--editor-font-size', fontSize);
+    document.documentElement.style.setProperty('--editor-font-size', `${fontSizeNum}px`);
 
     // Save Custom CSS
     themeManager.applyCustomCss(cssText.value);

@@ -4,19 +4,33 @@ import { tags as t } from '@lezer/highlight';
 import { Extension } from '@codemirror/state';
 import { THEMES, ThemeDefinition } from './themes';
 
+import { preferencesService } from '../services/preferences';
+
 export class ThemeManager {
   private currentThemeId: string;
   private customCss: string = '';
   private listeners: ((theme: ThemeDefinition) => void)[] = [];
 
   constructor() {
-    this.currentThemeId = localStorage.getItem('gitero_theme_id') || 'tokyo-night';
-    this.customCss = localStorage.getItem('gitero_custom_css') || '';
+    this.currentThemeId = preferencesService.get('editor.theme');
+    this.customCss = preferencesService.get('editor.customCss');
+
+    preferencesService.subscribe('editor.theme', (themeId) => {
+      if (this.currentThemeId !== themeId) {
+        this.applyTheme(themeId, false);
+      }
+    });
+
+    preferencesService.subscribe('editor.customCss', (css) => {
+      if (this.customCss !== css) {
+        this.applyCustomCss(css, false);
+      }
+    });
   }
 
   init() {
-    this.applyTheme(this.currentThemeId);
-    this.applyCustomCss(this.customCss);
+    this.applyTheme(this.currentThemeId, false);
+    this.applyCustomCss(this.customCss, false);
   }
 
   getCurrentTheme(): ThemeDefinition {
@@ -27,10 +41,12 @@ export class ThemeManager {
     return Object.values(THEMES);
   }
 
-  applyTheme(themeId: string) {
+  applyTheme(themeId: string, persist = true) {
     const theme = THEMES[themeId] || THEMES['tokyo-night'];
     this.currentThemeId = theme.id;
-    localStorage.setItem('gitero_theme_id', theme.id);
+    if (persist) {
+      preferencesService.set('editor.theme', theme.id);
+    }
 
     // Apply CSS variables to root
     const root = document.documentElement;
@@ -69,9 +85,11 @@ export class ThemeManager {
     return this.customCss;
   }
 
-  applyCustomCss(css: string) {
+  applyCustomCss(css: string, persist = true) {
     this.customCss = css;
-    localStorage.setItem('gitero_custom_css', css);
+    if (persist) {
+      preferencesService.set('editor.customCss', css);
+    }
 
     let styleEl = document.getElementById('gitero-custom-css') as HTMLStyleElement;
     if (!styleEl) {

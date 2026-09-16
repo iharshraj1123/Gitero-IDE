@@ -9,6 +9,7 @@ import { FileTreeComponent } from './ui/fileTree';
 import { StatusBarComponent } from './ui/statusBar';
 import { commandPalette, PaletteItem } from './ui/commandPalette';
 import { SettingsModalComponent } from './ui/settingsModal';
+import { preferencesService } from './services/preferences';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -19,6 +20,17 @@ async function bootstrap() {
 
   // 2. Initialize Themes and User CSS
   themeManager.init();
+
+  // Initialize Typography from preferences
+  const applyTypography = () => {
+    const font = preferencesService.get('editor.fontFamily');
+    const size = preferencesService.get('editor.fontSize');
+    document.documentElement.style.setProperty('--editor-font-family', font);
+    document.documentElement.style.setProperty('--editor-font-size', `${size}px`);
+  };
+  applyTypography();
+  preferencesService.subscribe('editor.fontFamily', applyTypography);
+  preferencesService.subscribe('editor.fontSize', applyTypography);
 
   // 3. UI DOM References
   const sidebarEl = document.getElementById('sidebar') as HTMLElement;
@@ -279,6 +291,43 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         action: () => sidebarEl.classList.toggle('collapsed')
       },
       {
+        id: 'preferences.cursor.cycle',
+        title: 'Preferences: Cycle Cursor Style (Line / Block / Underline)',
+        detail: 'Num 0 / Insert or Alt+0',
+        category: 'Preferences',
+        action: () => {
+          const style = editorManager.cycleCursorStyle();
+          statusBar.showMessage(`Cursor Style: ${style.toUpperCase()} (Saved as preference)`);
+        }
+      },
+      {
+        id: 'preferences.cursor.line',
+        title: 'Preferences: Set Cursor Style to Line (Bar) [Default]',
+        category: 'Preferences',
+        action: () => {
+          editorManager.setCursorStyle('line');
+          statusBar.showMessage('Cursor Style: LINE (Saved as preference)');
+        }
+      },
+      {
+        id: 'preferences.cursor.block',
+        title: 'Preferences: Set Cursor Style to Block',
+        category: 'Preferences',
+        action: () => {
+          editorManager.setCursorStyle('block');
+          statusBar.showMessage('Cursor Style: BLOCK (Saved as preference)');
+        }
+      },
+      {
+        id: 'preferences.cursor.underline',
+        title: 'Preferences: Set Cursor Style to Underline',
+        category: 'Preferences',
+        action: () => {
+          editorManager.setCursorStyle('underline');
+          statusBar.showMessage('Cursor Style: UNDERLINE (Saved as preference)');
+        }
+      },
+      {
         id: 'settings.open',
         title: 'Preferences: Open Settings & Custom CSS',
         detail: 'Ctrl+,',
@@ -352,6 +401,14 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         e.preventDefault();
         editorState.closeTab(activeTab.id);
       }
+      return;
+    }
+
+    // Num 0 (with NumLock off / emitting Insert) or Insert or Alt+0 -> Cycle cursor style and persist choice
+    if (e.key === 'Insert' || (e.code === 'Numpad0' && e.key === 'Insert') || (e.altKey && (e.key === '0' || e.code === 'Numpad0'))) {
+      e.preventDefault();
+      const style = editorManager.cycleCursorStyle();
+      statusBar.showMessage(`Cursor Style: ${style.toUpperCase()} (Saved as preference)`);
       return;
     }
   });
