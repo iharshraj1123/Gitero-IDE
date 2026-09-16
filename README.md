@@ -107,9 +107,9 @@ npm start
 
 ## Documentation & Wiki
 
-Explore detailed guides and documentation in the [`docs/`](docs/README.md) directory:
+Explore detailed guides and documentation in the [`docs/`](docs/wiki.md) directory:
 
-- [Wiki Navigation Hub](docs/README.md) - Complete documentation table of contents
+- [Wiki Navigation Hub](docs/wiki.md) - Complete documentation table of contents
 - [Getting Started Guide](docs/getting-started.md) - Installation, workspace operations, and basic usage
 - [Vim Modal Editing Guide](docs/vim-mode-guide.md) - Motions, operators, Ex commands, and configuration
 - [Themes & Custom Styling](docs/themes-and-styling.md) - Color themes, typography, and custom CSS injection
