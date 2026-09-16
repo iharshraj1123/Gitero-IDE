@@ -2,7 +2,7 @@
 ; Generates a lightweight (~3.5MB) native Windows Installer with desktop icon, Start menu, and "Open with Gitero" context menu.
 
 #define MyAppName "Gitero IDE"
-#define MyAppVersion "0.1.0-beta"
+#define MyAppVersion "0.1.2-beta"
 #define MyAppPublisher "Gitero Team"
 #define MyAppURL "https://github.com/iharshraj1123/Glitero-IDE"
 #define MyAppExeName "Gitero.exe"
@@ -181,6 +181,17 @@ Root: HKCU; Subkey: "Software\Classes\.cpp\OpenWithProgids"; ValueType: string; 
 Root: HKCU; Subkey: "Software\Classes\.rs\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Code"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\.go\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Code"; ValueData: ""
 
+; PHP
+Root: HKCU; Subkey: "Software\Classes\Gitero.PHP"; ValueType: string; ValueData: "PHP Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.PHP"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "PHP Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.PHP\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-php.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\Gitero.PHP\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\php_auto_file\DefaultIcon"; ValueType: string; ValueData: """{app}\icons\file-types\document-php.ico,0"""
+Root: HKCU; Subkey: "Software\Classes\.php\OpenWithProgids"; ValueType: string; ValueName: "Gitero.PHP"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.phtml\OpenWithProgids"; ValueType: string; ValueName: "Gitero.PHP"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.php"; ValueType: string; ValueData: "Gitero.PHP"; Tasks: assoc_code
+Root: HKCU; Subkey: "Software\Classes\.phtml"; ValueType: string; ValueData: "Gitero.PHP"; Tasks: assoc_code
+
 ; Plain Text
 Root: HKCU; Subkey: "Software\Classes\Gitero.Text"; ValueType: string; ValueData: "Plain Text Document"
 Root: HKCU; Subkey: "Software\Classes\Gitero.Text"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Plain Text Document"
@@ -207,6 +218,7 @@ Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: 
 Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ts"; ValueData: "Gitero.TypeScript"
 Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".py"; ValueData: "Gitero.Python"
 Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".json"; ValueData: "Gitero.JSON"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".php"; ValueData: "Gitero.PHP"
 Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Gitero"; ValueData: "Software\Gitero\Capabilities"
 
 [Run]

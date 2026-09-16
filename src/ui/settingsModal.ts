@@ -463,7 +463,7 @@ export class SettingsModalComponent {
                 <div class="update-meta-grid">
                   <div class="update-meta-card">
                     <span class="meta-label">Installed Version</span>
-                    <span class="meta-val" id="update-cur-ver">0.1.0-beta</span>
+                    <span class="meta-val" id="update-cur-ver">0.1.2-beta</span>
                   </div>
                   <div class="update-meta-card">
                     <span class="meta-label">Current Branch</span>

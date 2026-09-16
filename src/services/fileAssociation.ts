@@ -89,6 +89,14 @@ export const SUPPORTED_FILE_TYPES: FileTypeDefinition[] = [
     description: 'Shell scripts with >_ badge'
   },
   {
+    id: 'php',
+    name: 'PHP Source Files',
+    extensions: ['.php', '.phtml', '.php3', '.php4', '.php5'],
+    progId: 'Gitero.PHP',
+    iconName: 'document-php.ico',
+    description: 'PHP script files with PHP badge'
+  },
+  {
     id: 'code',
     name: 'Source Code Files',
     extensions: ['.c', '.cpp', '.h', '.hpp', '.rs', '.go', '.java', '.sql', '.xml'],

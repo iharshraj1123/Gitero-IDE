@@ -360,6 +360,35 @@ gap: 1rem;`,
   padding: 0;
 }`,
     languages: ['CSS']
+  },
+  // PHP Templates & Helpers
+  {
+    trigger: 'php',
+    name: 'php',
+    detail: 'PHP Opening Tag',
+    template: `<?php\n\n\${0}`,
+    languages: ['PHP']
+  },
+  {
+    trigger: 'phpclass',
+    name: 'phpclass',
+    detail: 'PHP 8+ Strict Class Boilerplate',
+    template: `<?php\n\ndeclare(strict_types=1);\n\nnamespace \${1:App};\n\nclass \${2:ClassName} {\n  public function __construct(\n    \${3}\n  ) {}\n\n  \${0}\n}`,
+    languages: ['PHP']
+  },
+  {
+    trigger: 'phpfn',
+    name: 'phpfn',
+    detail: 'PHP Function Definition',
+    template: `function \${1:functionName}(\${2:\$params}): \${3:void} {\n  \${0}\n}`,
+    languages: ['PHP']
+  },
+  {
+    trigger: 'foreach',
+    name: 'foreach',
+    detail: 'PHP Foreach Loop',
+    template: `foreach (\${1:\$items} as \${2:\$item}) {\n  \${0}\n}`,
+    languages: ['PHP']
   }
 ];
 

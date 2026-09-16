@@ -12,6 +12,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
 import { sql } from '@codemirror/lang-sql';
 import { xml } from '@codemirror/lang-xml';
+import { php } from '@codemirror/lang-php';
 
 export interface LanguageInfo {
   name: string;
@@ -121,6 +122,13 @@ export function detectLanguage(filePath: string): LanguageInfo {
     case 'rss':
     case 'atom':
       return { name: 'XML', extension: () => xml() };
+    case 'php':
+    case 'phtml':
+    case 'php3':
+    case 'php4':
+    case 'php5':
+    case 'phps':
+      return { name: 'PHP', extension: () => php() };
     case 'sh':
     case 'bash':
     case 'zsh':
@@ -155,6 +163,7 @@ export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
   { name: 'YAML', extension: () => yaml() },
   { name: 'SQL', extension: () => sql() },
   { name: 'XML', extension: () => xml() },
+  { name: 'PHP', extension: () => php() },
   { name: 'Plain Text', extension: () => [] }
 ];
 

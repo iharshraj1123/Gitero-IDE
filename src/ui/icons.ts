@@ -87,6 +87,7 @@ const BADGE_MAP: Record<string, { text: string; bg: string; fg: string }> = {
   go:    { text: 'GO',   bg: '#00acd7', fg: '#fff' },
   java:  { text: 'JAVA', bg: '#f89820', fg: '#fff' },
   php:   { text: 'PHP',  bg: '#8892be', fg: '#fff' },
+  phtml: { text: 'PHP',  bg: '#8892be', fg: '#fff' },
   rb:    { text: 'RB',   bg: '#cc342d', fg: '#fff' },
   swift: { text: 'SWIFT', bg: '#f05138', fg: '#fff' },
   kt:    { text: 'KT',   bg: '#7f52ff', fg: '#fff' },
@@ -201,6 +202,7 @@ const LUCIDE_COLOR_MAP: Record<string, { icon: any; color: string }> = {
   go:    { icon: FileCode, color: '#00acd7' },
   java:  { icon: FileCode, color: '#f89820' },
   php:   { icon: FileCode, color: '#8892be' },
+  phtml: { icon: FileCode, color: '#8892be' },
   rb:    { icon: FileCode, color: '#cc342d' },
   swift: { icon: FileCode, color: '#f05138' },
   kt:    { icon: FileCode, color: '#7f52ff' },
@@ -314,6 +316,9 @@ function getMaterialIcon(fileName: string, isDirectory: boolean, isOpen: boolean
   }
   if (['rs'].includes(ext)) {
     return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#b7410e"/><circle cx="8" cy="8" r="4.5" stroke="#fff" stroke-width="1.2"/><circle cx="8" cy="8" r="1.8" fill="#fff"/></svg>`;
+  }
+  if (['php', 'phtml'].includes(ext)) {
+    return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#4f5b93"/><text x="8" y="11.5" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="7" fill="#fff">PHP</text></svg>`;
   }
 
   return renderLucideNode(File, 'var(--fg-muted, #8b949e)');
