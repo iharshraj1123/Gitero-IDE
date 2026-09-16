@@ -69,6 +69,8 @@ In Neutralinojs:
   * `editor.customCss`: string (Default: `''`)
   * `editor.tabSize`: number (Default: `2`)
   * `editor.wordWrap`: boolean (Default: `false`)
+  * `files.autoSave`: boolean (Default: `false`)
+  * `files.autoSaveDelay`: number in ms (Default: `1000`)
 * **Legacy Sync**: Automatically migrates and two-way mirrors legacy keys (`gitero_theme_id`, `gitero_font_family`, `gitero_font_size`, `gitero_vim_enabled`, `gitero_custom_css`) for zero data loss.
 * **Reactivity**: Components subscribe via `preferencesService.subscribe(key, callback)` for instant live updates across the app.
 
