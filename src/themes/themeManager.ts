@@ -6,12 +6,17 @@ import { THEMES, ThemeDefinition } from './themes';
 
 import { preferencesService } from '../services/preferences';
 
+export const CUSTOM_THEMES_KEY = 'gitero_custom_themes_v1';
+
 export class ThemeManager {
   private currentThemeId: string;
   private customCss: string = '';
+  private customThemes: Record<string, ThemeDefinition> = {};
+  private activeThemeOverride: ThemeDefinition | null = null;
   private listeners: ((theme: ThemeDefinition) => void)[] = [];
 
   constructor() {
+    this.customThemes = this.loadCustomThemes();
     this.currentThemeId = preferencesService.get('editor.theme');
     this.customCss = preferencesService.get('editor.customCss');
 
@@ -28,24 +33,104 @@ export class ThemeManager {
     });
   }
 
+  private loadCustomThemes(): Record<string, ThemeDefinition> {
+    try {
+      const raw = localStorage.getItem(CUSTOM_THEMES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private persistCustomThemes() {
+    try {
+      localStorage.setItem(CUSTOM_THEMES_KEY, JSON.stringify(this.customThemes));
+    } catch (e) {
+      console.warn('Failed to persist custom themes', e);
+    }
+  }
+
   init() {
     this.applyTheme(this.currentThemeId, false);
     this.applyCustomCss(this.customCss, false);
   }
 
+  getTheme(id: string): ThemeDefinition {
+    return this.customThemes[id] || THEMES[id] || THEMES['github-dark'];
+  }
+
   getCurrentTheme(): ThemeDefinition {
-    return THEMES[this.currentThemeId] || THEMES['github-dark'];
+    if (this.activeThemeOverride) return this.activeThemeOverride;
+    return this.getTheme(this.currentThemeId);
   }
 
   getAllThemes(): ThemeDefinition[] {
-    return Object.values(THEMES);
+    const builtin = Object.values(THEMES);
+    const custom = Object.values(this.customThemes);
+    return [...builtin, ...custom];
   }
 
-  applyTheme(themeId: string, persist = true) {
-    const theme = THEMES[themeId] || THEMES['github-dark'];
-    this.currentThemeId = theme.id;
-    if (persist) {
-      preferencesService.set('editor.theme', theme.id);
+  isCustomTheme(id: string): boolean {
+    return !!this.customThemes[id];
+  }
+
+  saveCustomTheme(theme: ThemeDefinition): void {
+    this.customThemes[theme.id] = theme;
+    this.persistCustomThemes();
+    this.applyTheme(theme.id, true);
+  }
+
+  deleteCustomTheme(themeId: string): boolean {
+    if (!this.customThemes[themeId]) return false;
+    delete this.customThemes[themeId];
+    this.persistCustomThemes();
+    if (this.currentThemeId === themeId) {
+      this.applyTheme('github-dark', true);
+    }
+    return true;
+  }
+
+  exportThemeJson(themeId: string): string {
+    const theme = this.getTheme(themeId);
+    return JSON.stringify(theme, null, 2);
+  }
+
+  importThemeJson(jsonStr: string): ThemeDefinition {
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || typeof parsed !== 'object' || !parsed.name || !parsed.colors) {
+      throw new Error('Invalid theme format: missing name or colors object');
+    }
+
+    const id = parsed.id && !THEMES[parsed.id]
+      ? parsed.id
+      : 'custom-' + (parsed.name || 'theme').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
+
+    const theme: ThemeDefinition = {
+      id,
+      name: parsed.name,
+      isDark: typeof parsed.isDark === 'boolean' ? parsed.isDark : true,
+      colors: {
+        ...THEMES['github-dark'].colors,
+        ...parsed.colors
+      }
+    };
+
+    this.saveCustomTheme(theme);
+    return theme;
+  }
+
+  applyTheme(themeInput: string | ThemeDefinition, persist = true) {
+    let theme: ThemeDefinition;
+    if (typeof themeInput === 'string') {
+      theme = this.getTheme(themeInput);
+      this.currentThemeId = theme.id;
+      this.activeThemeOverride = null;
+      if (persist) {
+        preferencesService.set('editor.theme', theme.id);
+      }
+    } else {
+      theme = themeInput;
+      this.activeThemeOverride = theme;
     }
 
     // Apply CSS variables to root

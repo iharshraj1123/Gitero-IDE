@@ -1,14 +1,19 @@
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, highlightActiveLine, keymap } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, selectAll } from '@codemirror/commands';
+import {
+  defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, selectAll,
+  toggleComment, toggleBlockComment, copyLineDown, copyLineUp, moveLineDown, moveLineUp,
+  deleteLine, indentMore, indentLess, selectLine
+} from '@codemirror/commands';
 import { foldGutter, foldKeymap, indentOnInput, bracketMatching } from '@codemirror/language';
-import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap, snippet } from '@codemirror/autocomplete';
 import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
 
 import { themeManager } from '../themes/themeManager';
 import { vimIntegration } from './vim';
 import { detectLanguage, getLanguageByName } from './languages';
 import { preferencesService, CursorStyle } from '../services/preferences';
+import { createSnippetCompletionSource } from './snippets';
 
 export interface CursorPosition {
   line: number;
@@ -45,7 +50,9 @@ export class EditorManager {
       indentOnInput(),
       bracketMatching(),
       closeBrackets(),
-      autocompletion(),
+      autocompletion({
+        override: [createSnippetCompletionSource()]
+      }),
       highlightActiveLine(),
       highlightSelectionMatches(),
       this.tabSizeCompartment.of(EditorState.tabSize.of(tabSize)),
@@ -54,6 +61,17 @@ export class EditorManager {
       this.themeCompartment.of(themeManager.createCodeMirrorTheme()),
       this.vimCompartment.of(vimIntegration.getExtension()),
       keymap.of([
+        { key: 'Mod-/', run: toggleComment },
+        { key: 'Mod-Shift-/', run: toggleBlockComment },
+        { key: 'Shift-Alt-ArrowDown', run: copyLineDown },
+        { key: 'Shift-Alt-ArrowUp', run: copyLineUp },
+        { key: 'Alt-ArrowDown', run: moveLineDown },
+        { key: 'Alt-ArrowUp', run: moveLineUp },
+        { key: 'Mod-Shift-k', run: deleteLine },
+        { key: 'Mod-]', run: indentMore },
+        { key: 'Mod-[', run: indentLess },
+        { key: 'Mod-l', run: selectLine },
+        { key: 'Mod-h', run: openSearchPanel },
         ...closeBracketsKeymap,
         ...defaultKeymap,
         ...searchKeymap,
@@ -290,6 +308,62 @@ export class EditorManager {
     const nextStyle = styles[nextIdx];
     this.setCursorStyle(nextStyle);
     return nextStyle;
+  }
+
+  toggleComment(): boolean {
+    if (!this.view) return false;
+    return toggleComment(this.view);
+  }
+
+  toggleBlockComment(): boolean {
+    if (!this.view) return false;
+    return toggleBlockComment(this.view);
+  }
+
+  copyLineDown(): boolean {
+    if (!this.view) return false;
+    return copyLineDown(this.view);
+  }
+
+  copyLineUp(): boolean {
+    if (!this.view) return false;
+    return copyLineUp(this.view);
+  }
+
+  moveLineDown(): boolean {
+    if (!this.view) return false;
+    return moveLineDown(this.view);
+  }
+
+  moveLineUp(): boolean {
+    if (!this.view) return false;
+    return moveLineUp(this.view);
+  }
+
+  deleteLine(): boolean {
+    if (!this.view) return false;
+    return deleteLine(this.view);
+  }
+
+  indentMore(): boolean {
+    if (!this.view) return false;
+    return indentMore(this.view);
+  }
+
+  indentLess(): boolean {
+    if (!this.view) return false;
+    return indentLess(this.view);
+  }
+
+  selectLine(): boolean {
+    if (!this.view) return false;
+    return selectLine(this.view);
+  }
+
+  insertSnippet(template: string) {
+    if (!this.view) return;
+    snippet(template)(this.view, null, this.view.state.selection.main.from, this.view.state.selection.main.to);
+    this.view.focus();
   }
 
   destroy() {

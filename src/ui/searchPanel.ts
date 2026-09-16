@@ -1,7 +1,7 @@
 import { fsService } from '../services/fs';
 import { editorState } from '../state/editorState';
 import { editorManager } from '../editor/editor';
-import { getFileIconSvg } from './icons';
+import { getFileIconSvg, getFolderChevronSvg } from './icons';
 
 export interface SearchMatchItem {
   file: string;
@@ -236,7 +236,7 @@ export class SearchPanelComponent {
 
       const chevron = document.createElement('span');
       chevron.className = 'tree-chevron';
-      chevron.innerHTML = group.isOpen ? '▾' : '▸';
+      chevron.innerHTML = getFolderChevronSvg(group.isOpen);
 
       const fileName = group.relativePath.split(/[/\\]/).pop() || group.relativePath;
       const dirPart = group.relativePath.substring(0, group.relativePath.length - fileName.length);
@@ -261,7 +261,7 @@ export class SearchPanelComponent {
       header.addEventListener('click', () => {
         group.isOpen = !group.isOpen;
         matchesList.style.display = group.isOpen ? 'block' : 'none';
-        chevron.innerHTML = group.isOpen ? '▾' : '▸';
+        chevron.innerHTML = getFolderChevronSvg(group.isOpen);
       });
 
       const matchesList = document.createElement('div');

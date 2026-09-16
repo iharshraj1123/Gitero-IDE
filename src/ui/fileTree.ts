@@ -1,6 +1,6 @@
 import { FileNode, fsService } from '../services/fs';
 import { editorState } from '../state/editorState';
-import { getFileIconSvg } from './icons';
+import { getFileIconSvg, getFolderChevronSvg } from './icons';
 import { gitService } from '../services/git';
 import { diffModal } from './diffModal';
 import { isImageFile, isBinaryFile } from '../editor/languages';
@@ -104,7 +104,7 @@ export class FileTreeComponent {
     const chevron = document.createElement('span');
     chevron.className = 'tree-chevron';
     if (node.isDirectory) {
-      chevron.innerHTML = node.isOpen ? '▾' : '▸';
+      chevron.innerHTML = getFolderChevronSvg(node.isOpen ?? false);
     } else {
       chevron.innerHTML = '<span class="chevron-spacer"></span>';
     }
@@ -163,7 +163,7 @@ export class FileTreeComponent {
           this.openDirectoryPaths.delete(node.path);
         }
 
-        chevron.innerHTML = node.isOpen ? '▾' : '▸';
+        chevron.innerHTML = getFolderChevronSvg(node.isOpen);
         iconSpan.innerHTML = getFileIconSvg(node.name, node.isDirectory, node.isOpen);
 
         if (node.isOpen && (!node.children || node.children.length === 0)) {
