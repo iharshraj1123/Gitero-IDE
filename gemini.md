@@ -40,12 +40,23 @@
 
 | Command | Action |
 | :--- | :--- |
-| `npm run dev` | Start Vite development server with hot-reload |
+| `npm run dev` | Start Vite development server with hot-reload (auto-syncs version) |
 | `npm start` | Run the native desktop app with Neutralino CLI |
-| `npm run build` | Compile TypeScript and bundle frontend to `dist/` |
+| `npm run build` | Compile TypeScript and bundle frontend to `dist/` (auto-syncs version) |
+| `npm run sync:version` | Manually synchronize version from `package.json` to `neutralino.config.json` & Inno Setup |
 | `npm run build:hotkey` | Compile Windows Explorer `Ctrl+.` background companion (`gitero_explorer_hotkey.exe`) |
 | `npm run neu:build` | Package `dist/` into `dist/gitero/resources.neu` |
 | `npm run installer` | Complete build: compile frontend, hotkey companion, bundle `resources.neu`, and generate installer (Run ONLY when explicitly instructed by user) |
+
+---
+
+## Automated Version Synchronization Architecture
+
+* **Single Source of Truth**: `package.json` (`version`).
+* **Vite Compile-Time Injection**: `vite.config.ts` reads `package.json` and injects `__APP_VERSION__` into the frontend bundle at build/dev time.
+* **Central Export (`src/version.ts`)**: Exports `APP_VERSION` and `DISPLAY_VERSION` (`v<version>`), consumed by `src/main.ts` (Help -> About) and `src/services/updater.ts` (Settings -> Software Updates).
+* **Automated Config Sync (`scripts/sync-version.js`)**: Automatically syncs version from `package.json` into `neutralino.config.json` (`version`) and `installer/gitero.iss` (`#define MyAppVersion`). Executes automatically before `npm run dev`, `npm run build`, and on `npm version`.
+* **Version Bumping**: Run `npm version <patch|minor|major>` or `npm version <x.y.z>` to bump across all project files at once.
 
 ---
 
