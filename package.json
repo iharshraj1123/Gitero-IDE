@@ -9,7 +9,6 @@
     "build": "node scripts/sync-version.js && tsc && vite build",
     "sync:version": "node scripts/sync-version.js",
     "version": "node scripts/sync-version.js",
-    "postversion": "git push origin main --follow-tags",
     "build:hotkey": "cmd /c src-native\\explorer-hotkey\\build.bat",
     "neu:build": "npx @neutralinojs/neu build",
     "start": "neu run",
