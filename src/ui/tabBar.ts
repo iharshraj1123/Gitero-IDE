@@ -42,7 +42,11 @@ export class TabBarComponent {
 
       const icon = document.createElement('span');
       icon.className = 'tab-icon';
-      icon.innerHTML = getFileIconSvg(tab.name, false);
+      if (tab.viewMode === 'git-graph') {
+        icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3794ff" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>`;
+      } else {
+        icon.innerHTML = getFileIconSvg(tab.name, false);
+      }
 
       const title = document.createElement('span');
       title.className = 'tab-title';

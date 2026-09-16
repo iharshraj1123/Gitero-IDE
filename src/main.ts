@@ -13,6 +13,7 @@ import { TitleBarComponent } from './ui/titleBar';
 import { preferencesService } from './services/preferences';
 import { SearchPanelComponent } from './ui/searchPanel';
 import { GitPanelComponent } from './ui/gitPanel';
+import { GitGraphFullComponent } from './ui/gitGraph';
 import { TerminalPanelComponent } from './ui/terminalPanel';
 import { ShortcutsModalComponent } from './ui/shortcutsModal';
 import { SUPPORTED_LANGUAGES, isImageFile, isBinaryFile } from './editor/languages';
@@ -98,8 +99,28 @@ async function bootstrap() {
 
   // 5. Initialize Side Panes & Bottom Panels
   const searchPanel = new SearchPanelComponent(searchPane);
-  const gitPanel = new GitPanelComponent(gitPane);
   const terminalPanel = new TerminalPanelComponent(bottomPanelEl);
+
+  const gitGraphViewport = document.getElementById('git-graph-viewport') as HTMLElement;
+  const fullGitGraph = new GitGraphFullComponent(gitGraphViewport);
+
+  function openGitGraphTab() {
+    editorState.openCustomTab('gitero://git-graph', 'Git Graph', 'git-graph');
+  }
+
+  // Hook Git output stream to the terminal/output console
+  gitService.onOutput((line, level) => {
+    terminalPanel.logOutput(line, level);
+  });
+
+  const gitPanel = new GitPanelComponent(gitPane, {
+    onOpenGitGraph: () => openGitGraphTab(),
+    onShowGitOutput: () => {
+      terminalPanel.toggle(true);
+      const outBtn = document.getElementById('tab-btn-output') as HTMLElement;
+      outBtn?.click();
+    }
+  });
 
   let activeSidebarPane: 'explorer' | 'search' | 'git' = (preferencesService.get('workbench.activeSidebarPane') as 'explorer' | 'search' | 'git') || 'explorer';
 
@@ -629,6 +650,7 @@ async function bootstrap() {
       cmRoot.style.display = 'none';
       markdownViewport.style.display = 'none';
       mediaViewport.style.display = 'none';
+      gitGraphViewport.style.display = 'none';
       btnMdToggle.style.display = 'none';
       emptyStateEl.style.display = 'flex';
       breadcrumbText.textContent = 'Gitero IDE';
@@ -638,6 +660,20 @@ async function bootstrap() {
 
     emptyStateEl.style.display = 'none';
     breadcrumbText.textContent = activeTab.path.replace(/\\/g, ' > ').replace(/\//g, ' > ');
+
+    if (activeTab.viewMode === 'git-graph' || activeTab.id === 'gitero://git-graph') {
+      cmRoot.style.display = 'none';
+      markdownViewport.style.display = 'none';
+      mediaViewport.style.display = 'none';
+      gitGraphViewport.style.display = 'block';
+      btnMdToggle.style.display = 'none';
+      breadcrumbText.textContent = 'Gitero IDE > Git Graph (Complete Tree)';
+      fullGitGraph.reload();
+      currentLoadedTabId = null;
+      return;
+    }
+
+    gitGraphViewport.style.display = 'none';
 
     if (activeTab.viewMode === 'image') {
       cmRoot.style.display = 'none';
@@ -1026,6 +1062,22 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
 
   function openCommandPalette() {
     const commands: PaletteItem[] = [
+      {
+        id: 'git.viewGraph',
+        title: 'Git: View Complete Commit Graph (Complete Tree)',
+        category: 'Git',
+        action: () => openGitGraphTab()
+      },
+      {
+        id: 'git.showOutput',
+        title: 'Git: Show Git Output Console',
+        category: 'Git',
+        action: () => {
+          terminalPanel.toggle(true);
+          const outBtn = document.getElementById('tab-btn-output') as HTMLElement;
+          outBtn?.click();
+        }
+      },
       {
         id: 'snippets.insert',
         title: 'Snippets: Insert Snippet / Boilerplate (!html5, rafce, etc.)...',

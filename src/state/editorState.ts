@@ -9,7 +9,7 @@ export interface EditorTab {
   isDirty: boolean;
   language: string;
   cursor: { line: number; col: number };
-  viewMode?: 'raw' | 'rendered' | 'image' | 'binary';
+  viewMode?: 'raw' | 'rendered' | 'image' | 'binary' | 'git-graph';
 }
 
 export interface StateChangeListener {
@@ -142,6 +142,34 @@ export class EditorStateManager {
 
     this.tabs.push(newTab);
     this.activeTabId = filePath;
+    this.persist();
+    this.notify();
+    return newTab;
+  }
+
+  openCustomTab(id: string, name: string, viewMode: 'git-graph'): EditorTab {
+    const existing = this.tabs.find((t) => t.id === id);
+    if (existing) {
+      existing.viewMode = viewMode;
+      this.activeTabId = id;
+      this.notify();
+      return existing;
+    }
+
+    const newTab: EditorTab = {
+      id,
+      name,
+      path: name,
+      content: '',
+      originalContent: '',
+      isDirty: false,
+      language: 'Git Graph',
+      cursor: { line: 1, col: 1 },
+      viewMode
+    };
+
+    this.tabs.push(newTab);
+    this.activeTabId = id;
     this.persist();
     this.notify();
     return newTab;
