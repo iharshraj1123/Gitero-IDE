@@ -12,20 +12,61 @@ import { preferencesService } from '../preferences';
 declare const window: any;
 
 const IGNORED_EXTENSIONS = new Set([
+  // Text, documentation & markdown
   'txt',
+  'text',
   'log',
   'md',
   'markdown',
+  'rst',
+  'adoc',
+  'asciidoc',
+  // Windows shell, shortcuts & registry
+  'bat',
+  'cmd',
+  'url',
+  'lnk',
+  'reg',
+  'vbs',
+  // Tabular data
   'csv',
   'tsv',
+  'tab',
+  // Configuration & settings
+  'ini',
+  'conf',
+  'cfg',
+  'properties',
+  'toml',
+  'inf',
+  'plist',
+  // Environment & version control metadata
   'env',
   'gitignore',
   'gitattributes',
   'gitmodules',
   'editorconfig',
+  'npmrc',
+  'prettierrc',
+  'dockerignore',
+  'eslintignore',
+  // Lockfiles, maps, checksums & temp
   'lock',
   'map',
+  'sha1',
+  'sha256',
+  'md5',
+  'bak',
+  'tmp',
+  'temp',
+  'swp',
+  // Legal & project notes
   'license',
+  'authors',
+  'changelog',
+  'readme',
+  'notice',
+  // Images & graphics
   'ico',
   'png',
   'jpg',
@@ -33,10 +74,49 @@ const IGNORED_EXTENSIONS = new Set([
   'gif',
   'webp',
   'bmp',
+  'svg',
+  'tiff',
+  'psd',
+  'ai',
+  'eps',
+  // Audio & video
+  'mp3',
+  'wav',
+  'ogg',
+  'flac',
+  'mp4',
+  'webm',
+  'mkv',
+  'avi',
+  'mov',
+  // Documents & archives
   'pdf',
   'zip',
   'tar',
-  'gz'
+  'gz',
+  '7z',
+  'rar',
+  'bz2',
+  'xz',
+  // Binaries & executables
+  'exe',
+  'dll',
+  'so',
+  'dylib',
+  'bin',
+  'iso',
+  // Fonts
+  'ttf',
+  'otf',
+  'woff',
+  'woff2',
+  'eot',
+  // Certificates & keys
+  'crt',
+  'cer',
+  'pem',
+  'key',
+  'pub'
 ]);
 
 const sessionPromptedLangs = new Set<string>();
@@ -89,6 +169,11 @@ export async function checkMissingLsp(
   const ext = match ? match[1].toLowerCase() : '';
 
   if (!ext || IGNORED_EXTENSIONS.has(ext)) {
+    return;
+  }
+
+  // Non-code, plain text, and ini files never require an LSP server
+  if (!languageId || languageId === 'plaintext' || languageId === 'ini') {
     return;
   }
 
