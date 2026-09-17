@@ -68,7 +68,7 @@
 * **Single Source of Truth**: `package.json` (`version`).
 * **Vite Compile-Time Injection**: `vite.config.ts` reads `package.json` and injects `__APP_VERSION__`, `__GIT_COMMIT_SHA__`, and `__GIT_BRANCH__` into the frontend bundle at build/dev time.
 * **Central Export (`src/version.ts`)**: Exports `APP_VERSION`, `DISPLAY_VERSION` (`v<version>`), `GIT_COMMIT_SHA`, and `GIT_BRANCH`, consumed by `src/main.ts` (Help -> About) and `src/services/updater.ts` (Settings -> Software Updates).
-* **Automated Config Sync (`scripts/sync-version.js`)**: Automatically syncs version from `package.json` into `neutralino.config.json` (`version`) and `installer/gitero.iss` (`#define MyAppVersion`). Executes automatically before `npm run dev`, `npm run build`, and on `npm version`.
+* **Automated Config Sync (`scripts/sync-version.js`)**: Automatically syncs version from `package.json` into `neutralino.config.json` (`version`), `installer/gitero.iss` (`#define MyAppVersion`), `README.md` (version badge & setup installer link), `gemini.md`, and documentation guides. Executes automatically before `npm run dev`, `npm run build`, and on `npm version`.
 * **Version Bumping**: Run `npm version <x.y.z>-beta` (or `npm version <patch|minor|major>`) to bump across all project files at once.
 
 ---
