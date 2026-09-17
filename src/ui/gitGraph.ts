@@ -1,6 +1,8 @@
 import { gitService, GitCommit, GitCommitDetail, GitRef } from '../services/git';
 import { fsService } from '../services/fs';
 import { diffModal } from './diffModal';
+import { notificationService } from '../services/notification';
+import { MenuController } from './menu';
 
 export const GRAPH_COLORS = [
   '#3794ff', // Blue
@@ -427,6 +429,8 @@ export class GitGraphFullComponent {
   private scrollContainerEl!: HTMLElement;
   private spinnerEl!: HTMLElement;
   private detailDrawerEl!: HTMLElement;
+  private btnMoveHeadEl!: HTMLButtonElement;
+  private btnHardResetEl!: HTMLButtonElement;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -492,7 +496,16 @@ export class GitGraphFullComponent {
           <div class="gitgraph-detail-drawer" id="fg-detail-drawer" style="display: none;">
             <div class="detail-drawer-header">
               <div class="detail-commit-summary" id="detail-summary-title">Commit Details</div>
-              <div class="detail-actions">
+              <div class="detail-actions" id="fg-detail-actions">
+                <button class="btn-drawer-action" id="btn-detail-move-head" title="Move HEAD to this commit (checkout)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+                  <span>Move HEAD Here</span>
+                </button>
+                <button class="btn-drawer-action btn-drawer-danger" id="btn-detail-hard-reset" title="Hard reset current branch to this commit (destructive)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <span>Hard Reset Here</span>
+                </button>
+                <div class="detail-actions-separator"></div>
                 <button class="btn-drawer-close" id="btn-close-detail" title="Close Details">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -511,6 +524,8 @@ export class GitGraphFullComponent {
     this.scrollContainerEl = this.container.querySelector('#fg-scroll-container') as HTMLElement;
     this.spinnerEl = this.container.querySelector('#fg-spinner') as HTMLElement;
     this.detailDrawerEl = this.container.querySelector('#fg-detail-drawer') as HTMLElement;
+    this.btnMoveHeadEl = this.container.querySelector('#btn-detail-move-head') as HTMLButtonElement;
+    this.btnHardResetEl = this.container.querySelector('#btn-detail-hard-reset') as HTMLButtonElement;
   }
 
   private setupListeners() {
@@ -541,6 +556,18 @@ export class GitGraphFullComponent {
       this.detailDrawerEl.style.display = 'none';
       this.selectedCommit = null;
       this.tableBodyEl.querySelectorAll('tr.active-commit-row').forEach((r) => r.classList.remove('active-commit-row'));
+    });
+
+    this.btnMoveHeadEl?.addEventListener('click', () => {
+      if (this.selectedCommit) {
+        this.promptMoveHead(this.selectedCommit);
+      }
+    });
+
+    this.btnHardResetEl?.addEventListener('click', () => {
+      if (this.selectedCommit) {
+        this.promptHardReset(this.selectedCommit);
+      }
     });
 
     this.container.querySelector('#fg-btn-abandoned')?.addEventListener('click', () => {
@@ -739,6 +766,42 @@ export class GitGraphFullComponent {
         this.selectCommit(row.commit.hash, tr);
       });
 
+      tr.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        this.selectCommit(row.commit.hash, tr);
+
+        const detail = await gitService.getCommitDetails(row.commit.hash);
+        if (!detail) return;
+
+        MenuController.showAt(e.clientX, e.clientY, [
+          {
+            label: `Move HEAD Here (${detail.shortHash})`,
+            icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>`,
+            action: () => this.promptMoveHead(detail)
+          },
+          {
+            label: `Hard Reset Here (${detail.shortHash})...`,
+            danger: true,
+            icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+            action: () => this.promptHardReset(detail)
+          },
+          { divider: true, label: '' },
+          {
+            label: 'Copy Commit SHA',
+            icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
+            action: () => {
+              navigator.clipboard.writeText(detail.hash);
+              notificationService.show({
+                type: 'info',
+                title: 'Copied to Clipboard',
+                message: `Commit SHA ${detail.shortHash} copied.`,
+                durationMs: 2500
+              });
+            }
+          }
+        ]);
+      });
+
       this.tableBodyEl.appendChild(tr);
     }
   }
@@ -760,6 +823,37 @@ export class GitGraphFullComponent {
     this.selectedCommit = detail;
     const titleEl = this.container.querySelector('#detail-summary-title') as HTMLElement;
     titleEl.innerHTML = `<strong>${detail.shortHash}</strong> — ${this.escapeHtml(detail.message)}`;
+
+    // Update Move HEAD & Hard Reset buttons state
+    const currentHead = await gitService.getHeadHash();
+    const isHead = currentHead === detail.hash;
+
+    if (this.btnMoveHeadEl) {
+      if (isHead) {
+        this.btnMoveHeadEl.disabled = true;
+        this.btnMoveHeadEl.classList.add('is-current-head');
+        this.btnMoveHeadEl.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Current HEAD</span>
+        `;
+        this.btnMoveHeadEl.title = 'HEAD is already pointing to this commit';
+      } else {
+        this.btnMoveHeadEl.disabled = false;
+        this.btnMoveHeadEl.classList.remove('is-current-head');
+        this.btnMoveHeadEl.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+          <span>Move HEAD Here</span>
+        `;
+        this.btnMoveHeadEl.title = `Move HEAD to commit ${detail.shortHash} (checkout detached HEAD)`;
+        this.btnMoveHeadEl.title = `Move HEAD to commit ${detail.shortHash} (checkout)`;
+        const span = this.btnMoveHeadEl.querySelector('span');
+        if (span) span.textContent = 'Move HEAD Here';
+      }
+    }
+
+    if (this.btnHardResetEl) {
+      this.btnHardResetEl.title = `Hard reset current branch to commit ${detail.shortHash} (discards uncommitted changes)`;
+    }
 
     let filesListHtml = '';
     for (const f of detail.files) {
@@ -796,6 +890,22 @@ export class GitGraphFullComponent {
     }
 
     contentEl.innerHTML = `
+      <div class="drawer-quick-actions">
+        <button class="btn-drawer-action ${isHead ? 'is-current-head' : ''}" id="btn-body-move-head" title="${isHead ? 'HEAD is currently at this commit' : 'Move HEAD to commit ' + detail.shortHash}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+          <span>${isHead ? 'HEAD is Here' : 'Move HEAD Here'}</span>
+        </button>
+        <button class="btn-drawer-action btn-drawer-danger" id="btn-body-hard-reset" title="Hard reset current branch to commit ${detail.shortHash}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Hard Reset Here</span>
+        </button>
+        ${isDangling ? `
+        <button class="btn-drawer-action" id="btn-body-restore-commit" title="Restore this commit to a new branch">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Restore to Branch...</span>
+        </button>
+        ` : ''}
+      </div>
       ${abandonedBannerHtml}
       <div class="drawer-metadata-grid">
         <div class="drawer-meta-item">
@@ -819,6 +929,19 @@ export class GitGraphFullComponent {
       </div>
       <div class="drawer-files-list">${filesListHtml || '<div class="drawer-clean-files">No files changed.</div>'}</div>
     `;
+
+    // Wire quick action buttons
+    contentEl.querySelector('#btn-body-move-head')?.addEventListener('click', () => {
+      this.promptMoveHead(detail);
+    });
+
+    contentEl.querySelector('#btn-body-hard-reset')?.addEventListener('click', () => {
+      this.promptHardReset(detail);
+    });
+
+    contentEl.querySelector('#btn-body-restore-commit')?.addEventListener('click', () => {
+      contentEl.querySelector('#btn-restore-commit')?.dispatchEvent(new MouseEvent('click'));
+    });
 
     // Wire restore commit button
     contentEl.querySelector('#btn-restore-commit')?.addEventListener('click', async () => {
