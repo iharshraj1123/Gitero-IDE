@@ -50,9 +50,9 @@ Source: "..\public\icons\file-types\*.ico"; DestDir: "{app}\icons\file-types"; F
 ; CLI Terminal Launcher scripts
 Source: "..\bin\gcode.cmd"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\bin\gcode"; DestDir: "{app}\bin"; Flags: ignoreversion
-; Windows Explorer Hotkey Companion (Ctrl+.)
-Source: "..\bin\gitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Tasks: explorer_hotkey
-Source: "..\bin\glitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Tasks: explorer_hotkey
+; Windows Explorer Hotkey Companion (Ctrl+.) and DWM Transparency Helper
+Source: "..\bin\gitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
+Source: "..\bin\glitero_explorer_hotkey.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -240,7 +240,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 Filename: "{app}\bin\gitero_explorer_hotkey.exe"; Flags: nowait; Tasks: explorer_hotkey
 
 [UninstallRun]
-Filename: "taskkill.exe"; Parameters: "/F /IM gitero_explorer_hotkey.exe /IM glitero_explorer_hotkey.exe"; Flags: runhidden; RunOnceId: "KillGiteroHotkey"
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /T /IM gitero_explorer_hotkey.exe /IM glitero_explorer_hotkey.exe /IM Gitero.exe /IM gitero-win_x64.exe"; Flags: runhidden; RunOnceId: "KillGiteroProcesses"
 
 [Code]
 const
@@ -301,7 +301,8 @@ procedure KillHotkeyProcess();
 var
   ResultCode: Integer;
 begin
-  Exec('taskkill.exe', '/F /IM gitero_explorer_hotkey.exe /IM glitero_explorer_hotkey.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM gitero_explorer_hotkey.exe /IM glitero_explorer_hotkey.exe /IM Gitero.exe /IM gitero-win_x64.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(250);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

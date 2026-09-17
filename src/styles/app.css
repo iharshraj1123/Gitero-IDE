@@ -4118,8 +4118,6 @@ body.transparency-active .ide-workspace {
 /* 1. Title Bar */
 body.transparency-active .app-titlebar {
   background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-titlebar-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
   box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.08);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
@@ -4133,8 +4131,6 @@ body.transparency-active .app-titlebar .window-control {
 /* 2. Activity Bar */
 body.transparency-active .activity-bar {
   background-color: color-mix(in srgb, var(--bg-activity) calc(var(--opacity-activitybar-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
   box-shadow: inset -1px 0 0 0 rgba(255, 255, 255, 0.08);
   border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
@@ -4145,8 +4141,6 @@ body.transparency-active .activity-bar .activity-btn svg {
 /* 3. Primary Sidebar (Single background on container, transparent children) */
 body.transparency-active .sidebar {
   background-color: color-mix(in srgb, var(--bg-sidebar) calc(var(--opacity-sidebar-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
   box-shadow: inset -1px 0 0 0 rgba(255, 255, 255, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
   border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
@@ -4171,8 +4165,6 @@ body.transparency-active .sidebar-content {
 body.transparency-active .tab-bar-container,
 body.transparency-active .breadcrumbs-bar {
   background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-tabbar-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
   box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
@@ -4191,8 +4183,6 @@ body.transparency-active .breadcrumbs-bar {
 /* 5. Code Editor Viewport */
 body.transparency-active .editor-main {
   background-color: color-mix(in srgb, var(--editor-bg) calc(var(--opacity-editor-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
 }
 
 body.transparency-active .editor-viewport,
@@ -4211,8 +4201,6 @@ body.transparency-active .cm-gutters {
 body.transparency-active #markdown-viewport,
 body.transparency-active #media-viewport {
   background-color: color-mix(in srgb, var(--editor-bg) calc(var(--opacity-editor-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
 }
 
 body.transparency-active .cm-content,
@@ -4227,8 +4215,6 @@ body.transparency-active .editor-empty-state {
 body.transparency-active .bottom-panel,
 body.transparency-active .terminal-panel {
   background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-terminal-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
@@ -4243,8 +4229,6 @@ body.transparency-active .terminal-input {
 /* 7. Status Bar */
 body.transparency-active .status-bar {
   background-color: color-mix(in srgb, var(--status-bg) calc(var(--opacity-statusbar-bg, 1) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--transparency-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--transparency-blur, 0px));
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
 }

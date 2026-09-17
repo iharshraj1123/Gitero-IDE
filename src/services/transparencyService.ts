@@ -278,12 +278,17 @@ export class TransparencyService {
 
     // Trigger Windows DWM Acrylic backdrop and ensure WS_EX_LAYERED is stripped
     if (typeof window !== 'undefined' && (window as any).Neutralino?.os?.execCommand) {
-      (window as any).Neutralino.os.execCommand('bin\\gitero_explorer_hotkey.exe --apply-acrylic', { background: true }).catch(() => {});
+      const nlPath = (window as any).NL_PATH || '.';
+      const hotkeyCmd = `"${nlPath}\\bin\\gitero_explorer_hotkey.exe"`;
+      (window as any).Neutralino.os.execCommand(`${hotkeyCmd} --apply-acrylic`, { background: true }).catch(() => {});
+      setTimeout(() => {
+        (window as any).Neutralino.os.execCommand(`${hotkeyCmd} --apply-acrylic`, { background: true }).catch(() => {});
+      }, 400);
     }
 
     // Manage Ambient Atmosphere Element & Properties
     const atmosphere = this.ensureAtmosphereElement();
-    const mood = preferencesService.get('transparency.atmosphereMood') ?? 'deep-space';
+    const mood = preferencesService.get('transparency.atmosphereMood') ?? 'none';
     const intensity = preferencesService.get('transparency.atmosphereIntensity') ?? 65;
 
     atmosphere.className = `gitero-glass-atmosphere mood-${mood}`;

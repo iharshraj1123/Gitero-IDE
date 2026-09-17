@@ -87,6 +87,42 @@ namespace GiteroExplorerHotkey
             Application.Run();
         }
 
+        private static bool IsGiteroWindow(IntPtr hwnd)
+        {
+            try
+            {
+                StringBuilder cls = new StringBuilder(256);
+                GetClassName(hwnd, cls, cls.Capacity);
+                string clsName = cls.ToString();
+                if (clsName == "Neutralinojs_webview") return true;
+
+                StringBuilder title = new StringBuilder(256);
+                GetWindowText(hwnd, title, title.Capacity);
+                string titleName = title.ToString();
+                if (titleName.StartsWith("Gitero IDE", StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            catch {}
+            return false;
+        }
+
+        private static void CheckAndApplyAcrylic(IntPtr hwnd)
+        {
+            try
+            {
+                if (IsGiteroWindow(hwnd))
+                {
+                    int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+                    int currentBackdrop = -1;
+                    DwmGetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, out currentBackdrop, sizeof(int));
+                    if ((ex & WS_EX_LAYERED) != 0 || currentBackdrop != 3)
+                    {
+                        ApplyAcrylicToWindow(hwnd);
+                    }
+                }
+            }
+            catch {}
+        }
+
         private static void GiteroWatcherLoop()
         {
             while (true)
@@ -95,22 +131,23 @@ namespace GiteroExplorerHotkey
                 {
                     EnumWindows((hwnd, lParam) =>
                     {
-                        try
-                        {
-                            StringBuilder cls = new StringBuilder(256);
-                            GetClassName(hwnd, cls, cls.Capacity);
-                            if (cls.ToString() == "Neutralinojs_webview")
-                            {
-                                int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-                                if ((ex & WS_EX_LAYERED) != 0)
-                                {
-                                    ApplyAcrylicToWindow(hwnd);
-                                }
-                            }
-                        }
-                        catch {}
+                        CheckAndApplyAcrylic(hwnd);
                         return true;
                     }, IntPtr.Zero);
+
+                    try
+                    {
+                        IntPtr hDesk = OpenDesktop("Default", 0, false, MAXIMUM_ALLOWED);
+                        if (hDesk != IntPtr.Zero)
+                        {
+                            EnumDesktopWindows(hDesk, (hwnd, lParam) =>
+                            {
+                                CheckAndApplyAcrylic(hwnd);
+                                return true;
+                            }, IntPtr.Zero);
+                        }
+                    }
+                    catch {}
                 }
                 catch {}
 
@@ -126,9 +163,7 @@ namespace GiteroExplorerHotkey
                 {
                     try
                     {
-                        StringBuilder cls = new StringBuilder(256);
-                        GetClassName(hwnd, cls, cls.Capacity);
-                        if (cls.ToString() == "Neutralinojs_webview")
+                        if (IsGiteroWindow(hwnd))
                         {
                             ApplyAcrylicToWindow(hwnd);
                         }
@@ -139,29 +174,21 @@ namespace GiteroExplorerHotkey
 
                 try
                 {
-                    IntPtr hWinSta = OpenWindowStation("WinSta0", false, MAXIMUM_ALLOWED);
-                    if (hWinSta != IntPtr.Zero)
+                    IntPtr hDesk = OpenDesktop("Default", 0, false, MAXIMUM_ALLOWED);
+                    if (hDesk != IntPtr.Zero)
                     {
-                        SetProcessWindowStation(hWinSta);
-                        IntPtr hDesk = OpenDesktop("Default", 0, false, MAXIMUM_ALLOWED);
-                        if (hDesk != IntPtr.Zero)
+                        EnumDesktopWindows(hDesk, (hwnd, lParam) =>
                         {
-                            SetThreadDesktop(hDesk);
-                            EnumDesktopWindows(hDesk, (hwnd, lParam) =>
+                            try
                             {
-                                try
+                                if (IsGiteroWindow(hwnd))
                                 {
-                                    StringBuilder cls = new StringBuilder(256);
-                                    GetClassName(hwnd, cls, cls.Capacity);
-                                    if (cls.ToString() == "Neutralinojs_webview")
-                                    {
-                                        ApplyAcrylicToWindow(hwnd);
-                                    }
+                                    ApplyAcrylicToWindow(hwnd);
                                 }
-                                catch {}
-                                return true;
-                            }, IntPtr.Zero);
-                        }
+                            }
+                            catch {}
+                            return true;
+                        }, IntPtr.Zero);
                     }
                 }
                 catch {}
@@ -178,6 +205,9 @@ namespace GiteroExplorerHotkey
                 {
                     SetWindowLong(hwnd, GWL_EXSTYLE, ex & ~WS_EX_LAYERED);
                 }
+
+                int darkMode = 1;
+                DwmSetWindowAttribute(hwnd, 20, ref darkMode, sizeof(int)); // DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 
                 MARGINS margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
                 DwmExtendFrameIntoClientArea(hwnd, ref margins);
@@ -474,6 +504,9 @@ namespace GiteroExplorerHotkey
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
