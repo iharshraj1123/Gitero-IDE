@@ -609,6 +609,18 @@ async function bootstrap() {
       const isWrap = editorManager.toggleWordWrap();
       statusBar.showMessage(`Word Wrap: ${isWrap ? 'ENABLED' : 'DISABLED'}`);
     },
+    onToggleIndentGuides: () => {
+      const isGuides = editorManager.toggleIndentGuides();
+      statusBar.showMessage(`Indentation Guides: ${isGuides ? 'ENABLED' : 'DISABLED'}`);
+    },
+    onToggleMinimap: () => {
+      const isMinimap = editorManager.toggleMinimap();
+      statusBar.showMessage(`Minimap: ${isMinimap ? 'ENABLED' : 'DISABLED'}`);
+    },
+    onToggleOverviewRuler: () => {
+      const isRuler = editorManager.toggleOverviewRuler();
+      statusBar.showMessage(`Scrollbar Overview Ruler: ${isRuler ? 'ENABLED' : 'DISABLED'}`);
+    },
     onGotoLine: () => {
       triggerGotoLine();
     },
@@ -1359,6 +1371,33 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         action: () => {
           const isWrap = editorManager.toggleWordWrap();
           statusBar.showMessage(`Word Wrap: ${isWrap ? 'ENABLED' : 'DISABLED'}`);
+        }
+      },
+      {
+        id: 'view.toggleIndentGuides',
+        title: 'View: Toggle Indentation Guides',
+        category: 'View',
+        action: () => {
+          const isGuides = editorManager.toggleIndentGuides();
+          statusBar.showMessage(`Indentation Guides: ${isGuides ? 'ENABLED' : 'DISABLED'}`);
+        }
+      },
+      {
+        id: 'view.toggleMinimap',
+        title: 'View: Toggle Minimap (Code Preview)',
+        category: 'View',
+        action: () => {
+          const isMinimap = editorManager.toggleMinimap();
+          statusBar.showMessage(`Minimap: ${isMinimap ? 'ENABLED' : 'DISABLED'}`);
+        }
+      },
+      {
+        id: 'view.toggleOverviewRuler',
+        title: 'View: Toggle Scrollbar Overview Ruler',
+        category: 'View',
+        action: () => {
+          const isRuler = editorManager.toggleOverviewRuler();
+          statusBar.showMessage(`Scrollbar Overview Ruler: ${isRuler ? 'ENABLED' : 'DISABLED'}`);
         }
       },
       {

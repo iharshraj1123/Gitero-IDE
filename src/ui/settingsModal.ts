@@ -35,6 +35,9 @@ export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'git.sync', name: 'Git: Sync / Push Remote Changes', category: 'Git' },
   { id: 'git.switchBranch', name: 'Git: Switch Branch...', category: 'Git' },
   { id: 'editor.action.toggleWordWrap', name: 'Toggle Word Wrap', category: 'Editor' },
+  { id: 'view.toggleIndentGuides', name: 'Toggle Indentation Guides', category: 'View' },
+  { id: 'view.toggleMinimap', name: 'Toggle Minimap (Code Preview)', category: 'View' },
+  { id: 'view.toggleOverviewRuler', name: 'Toggle Scrollbar Overview Ruler', category: 'View' },
   { id: 'editor.action.commentLine', name: 'Toggle Line Comment', category: 'Editor' },
   { id: 'editor.action.blockComment', name: 'Toggle Block Comment', category: 'Editor' },
   { id: 'editor.action.copyLinesDownAction', name: 'Copy Line Down (Duplicate)', category: 'Editor' },
@@ -204,6 +207,27 @@ export class SettingsModalComponent {
                     <span class="setting-desc">Wrap long lines to fit viewport width</span>
                   </div>
                   <input type="checkbox" id="setting-word-wrap" class="setting-checkbox" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Indentation Guides</span>
+                    <span class="setting-desc">Render vertical guidelines showing indentation depth and active block nesting</span>
+                  </div>
+                  <input type="checkbox" id="setting-indent-guides" class="setting-checkbox" checked />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Minimap (Code Preview)</span>
+                    <span class="setting-desc">Display a miniature code preview with search and diagnostic highlights on the right side</span>
+                  </div>
+                  <input type="checkbox" id="setting-minimap" class="setting-checkbox" checked />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Scrollbar Overview Ruler</span>
+                    <span class="setting-desc">Show interactive error, warning, and search match dots along the scrollbar</span>
+                  </div>
+                  <input type="checkbox" id="setting-overview-ruler" class="setting-checkbox" checked />
                 </div>
               </div>
 
@@ -1734,6 +1758,30 @@ export class SettingsModalComponent {
       lineNumbersToggle.checked = preferencesService.get('editor.lineNumbers');
     }
 
+    const indentGuidesToggle = this.overlay.querySelector('#setting-indent-guides') as HTMLInputElement;
+    if (indentGuidesToggle) {
+      indentGuidesToggle.checked = preferencesService.get('editor.renderIndentGuides') !== false;
+      indentGuidesToggle.onchange = () => {
+        preferencesService.set('editor.renderIndentGuides', indentGuidesToggle.checked);
+      };
+    }
+
+    const minimapToggle = this.overlay.querySelector('#setting-minimap') as HTMLInputElement;
+    if (minimapToggle) {
+      minimapToggle.checked = preferencesService.get('editor.minimap.enabled') !== false;
+      minimapToggle.onchange = () => {
+        preferencesService.set('editor.minimap.enabled', minimapToggle.checked);
+      };
+    }
+
+    const overviewRulerToggle = this.overlay.querySelector('#setting-overview-ruler') as HTMLInputElement;
+    if (overviewRulerToggle) {
+      overviewRulerToggle.checked = preferencesService.get('editor.overviewRuler.enabled') !== false;
+      overviewRulerToggle.onchange = () => {
+        preferencesService.set('editor.overviewRuler.enabled', overviewRulerToggle.checked);
+      };
+    }
+
     const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;
     if (insertSpacesSelect) {
       insertSpacesSelect.value = String(preferencesService.get('editor.insertSpaces'));
@@ -1831,6 +1879,21 @@ export class SettingsModalComponent {
     const lineNumbersToggle = this.overlay.querySelector('#setting-line-numbers') as HTMLInputElement;
     if (lineNumbersToggle) {
       preferencesService.set('editor.lineNumbers', lineNumbersToggle.checked);
+    }
+
+    const indentGuidesToggle = this.overlay.querySelector('#setting-indent-guides') as HTMLInputElement;
+    if (indentGuidesToggle) {
+      preferencesService.set('editor.renderIndentGuides', indentGuidesToggle.checked);
+    }
+
+    const minimapToggle = this.overlay.querySelector('#setting-minimap') as HTMLInputElement;
+    if (minimapToggle) {
+      preferencesService.set('editor.minimap.enabled', minimapToggle.checked);
+    }
+
+    const overviewRulerToggle = this.overlay.querySelector('#setting-overview-ruler') as HTMLInputElement;
+    if (overviewRulerToggle) {
+      preferencesService.set('editor.overviewRuler.enabled', overviewRulerToggle.checked);
     }
 
     const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;

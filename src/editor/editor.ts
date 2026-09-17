@@ -17,6 +17,9 @@ import { FindWidgetPanel, openReplaceWidget } from './findWidget';
 import { themeManager } from '../themes/themeManager';
 import { vimIntegration } from './vim';
 import { detectLanguage, getLanguageByName } from './languages';
+import { createIndentGuidesExtension } from './indentGuides';
+import { createMinimapExtension } from './minimap';
+import { createOverviewRulerExtension } from './overviewRuler';
 import { preferencesService, CursorStyle } from '../services/preferences';
 import {
   createCompositeCompletionSource,
@@ -81,6 +84,9 @@ export class EditorManager {
   private vimCompartment = new Compartment();
   private tabSizeCompartment = new Compartment();
   private wordWrapCompartment = new Compartment();
+  private indentGuidesCompartment = new Compartment();
+  private minimapCompartment = new Compartment();
+  private overviewRulerCompartment = new Compartment();
 
   private onCursorChange?: (pos: CursorPosition) => void;
   private onContentChange?: (content: string) => void;
@@ -89,9 +95,15 @@ export class EditorManager {
     const tabSize = preferencesService.get('editor.tabSize') || 2;
     const wordWrap = preferencesService.get('editor.wordWrap');
     const showLineNumbers = preferencesService.get('editor.lineNumbers');
+    const showIndentGuides = preferencesService.get('editor.renderIndentGuides') !== false;
+    const showMinimap = preferencesService.get('editor.minimap.enabled') !== false;
+    const showOverviewRuler = preferencesService.get('editor.overviewRuler.enabled') !== false;
 
     return [
       this.lineNumbersCompartment.of(showLineNumbers ? lineNumbers() : []),
+      this.indentGuidesCompartment.of(createIndentGuidesExtension(showIndentGuides)),
+      this.minimapCompartment.of(createMinimapExtension(showMinimap)),
+      this.overviewRulerCompartment.of(createOverviewRulerExtension(showOverviewRuler)),
       highlightActiveLineGutter(),
       highlightSpecialChars(),
       history(),
@@ -223,6 +235,7 @@ export class EditorManager {
     });
 
     this.applyCursorPreferences();
+    this.view.dom.setAttribute('data-minimap', String(preferencesService.get('editor.minimap.enabled') !== false));
     vimIntegration.attachView(this.view);
 
     const cachedDiags = lspClient.getDiagnostics(filePath);
@@ -267,6 +280,19 @@ export class EditorManager {
       this.setLineNumbers(enabled);
     });
 
+    // React to indent guides, minimap, and overview ruler changes
+    preferencesService.subscribe('editor.renderIndentGuides', (enabled) => {
+      this.setIndentGuides(enabled);
+    });
+
+    preferencesService.subscribe('editor.minimap.enabled', (enabled) => {
+      this.setMinimap(enabled);
+    });
+
+    preferencesService.subscribe('editor.overviewRuler.enabled', (enabled) => {
+      this.setOverviewRuler(enabled);
+    });
+
     // Subscribe to LSP diagnostics
     lspClient.onDiagnostics((params) => {
       if (this.view && this.currentFilePath && areUrisOrPathsMatching(params.uri, this.currentFilePath)) {
@@ -291,6 +317,7 @@ export class EditorManager {
     );
 
     this.applyCursorPreferences();
+    this.view.dom.setAttribute('data-minimap', String(preferencesService.get('editor.minimap.enabled') !== false));
     vimIntegration.attachView(this.view);
     this.view.focus();
 
@@ -381,6 +408,52 @@ export class EditorManager {
     const next = !current;
     preferencesService.set('editor.wordWrap', next);
     this.setWordWrap(next);
+    return next;
+  }
+
+  setIndentGuides(enabled: boolean) {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: this.indentGuidesCompartment.reconfigure(createIndentGuidesExtension(enabled))
+    });
+  }
+
+  toggleIndentGuides(): boolean {
+    const current = preferencesService.get('editor.renderIndentGuides') !== false;
+    const next = !current;
+    preferencesService.set('editor.renderIndentGuides', next);
+    this.setIndentGuides(next);
+    return next;
+  }
+
+  setMinimap(enabled: boolean) {
+    if (!this.view) return;
+    this.view.dom.setAttribute('data-minimap', String(enabled));
+    this.view.dispatch({
+      effects: this.minimapCompartment.reconfigure(createMinimapExtension(enabled))
+    });
+  }
+
+  toggleMinimap(): boolean {
+    const current = preferencesService.get('editor.minimap.enabled') !== false;
+    const next = !current;
+    preferencesService.set('editor.minimap.enabled', next);
+    this.setMinimap(next);
+    return next;
+  }
+
+  setOverviewRuler(enabled: boolean) {
+    if (!this.view) return;
+    this.view.dispatch({
+      effects: this.overviewRulerCompartment.reconfigure(createOverviewRulerExtension(enabled))
+    });
+  }
+
+  toggleOverviewRuler(): boolean {
+    const current = preferencesService.get('editor.overviewRuler.enabled') !== false;
+    const next = !current;
+    preferencesService.set('editor.overviewRuler.enabled', next);
+    this.setOverviewRuler(next);
     return next;
   }
 

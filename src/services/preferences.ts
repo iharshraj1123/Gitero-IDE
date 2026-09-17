@@ -16,6 +16,9 @@ export interface GiteroPreferences {
   'editor.insertSpaces': boolean;
   'editor.wordWrap': boolean;
   'editor.lineNumbers': boolean;
+  'editor.renderIndentGuides': boolean;
+  'editor.minimap.enabled': boolean;
+  'editor.overviewRuler.enabled': boolean;
   'editor.trimTrailingWhitespace': boolean;
   'editor.insertFinalNewline': boolean;
 
@@ -131,6 +134,9 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.insertSpaces': true,
   'editor.wordWrap': false,
   'editor.lineNumbers': true,
+  'editor.renderIndentGuides': true,
+  'editor.minimap.enabled': true,
+  'editor.overviewRuler.enabled': true,
   'editor.trimTrailingWhitespace': false,
   'editor.insertFinalNewline': false,
   'files.autoSave': false,

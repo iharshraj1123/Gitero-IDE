@@ -41,6 +41,9 @@ export interface TitleBarOptions {
   onFind?: () => void;
   onReplace?: () => void;
   onToggleWordWrap?: () => void;
+  onToggleIndentGuides?: () => void;
+  onToggleMinimap?: () => void;
+  onToggleOverviewRuler?: () => void;
   onGotoLine?: () => void;
   onToggleTerminal?: () => void;
   onOpenSearch?: () => void;
@@ -142,6 +145,21 @@ export class TitleBarComponent {
             shortcut: 'Alt+Z',
             checked: () => preferencesService.get('editor.wordWrap'),
             action: this.options.onToggleWordWrap
+          },
+          {
+            label: 'Toggle Indentation Guides',
+            checked: () => preferencesService.get('editor.renderIndentGuides') !== false,
+            action: this.options.onToggleIndentGuides
+          },
+          {
+            label: 'Toggle Minimap',
+            checked: () => preferencesService.get('editor.minimap.enabled') !== false,
+            action: this.options.onToggleMinimap
+          },
+          {
+            label: 'Toggle Scrollbar Overview Ruler',
+            checked: () => preferencesService.get('editor.overviewRuler.enabled') !== false,
+            action: this.options.onToggleOverviewRuler
           },
           {
             label: 'Toggle Full Screen',
