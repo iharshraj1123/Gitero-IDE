@@ -46,8 +46,6 @@ Source: "..\dist\gitero\gitero-win_x64.exe"; DestDir: "{app}"; DestName: "{#MyAp
 Source: "..\dist\gitero\resources.neu"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\neutralino.config.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\public\icons\appIcon.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\public\icons\markdown.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
-Source: "..\public\icons\document.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
 Source: "..\public\icons\file-types\*.ico"; DestDir: "{app}\icons\file-types"; Flags: ignoreversion
 ; CLI Terminal Launcher scripts
 Source: "..\bin\gcode.cmd"; DestDir: "{app}\bin"; Flags: ignoreversion
