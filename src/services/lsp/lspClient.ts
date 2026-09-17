@@ -42,6 +42,17 @@ export function uriToPath(uri: string): string {
   return decoded.replace(/\//g, '\\');
 }
 
+/**
+ * Normalizes file paths and URIs to compare them accurately regardless of drive letter casing or URL escaping.
+ */
+export function areUrisOrPathsMatching(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const pathA = a.startsWith('file://') ? uriToPath(a).toLowerCase() : a.replace(/\//g, '\\').toLowerCase();
+  const pathB = b.startsWith('file://') ? uriToPath(b).toLowerCase() : b.replace(/\//g, '\\').toLowerCase();
+  return pathA === pathB;
+}
+
 interface ActiveSession {
   config: ServerConfig;
   process: LspProcess;

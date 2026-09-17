@@ -26,30 +26,49 @@ export class JsonRpcStreamDecoder {
     const messages: (JsonRpcResponse | JsonRpcNotification | JsonRpcRequest)[] = [];
 
     while (true) {
-      // Find \r\n\r\n (bytes: 13, 10, 13, 10)
-      const headerEndIndex = this.findHeaderEnd(this.buffer);
-      if (headerEndIndex === -1) break;
+      // 1. Locate "Content-Length:" header case-insensitively
+      const clIndex = this.findContentLengthIndex(this.buffer);
+      if (clIndex === -1) {
+        // Retain only the trailing 15 bytes in case "Content-Length:" was split across chunks
+        if (this.buffer.length > 15) {
+          this.buffer = this.buffer.slice(this.buffer.length - 15);
+        }
+        break;
+      }
 
-      // Extract headers
-      const headerBytes = this.buffer.subarray(0, headerEndIndex);
+      // If there was any non-LSP output or noise before Content-Length, safely discard it
+      if (clIndex > 0) {
+        this.buffer = this.buffer.subarray(clIndex);
+      }
+
+      // 2. Locate header delimiter: \r\n\r\n (standard LSP) or \n\n (fallback)
+      const delim = this.findHeaderDelimiter(this.buffer);
+      if (!delim) {
+        // Headers are incomplete; wait for more incoming chunks
+        break;
+      }
+
+      // 3. Extract and parse Content-Length
+      const headerBytes = this.buffer.subarray(0, delim.index);
       const headerText = this.decoder.decode(headerBytes);
       const match = headerText.match(/Content-Length:\s*(\d+)/i);
 
       if (!match) {
-        // Skip malformed header up past the delimiter
-        this.buffer = this.buffer.subarray(headerEndIndex + 4);
+        // Malformed header; advance past delimiter to seek next header
+        this.buffer = this.buffer.subarray(delim.index + delim.length);
         continue;
       }
 
       const contentLength = parseInt(match[1], 10);
-      const bodyStartIndex = headerEndIndex + 4;
+      const bodyStartIndex = delim.index + delim.length;
       const totalRequired = bodyStartIndex + contentLength;
 
-      // Wait until we have the entire message body
+      // 4. Wait until the entire message body has arrived in the buffer
       if (this.buffer.length < totalRequired) {
         break;
       }
 
+      // 5. Slice exact body bytes and advance buffer
       const bodyBytes = this.buffer.subarray(bodyStartIndex, totalRequired);
       const bodyText = this.decoder.decode(bodyBytes);
       this.buffer = this.buffer.subarray(totalRequired);
@@ -58,20 +77,42 @@ export class JsonRpcStreamDecoder {
         const parsed = JSON.parse(bodyText);
         messages.push(parsed);
       } catch (err) {
-        console.warn('[LSP JSON-RPC] Failed to parse message body:', err, bodyText);
+        console.warn('[LSP JSON-RPC] Failed to parse message body:', err, 'Body length:', bodyText.length);
       }
     }
 
     return messages;
   }
 
-  private findHeaderEnd(buf: Uint8Array): number {
-    for (let i = 0; i <= buf.length - 4; i++) {
-      if (buf[i] === 13 && buf[i + 1] === 10 && buf[i + 2] === 13 && buf[i + 3] === 10) {
-        return i;
+  private findContentLengthIndex(buf: Uint8Array): number {
+    // ASCII codes for "content-length:" (lowercase)
+    const target = [99, 111, 110, 116, 101, 110, 116, 45, 108, 101, 110, 103, 116, 104, 58];
+    const len = target.length;
+    for (let i = 0; i <= buf.length - len; i++) {
+      let matched = true;
+      for (let j = 0; j < len; j++) {
+        let b = buf[i + j];
+        if (b >= 65 && b <= 90) b += 32; // case-insensitive ASCII
+        if (b !== target[j]) {
+          matched = false;
+          break;
+        }
       }
+      if (matched) return i;
     }
     return -1;
+  }
+
+  private findHeaderDelimiter(buf: Uint8Array): { index: number; length: number } | null {
+    for (let i = 0; i <= buf.length - 2; i++) {
+      if (i <= buf.length - 4 && buf[i] === 13 && buf[i + 1] === 10 && buf[i + 2] === 13 && buf[i + 3] === 10) {
+        return { index: i, length: 4 };
+      }
+      if (buf[i] === 10 && buf[i + 1] === 10) {
+        return { index: i, length: 2 };
+      }
+    }
+    return null;
   }
 
   clear() {

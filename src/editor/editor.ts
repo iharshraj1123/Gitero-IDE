@@ -25,7 +25,7 @@ import {
   updateViewDiagnostics,
   NavigateToLocationHandler
 } from './lspExtension';
-import { lspClient, pathToUri } from '../services/lsp/lspClient';
+import { lspClient, pathToUri, areUrisOrPathsMatching } from '../services/lsp/lspClient';
 
 // Smart active line highlighter that automatically yields during selections (e.g. Ctrl+A)
 // so the selection highlight is never occluded or hidden by the active line background.
@@ -264,7 +264,7 @@ export class EditorManager {
 
     // Subscribe to LSP diagnostics
     lspClient.onDiagnostics((params) => {
-      if (this.view && this.currentFilePath && params.uri === pathToUri(this.currentFilePath)) {
+      if (this.view && this.currentFilePath && areUrisOrPathsMatching(params.uri, this.currentFilePath)) {
         updateViewDiagnostics(this.view, this.currentFilePath, params.diagnostics);
       }
     });
