@@ -474,8 +474,8 @@ export class SettingsModalComponent {
                       <span id="note-window-border-radius" style="font-size: 11px; margin-top: 5px; display: block; color: var(--fg-muted);">Requires Glass Transparency to be enabled.</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 12px;">
-                      <input type="range" id="setting-window-border-radius" class="transparency-range-input" min="0" max="24" step="1" value="13" style="width: 140px;" />
-                      <span id="val-window-border-radius" style="font-size: 12px; font-weight: 600; color: var(--fg-primary); min-width: 36px;">13px</span>
+                      <input type="range" id="setting-window-border-radius" class="transparency-range-input" min="0" max="24" step="1" value="8" style="width: 140px;" />
+                      <span id="val-window-border-radius" style="font-size: 12px; font-weight: 600; color: var(--fg-primary); min-width: 36px;">8px</span>
                     </div>
                   </div>
                 </div>
@@ -1664,10 +1664,10 @@ export class SettingsModalComponent {
     // Load Window Border Radius
     const radiusInput = this.overlay.querySelector('#setting-window-border-radius') as HTMLInputElement;
     const radiusVal = this.overlay.querySelector('#val-window-border-radius');
-    let curRadius = preferencesService.get('workbench.windowBorderRadius') ?? 13;
-    if (curRadius === 10) {
-      curRadius = 13;
-      preferencesService.set('workbench.windowBorderRadius', 13);
+    let curRadius = preferencesService.get('workbench.windowBorderRadius') ?? 8;
+    if (curRadius === 13 || curRadius === 10) {
+      curRadius = 8;
+      preferencesService.set('workbench.windowBorderRadius', 8);
     }
     if (radiusInput) radiusInput.value = String(curRadius);
     if (radiusVal) radiusVal.textContent = `${curRadius}px`;

@@ -117,7 +117,7 @@ body {
 }
 
 body.transparency-active:not(.window-maximized) #app {
-  border-radius: var(--window-border-radius, 13px);
+  border-radius: var(--window-border-radius, 8px);
   overflow: hidden;
 }
 

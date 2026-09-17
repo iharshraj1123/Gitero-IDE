@@ -62,9 +62,9 @@ async function bootstrap() {
   // Initialize Window Border Radius from preferences
   const applyWindowBorderRadius = () => {
     let radius = preferencesService.get('workbench.windowBorderRadius');
-    if (radius === undefined || radius === 10) {
-      radius = 13;
-      preferencesService.set('workbench.windowBorderRadius', 13);
+    if (radius === undefined || radius === 13 || radius === 10) {
+      radius = 8;
+      preferencesService.set('workbench.windowBorderRadius', 8);
     }
     document.documentElement.style.setProperty('--window-border-radius', `${radius}px`);
   };
