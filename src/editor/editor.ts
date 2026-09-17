@@ -61,6 +61,20 @@ const smartHighlightActiveLine = ViewPlugin.fromClass(class {
   decorations: v => v.decorations
 });
 
+function createFoldMarkerDOM(open: boolean): HTMLElement {
+  const el = document.createElement('span');
+  el.className = open ? 'cm-foldMarker cm-foldMarker-open' : 'cm-foldMarker cm-foldMarker-closed';
+  el.title = open ? 'Fold block' : 'Unfold block';
+  el.setAttribute('aria-label', open ? 'Fold block' : 'Unfold block');
+
+  if (open) {
+    el.innerHTML = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6l4.5 4.5 4.5-4.5"/></svg>';
+  } else {
+    el.innerHTML = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5l4.5 4.5-4.5 4.5"/></svg>';
+  }
+  return el;
+}
+
 export interface CursorPosition {
   line: number;
   col: number;
@@ -107,7 +121,9 @@ export class EditorManager {
       highlightActiveLineGutter(),
       highlightSpecialChars(),
       history(),
-      foldGutter(),
+      foldGutter({
+        markerDOM: (open) => createFoldMarkerDOM(open)
+      }),
       drawSelection(),
       dropCursor(),
       EditorState.allowMultipleSelections.of(true),

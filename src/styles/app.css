@@ -5988,6 +5988,92 @@ body.transparency-active .settings-body-wrapper {
   box-shadow: 0 0 2px rgba(88, 166, 255, 0.6) !important;
 }
 
+/* Code editor content spacing */
+.cm-editor .cm-content {
+  margin-left: 5px;
+}
+
+/* Fold Gutter & Modern Vector Chevron Markers */
+.cm-foldGutter {
+  width: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cm-foldGutter .cm-gutterElement {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  min-height: 100%;
+}
+
+.cm-foldMarker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  color: var(--fg-muted, #8b949e);
+  cursor: pointer;
+  transition: color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+
+.cm-foldMarker-open {
+  opacity: 0.45;
+}
+
+.cm-foldMarker-closed {
+  opacity: 0.95;
+  color: var(--accent-color, #58a6ff);
+}
+
+.cm-foldGutter .cm-gutterElement:hover .cm-foldMarker-open {
+  opacity: 1;
+  color: var(--fg-primary, #f0f6fc);
+}
+
+.cm-foldGutter .cm-gutterElement:hover .cm-foldMarker-closed {
+  opacity: 1;
+  color: var(--accent-color, #58a6ff);
+  transform: scale(1.15);
+}
+
+/* Folded Code Inline Placeholder */
+.cm-foldPlaceholder {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--accent-color, #58a6ff);
+  border-radius: 3px;
+  padding: 0 5px;
+  margin: 0 4px;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: all 0.15s ease;
+}
+
+.cm-foldPlaceholder:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--accent-color, #58a6ff);
+}
+
+.theme-light .cm-foldPlaceholder,
+[data-theme*="light"] .cm-foldPlaceholder {
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: var(--accent-color, #0969da);
+}
+
+.theme-light .cm-foldPlaceholder:hover,
+[data-theme*="light"] .cm-foldPlaceholder:hover {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: var(--accent-color, #0969da);
+}
+
 .cm-tooltip-lint {
   background: var(--bg-secondary, #161b22) !important;
   border: 1px solid var(--border-color, #30363d) !important;
