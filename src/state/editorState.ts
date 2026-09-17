@@ -17,6 +17,7 @@ export interface StateChangeListener {
 }
 
 export class EditorStateManager {
+  private currentWorkspace: string | null = null;
   private tabs: EditorTab[] = [];
   private activeTabId: string | null = null;
   private listeners: StateChangeListener[] = [];
@@ -27,9 +28,62 @@ export class EditorStateManager {
     this.loadPersistedTabs();
   }
 
+  private getWorkspaceStorageKey(wsPath: string | null): string {
+    if (!wsPath) return 'gitero_open_tabs';
+    const normalized = wsPath.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+    let h = 0x811c9dc5;
+    for (let i = 0; i < normalized.length; i++) {
+      h = Math.imul(h ^ normalized.charCodeAt(i), 0x01000193);
+    }
+    const hash = (h >>> 0).toString(16).padStart(8, '0');
+    return `gitero_tabs_${hash}`;
+  }
+
+  private getWorkspaceActiveTabKey(wsPath: string | null): string {
+    if (!wsPath) return 'gitero_active_tab';
+    const normalized = wsPath.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+    let h = 0x811c9dc5;
+    for (let i = 0; i < normalized.length; i++) {
+      h = Math.imul(h ^ normalized.charCodeAt(i), 0x01000193);
+    }
+    const hash = (h >>> 0).toString(16).padStart(8, '0');
+    return `gitero_active_tab_${hash}`;
+  }
+
+  getCurrentWorkspace(): string | null {
+    return this.currentWorkspace;
+  }
+
+  setWorkspace(dirPath: string | null) {
+    const cleanCurrent = this.currentWorkspace ? this.currentWorkspace.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '') : null;
+    const cleanNew = dirPath ? dirPath.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '') : null;
+
+    if (cleanCurrent === cleanNew) {
+      return;
+    }
+
+    // Persist current workspace tabs before switching
+    if (this.currentWorkspace) {
+      this.persist();
+    }
+
+    this.currentWorkspace = dirPath;
+    this.closedTabsHistory = [];
+    this.loadPersistedTabs();
+    this.notify();
+  }
+
   private loadPersistedTabs() {
     try {
-      const saved = localStorage.getItem('gitero_open_tabs');
+      const tabsKey = this.getWorkspaceStorageKey(this.currentWorkspace);
+      const activeKey = this.getWorkspaceActiveTabKey(this.currentWorkspace);
+      let saved = localStorage.getItem(tabsKey);
+
+      // Fallback if current workspace key is empty and no workspace is active yet
+      if (!saved && !this.currentWorkspace) {
+        saved = localStorage.getItem('gitero_open_tabs');
+      }
+
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -39,11 +93,17 @@ export class EditorStateManager {
             isDirty: false,
             viewMode: t.viewMode || 'raw'
           }));
-          this.activeTabId = localStorage.getItem('gitero_active_tab') || this.tabs[0].id;
+          const savedActive = localStorage.getItem(activeKey) || (!this.currentWorkspace ? localStorage.getItem('gitero_active_tab') : null);
+          this.activeTabId = (savedActive && this.tabs.some(t => t.id === savedActive)) ? savedActive : this.tabs[0].id;
+          return;
         }
       }
+      this.tabs = [];
+      this.activeTabId = null;
     } catch (e) {
       console.warn('Failed to load persisted tabs', e);
+      this.tabs = [];
+      this.activeTabId = null;
     }
   }
 
@@ -67,9 +127,22 @@ export class EditorStateManager {
         cursor: t.cursor,
         viewMode: t.viewMode
       }));
-      localStorage.setItem('gitero_open_tabs', JSON.stringify(lightweight));
+      const tabsKey = this.getWorkspaceStorageKey(this.currentWorkspace);
+      const activeKey = this.getWorkspaceActiveTabKey(this.currentWorkspace);
+
+      localStorage.setItem(tabsKey, JSON.stringify(lightweight));
       if (this.activeTabId) {
-        localStorage.setItem('gitero_active_tab', this.activeTabId);
+        localStorage.setItem(activeKey, this.activeTabId);
+      } else {
+        localStorage.removeItem(activeKey);
+      }
+
+      // Also mirror to global keys for backward compatibility
+      if (!this.currentWorkspace) {
+        localStorage.setItem('gitero_open_tabs', JSON.stringify(lightweight));
+        if (this.activeTabId) {
+          localStorage.setItem('gitero_active_tab', this.activeTabId);
+        }
       }
     } catch (e) {
       console.warn('Failed to persist tabs', e);
@@ -240,6 +313,35 @@ export class EditorStateManager {
       }
     }
 
+    this.persist();
+    this.notify();
+    return true;
+  }
+
+  closeAllTabs(): boolean {
+    if (this.tabs.length === 0) return true;
+
+    const dirtyTabs = this.tabs.filter(t => t.isDirty);
+    if (dirtyTabs.length > 0) {
+      const names = dirtyTabs.map(t => `"${t.name}"`).join(', ');
+      const confirmClose = confirm(`${dirtyTabs.length} file(s) have unsaved changes: ${names}.\n\nClose all tabs anyway?`);
+      if (!confirmClose) return false;
+    }
+
+    for (const tab of this.tabs) {
+      if (!tab.name.startsWith('Untitled-')) {
+        this.closedTabsHistory.push({ ...tab, isDirty: false });
+      }
+      for (const l of this.closeListeners) {
+        try { l(tab); } catch (err) { console.warn('Close listener error:', err); }
+      }
+    }
+    if (this.closedTabsHistory.length > 20) {
+      this.closedTabsHistory = this.closedTabsHistory.slice(-20);
+    }
+
+    this.tabs = [];
+    this.activeTabId = null;
     this.persist();
     this.notify();
     return true;

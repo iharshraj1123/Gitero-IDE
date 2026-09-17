@@ -29,6 +29,8 @@ export interface TitleBarOptions {
   onSave?: () => void;
   onSaveAs?: () => void;
   onToggleAutoSave?: () => void;
+  onCloseActiveEditor?: () => void;
+  onCloseAllEditors?: () => void;
   onOpenSettings?: () => void;
   onOpenThemePicker?: () => void;
   onOpenCommandPalette?: () => void;
@@ -95,6 +97,15 @@ export class TitleBarComponent {
             label: 'Auto Save',
             checked: () => preferencesService.get('files.autoSave'),
             action: this.options.onToggleAutoSave
+          },
+          { label: '', divider: true },
+          { label: 'Close Tab', shortcut: 'Ctrl+W', action: this.options.onCloseActiveEditor },
+          { label: 'Close All Tabs', shortcut: 'Ctrl+K Ctrl+W', action: this.options.onCloseAllEditors },
+          {
+            label: 'Reopen Closed Tab',
+            shortcut: 'Ctrl+Shift+T',
+            action: this.options.onReopenClosedEditor,
+            disabled: !this.options.canReopenClosedEditor?.()
           },
           { label: '', divider: true },
           { label: 'Preferences', shortcut: 'Ctrl+,', action: this.options.onOpenSettings },

@@ -30,6 +30,7 @@ export interface GiteroPreferences {
   'workbench.iconTheme': IconTheme;
   'workbench.customIconPackage': string;
   'workbench.sidebarVisible': boolean;
+  'workbench.sidebarWidth': number;
   'workbench.activeSidebarPane': 'explorer' | 'search' | 'git';
   'workbench.bottomPanelHeight': number;
   'workbench.recentWorkspaces': string[];
@@ -93,6 +94,7 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'workbench.action.files.newUntitledFile': 'Ctrl+N',
   'workbench.action.files.openFile': 'Ctrl+O',
   'workbench.action.closeActiveEditor': 'Ctrl+W',
+  'workbench.action.closeAllEditors': 'Ctrl+K Ctrl+W',
   'workbench.action.reopenClosedEditor': 'Ctrl+Shift+T',
   'workbench.action.toggleSidebarVisibility': 'Ctrl+B',
   'workbench.action.terminal.toggleTerminal': 'Ctrl+`',
@@ -144,6 +146,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'workbench.iconTheme': 'lucide',
   'workbench.customIconPackage': '',
   'workbench.sidebarVisible': true,
+  'workbench.sidebarWidth': 260,
   'workbench.activeSidebarPane': 'explorer',
   'workbench.bottomPanelHeight': 220,
   'workbench.recentWorkspaces': [],

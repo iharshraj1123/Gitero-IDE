@@ -108,5 +108,17 @@ export class TabBarComponent {
       editorState.openUntitledFile();
     });
     this.container.appendChild(newTabBtn);
+
+    if (tabs.length > 0) {
+      const closeAllBtn = document.createElement('button');
+      closeAllBtn.className = 'tab-close-all-btn';
+      closeAllBtn.title = 'Close All Tabs (Ctrl+K Ctrl+W)';
+      closeAllBtn.setAttribute('aria-label', 'Close All Tabs');
+      closeAllBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="15" height="15" rx="2"/><path d="M6 2h13a2 2 0 0 1 2 2v13"/><path d="m6.5 10.5 6 6m0-6-6 6"/></svg>`;
+      closeAllBtn.addEventListener('click', () => {
+        editorState.closeAllTabs();
+      });
+      this.container.appendChild(closeAllBtn);
+    }
   }
 }

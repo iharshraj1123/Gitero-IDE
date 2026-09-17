@@ -26,6 +26,7 @@ export class ShortcutsModalComponent {
     { command: 'Save File', keys: ['Ctrl', 'S'], category: 'File' },
     { command: 'Save As...', keys: ['Ctrl', 'Shift', 'S'], category: 'File' },
     { command: 'Close Tab', keys: ['Ctrl', 'W'], category: 'File' },
+    { command: 'Close All Tabs', keys: ['Ctrl', 'K', 'Ctrl', 'W'], category: 'File' },
 
     // Editing & Navigation
     { command: 'Go to Line/Column', keys: ['Ctrl', 'G'], category: 'Editing' },

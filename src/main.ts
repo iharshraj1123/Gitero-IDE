@@ -21,6 +21,7 @@ import { MarkdownViewerComponent } from './ui/markdownViewer';
 import { MediaViewerComponent } from './ui/mediaViewer';
 import { gitService } from './services/git';
 import { WindowResizer } from './ui/windowResizer';
+import { getFileIconSvg } from './ui/icons';
 import { SNIPPETS } from './editor/snippets';
 import { fileAssociationService } from './services/fileAssociation';
 import { persistentStorage } from './services/storage';
@@ -45,8 +46,12 @@ async function bootstrap() {
   }
   await persistentStorage.init();
   preferencesService.reload();
-  fsService.reloadWorkspaceFromStorage();
-  editorState.reloadPersistedTabs();
+  const initialWs = fsService.reloadWorkspaceFromStorage();
+  if (initialWs) {
+    editorState.setWorkspace(initialWs);
+  } else {
+    editorState.reloadPersistedTabs();
+  }
   new WindowResizer();
 
   // 2. Initialize Themes, User CSS, and Transparency Engine
@@ -76,9 +81,20 @@ async function bootstrap() {
   applyWindowBorderRadius();
   preferencesService.subscribe('workbench.windowBorderRadius', applyWindowBorderRadius);
 
+  // Initialize Sidebar Width from preferences
+  const sidebarEl = document.getElementById('sidebar') as HTMLElement;
+  const applySidebarWidth = () => {
+    const width = preferencesService.get('workbench.sidebarWidth') || 260;
+    document.documentElement.style.setProperty('--sidebar-width', `${width}px`);
+    if (sidebarEl && !sidebarEl.classList.contains('collapsed')) {
+      sidebarEl.style.width = `${width}px`;
+    }
+  };
+  applySidebarWidth();
+  preferencesService.subscribe('workbench.sidebarWidth', applySidebarWidth);
+
   // 3. UI DOM References
   const titleBarContainer = document.getElementById('app-titlebar') as HTMLElement;
-  const sidebarEl = document.getElementById('sidebar') as HTMLElement;
   const explorerPane = document.getElementById('explorer-pane') as HTMLElement;
   const searchPane = document.getElementById('search-pane') as HTMLElement;
   const gitPane = document.getElementById('git-pane') as HTMLElement;
@@ -95,6 +111,56 @@ async function bootstrap() {
   const mdToggleText = document.getElementById('md-toggle-text') as HTMLElement;
   const markdownViewer = new MarkdownViewerComponent(markdownViewport);
   const mediaViewer = new MediaViewerComponent(mediaViewport);
+
+  const sidebarResizerEl = document.getElementById('sidebar-resizer') as HTMLElement;
+  const btnOpenFolder = document.getElementById('btn-open-folder') as HTMLElement;
+  const btnOpenFolderHeader = document.getElementById('btn-open-folder-header') as HTMLElement;
+  const sidebarSearchContainer = document.getElementById('sidebar-workspace-search-container') as HTMLElement;
+  const sidebarSearchInput = document.getElementById('sidebar-file-search-input') as HTMLInputElement;
+  const sidebarSearchClear = document.getElementById('sidebar-search-clear') as HTMLElement;
+  const sidebarSearchSuggestions = document.getElementById('sidebar-search-suggestions') as HTMLElement;
+
+  // 3b. Setup Resizable Sidebar Dragging
+  if (sidebarResizerEl) {
+    let isResizingSidebar = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    sidebarResizerEl.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || sidebarEl.classList.contains('collapsed')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      isResizingSidebar = true;
+      startX = e.clientX;
+      startWidth = sidebarEl.getBoundingClientRect().width;
+      sidebarEl.classList.add('resizing');
+      sidebarResizerEl.classList.add('active');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizingSidebar) return;
+      const deltaX = e.clientX - startX;
+      const minW = 160;
+      const maxW = Math.max(minW, Math.min(window.innerWidth - 250, 800));
+      const newWidth = Math.round(Math.max(minW, Math.min(maxW, startWidth + deltaX)));
+      sidebarEl.style.width = `${newWidth}px`;
+      document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizingSidebar) {
+        isResizingSidebar = false;
+        sidebarEl.classList.remove('resizing');
+        sidebarResizerEl.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        const finalWidth = Math.round(sidebarEl.getBoundingClientRect().width);
+        preferencesService.set('workbench.sidebarWidth', finalWidth);
+      }
+    });
+  }
 
   btnMdToggle.addEventListener('click', () => {
     const nextMode = editorState.toggleActiveTabRenderMode();
@@ -181,9 +247,12 @@ async function bootstrap() {
   function showSidebarPane(pane: 'explorer' | 'search' | 'git') {
     if (sidebarEl.classList.contains('collapsed')) {
       sidebarEl.classList.remove('collapsed');
+      const savedWidth = preferencesService.get('workbench.sidebarWidth') || 260;
+      sidebarEl.style.width = `${savedWidth}px`;
       preferencesService.set('workbench.sidebarVisible', true);
     } else if (activeSidebarPane === pane) {
       sidebarEl.classList.add('collapsed');
+      sidebarEl.style.width = '';
       preferencesService.set('workbench.sidebarVisible', false);
       return;
     }
@@ -227,8 +296,11 @@ async function bootstrap() {
   // Restore sidebar visibility & active pane from preferences (or keep collapsed if opening external file)
   if (isExternalFileBoot || !preferencesService.get('workbench.sidebarVisible')) {
     sidebarEl.classList.add('collapsed');
+    sidebarEl.style.width = '';
   } else {
     sidebarEl.classList.remove('collapsed');
+    const savedWidth = preferencesService.get('workbench.sidebarWidth') || 260;
+    sidebarEl.style.width = `${savedWidth}px`;
   }
   if (activeSidebarPane !== 'explorer') {
     showSidebarPane(activeSidebarPane);
@@ -595,6 +667,13 @@ async function bootstrap() {
       preferencesService.set('files.autoSave', !current);
       statusBar.showMessage(`Auto Save ${!current ? 'ENABLED' : 'DISABLED'}`);
     },
+    onCloseActiveEditor: () => {
+      const active = editorState.getActiveTab();
+      if (active) editorState.closeTab(active.id);
+    },
+    onCloseAllEditors: () => {
+      editorState.closeAllTabs();
+    },
     onOpenSettings: () => {
       settingsModal.open();
     },
@@ -608,8 +687,17 @@ async function bootstrap() {
       openQuickFilePicker();
     },
     onToggleSidebar: () => {
-      sidebarEl.classList.toggle('collapsed');
-      preferencesService.set('workbench.sidebarVisible', !sidebarEl.classList.contains('collapsed'));
+      const isNowCollapsed = !sidebarEl.classList.contains('collapsed');
+      if (isNowCollapsed) {
+        sidebarEl.classList.add('collapsed');
+        sidebarEl.style.width = '';
+        preferencesService.set('workbench.sidebarVisible', false);
+      } else {
+        sidebarEl.classList.remove('collapsed');
+        const savedWidth = preferencesService.get('workbench.sidebarWidth') || 260;
+        sidebarEl.style.width = `${savedWidth}px`;
+        preferencesService.set('workbench.sidebarVisible', true);
+      }
     },
     onCycleCursor: () => {
       const style = editorManager.cycleCursorStyle();
@@ -839,19 +927,277 @@ async function bootstrap() {
     }
   });
 
+  function isUnopenedOrAppInstallDir(wsPath: string | null): boolean {
+    if (!wsPath) return true;
+    const clean = wsPath.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+    if (clean === '.' || clean === '') {
+      const saved = localStorage.getItem('gitero_workspace_path');
+      if (!saved) return true;
+    }
+    const nlPath = ((window as any).NL_PATH || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+    if (nlPath && clean === nlPath) {
+      const saved = localStorage.getItem('gitero_workspace_path');
+      if (!saved) return true;
+    }
+    return false;
+  }
+
+  function updateSidebarWorkspaceUi() {
+    const ws = fsService.getWorkspace();
+    const isUnopened = isUnopenedOrAppInstallDir(ws);
+    if (btnOpenFolder) {
+      btnOpenFolder.style.display = isUnopened ? 'flex' : 'none';
+    }
+    if (sidebarSearchContainer) {
+      sidebarSearchContainer.style.display = isUnopened ? 'none' : 'flex';
+    }
+    if (isUnopened && sidebarSearchSuggestions) {
+      sidebarSearchSuggestions.style.display = 'none';
+    }
+  }
+
+  let currentSearchMatches: Array<{ path: string; name: string; rel: string }> = [];
+  let selectedSearchIndex = -1;
+  let searchDebounceTimer: any = null;
+
+  function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function highlightMatches(text: string, query: string): string {
+    if (!query) return escapeHtml(text);
+    const escapedText = escapeHtml(text);
+    const escapedQuery = escapeHtml(query);
+    const regex = new RegExp(`(${escapedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escapedText.replace(regex, '<span class="sidebar-search-match">$1</span>');
+  }
+
+  async function openWorkspaceFileFromSearch(filePath: string) {
+    try {
+      if (isImageFile(filePath)) {
+        editorState.openBinaryFile(filePath, 'image');
+      } else if (isBinaryFile(filePath)) {
+        editorState.openBinaryFile(filePath, 'binary');
+      } else {
+        const content = await fsService.readFile(filePath);
+        const isMd = /\.md$/i.test(filePath) || /\.markdown$/i.test(filePath);
+        editorState.openFile(filePath, content, { viewMode: isMd ? 'rendered' : 'raw' });
+      }
+      if (sidebarSearchInput) {
+        sidebarSearchInput.value = '';
+      }
+      if (sidebarSearchClear) {
+        sidebarSearchClear.style.display = 'none';
+      }
+      if (sidebarSearchSuggestions) {
+        sidebarSearchSuggestions.style.display = 'none';
+        sidebarSearchSuggestions.innerHTML = '';
+      }
+      currentSearchMatches = [];
+      selectedSearchIndex = -1;
+    } catch (err) {
+      alert(`Could not open file: ${err}`);
+    }
+  }
+
+  async function performSidebarFileSearch() {
+    if (!sidebarSearchInput || !sidebarSearchSuggestions) return;
+    const q = sidebarSearchInput.value.trim().toLowerCase();
+    if (!q) {
+      if (sidebarSearchClear) sidebarSearchClear.style.display = 'none';
+      sidebarSearchSuggestions.style.display = 'none';
+      sidebarSearchSuggestions.innerHTML = '';
+      currentSearchMatches = [];
+      selectedSearchIndex = -1;
+      return;
+    }
+
+    if (sidebarSearchClear) sidebarSearchClear.style.display = 'flex';
+    const ws = fsService.getWorkspace();
+    if (!ws) return;
+
+    try {
+      const files = await fsService.getWorkspaceFiles(ws);
+      const isExt = q.startsWith('.');
+      const matches: Array<{ path: string; name: string; rel: string; score: number }> = [];
+
+      for (const file of files) {
+        const name = file.split(/[/\\]/).pop() || file;
+        const nameLower = name.toLowerCase();
+        const rel = file.startsWith(ws) ? file.slice(ws.length).replace(/^[/\\]/, '') : file;
+        const relLower = rel.toLowerCase();
+
+        let score = -1;
+        if (nameLower === q) score = 100;
+        else if (nameLower.startsWith(q)) score = 80;
+        else if (isExt && nameLower.endsWith(q)) score = 75;
+        else if (nameLower.includes(q)) score = 60;
+        else if (relLower.includes(q)) score = 40;
+
+        if (score >= 0) {
+          matches.push({ path: file, name, rel, score });
+        }
+      }
+
+      // Sort by score desc, then alphabetical
+      matches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+      currentSearchMatches = matches.map(m => ({ path: m.path, name: m.name, rel: m.rel }));
+      selectedSearchIndex = -1;
+
+      sidebarSearchSuggestions.innerHTML = '';
+      if (currentSearchMatches.length === 0) {
+        const noRes = document.createElement('div');
+        noRes.className = 'sidebar-search-no-results';
+        noRes.textContent = `No files found matching "${q}"`;
+        sidebarSearchSuggestions.appendChild(noRes);
+      } else {
+        currentSearchMatches.forEach((item, idx) => {
+          const row = document.createElement('div');
+          row.className = 'sidebar-search-suggestion-item';
+          row.setAttribute('data-index', String(idx));
+
+          const iconSpan = document.createElement('span');
+          iconSpan.className = 'sidebar-search-item-icon';
+          iconSpan.innerHTML = getFileIconSvg(item.name, false);
+
+          const infoDiv = document.createElement('div');
+          infoDiv.className = 'sidebar-search-item-info';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'sidebar-search-item-name';
+          nameSpan.innerHTML = highlightMatches(item.name, q);
+
+          const pathSpan = document.createElement('span');
+          pathSpan.className = 'sidebar-search-item-path';
+          pathSpan.textContent = item.rel;
+
+          infoDiv.appendChild(nameSpan);
+          infoDiv.appendChild(pathSpan);
+          row.appendChild(iconSpan);
+          row.appendChild(infoDiv);
+
+          row.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            openWorkspaceFileFromSearch(item.path);
+          });
+
+          sidebarSearchSuggestions.appendChild(row);
+        });
+      }
+
+      sidebarSearchSuggestions.style.display = 'block';
+    } catch (err) {
+      console.warn('Failed to search workspace files:', err);
+    }
+  }
+
+  function updateSuggestionSelection() {
+    if (!sidebarSearchSuggestions) return;
+    const items = sidebarSearchSuggestions.querySelectorAll('.sidebar-search-suggestion-item');
+    items.forEach((el, idx) => {
+      if (idx === selectedSearchIndex) {
+        el.classList.add('active');
+        el.scrollIntoView({ block: 'nearest' });
+      } else {
+        el.classList.remove('active');
+      }
+    });
+  }
+
+  if (sidebarSearchInput) {
+    sidebarSearchInput.addEventListener('input', () => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(performSidebarFileSearch, 80);
+    });
+
+    sidebarSearchInput.addEventListener('keydown', (e) => {
+      if (!sidebarSearchSuggestions || sidebarSearchSuggestions.style.display === 'none' || currentSearchMatches.length === 0) {
+        if (e.key === 'Escape') {
+          sidebarSearchInput.value = '';
+          if (sidebarSearchClear) sidebarSearchClear.style.display = 'none';
+          if (sidebarSearchSuggestions) sidebarSearchSuggestions.style.display = 'none';
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedSearchIndex = (selectedSearchIndex + 1) % currentSearchMatches.length;
+        updateSuggestionSelection();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedSearchIndex = (selectedSearchIndex - 1 + currentSearchMatches.length) % currentSearchMatches.length;
+        updateSuggestionSelection();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const target = selectedSearchIndex >= 0 ? currentSearchMatches[selectedSearchIndex] : currentSearchMatches[0];
+        if (target) {
+          openWorkspaceFileFromSearch(target.path);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        sidebarSearchInput.value = '';
+        if (sidebarSearchClear) sidebarSearchClear.style.display = 'none';
+        sidebarSearchSuggestions.style.display = 'none';
+      }
+    });
+
+    sidebarSearchInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (sidebarSearchSuggestions) sidebarSearchSuggestions.style.display = 'none';
+      }, 200);
+    });
+
+    sidebarSearchInput.addEventListener('focus', () => {
+      if (sidebarSearchInput.value.trim()) {
+        performSidebarFileSearch();
+      }
+    });
+  }
+
+  if (sidebarSearchClear) {
+    sidebarSearchClear.addEventListener('click', () => {
+      if (sidebarSearchInput) {
+        sidebarSearchInput.value = '';
+        sidebarSearchInput.focus();
+      }
+      sidebarSearchClear.style.display = 'none';
+      if (sidebarSearchSuggestions) {
+        sidebarSearchSuggestions.style.display = 'none';
+        sidebarSearchSuggestions.innerHTML = '';
+      }
+      currentSearchMatches = [];
+      selectedSearchIndex = -1;
+    });
+  }
+
   // 12. Workspace Loader
   async function loadWorkspace(dirPath: string) {
     fsService.setWorkspace(dirPath);
+    editorState.setWorkspace(dirPath);
     lspClient.setWorkspaceRoot(dirPath);
     const folderName = dirPath.split(/[/\\]/).filter(Boolean).pop() || dirPath;
     workspaceTitle.textContent = folderName.toUpperCase();
     await fileTree.loadWorkspace(dirPath);
+    updateSidebarWorkspaceUi();
     updateAppTitle(editorState.getActiveTab());
     terminalPanel.setCwd(dirPath);
     terminalPanel.logOutput(`Opened workspace folder: ${dirPath}`);
     gitService.refresh();
     gitPanel.refresh();
     statusBar.showMessage(`Opened folder: ${folderName}`);
+
+    // If native mode and an active tab was restored for this workspace, refresh its content from disk
+    const activeTab = editorState.getActiveTab();
+    if (activeTab && isNative() && activeTab.viewMode !== 'image' && activeTab.viewMode !== 'binary' && activeTab.viewMode !== 'git-graph') {
+      try {
+        const fresh = await fsService.readFile(activeTab.path);
+        editorState.markSaved(activeTab.id, fresh);
+        editorManager.loadDocument(fresh, activeTab.path);
+      } catch (err) {
+        console.warn('Could not refresh active tab from disk:', err);
+      }
+    }
 
     // Update recent workspaces list
     try {
@@ -1054,8 +1400,8 @@ async function bootstrap() {
     sidebarEl.classList.remove('collapsed');
   }
 
-  // If no tabs are open and no external file was opened, open a friendly README welcome
-  if (!openedFile && editorState.getTabs().length === 0) {
+  // If no tabs are open and no external file was opened, open a friendly README welcome if in unopened/empty directory
+  if (!openedFile && editorState.getTabs().length === 0 && isUnopenedOrAppInstallDir(fsService.getWorkspace())) {
     editorState.openFile(
       'README.md',
       `# Gitero IDE
@@ -1067,6 +1413,7 @@ A high-performance, VS Code-styled, Vim-customizable IDE.
 * **Ctrl + Shift + P**: Command Palette
 * **Ctrl + S** or **:w**: Save File
 * **Ctrl + W** or **:q**: Close File
+* **Ctrl + K Ctrl + W**: Close All Tabs
 * **Ctrl + B**: Toggle Sidebar
 * **Ctrl + \`**: Toggle Integrated Terminal
 * **Ctrl + Shift + F**: Search in Files
@@ -1088,13 +1435,18 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
     );
   }
 
+  updateSidebarWorkspaceUi();
+
   // 13. Buttons & Toolbar Events
-  document.getElementById('btn-open-folder')?.addEventListener('click', async () => {
+  const handleOpenFolder = async () => {
     const folder = await fsService.selectFolder();
     if (folder) {
       await loadWorkspace(folder);
     }
-  });
+  };
+
+  document.getElementById('btn-open-folder')?.addEventListener('click', handleOpenFolder);
+  document.getElementById('btn-open-folder-header')?.addEventListener('click', handleOpenFolder);
 
   document.getElementById('btn-new-file')?.addEventListener('click', () => {
     const ws = fsService.getWorkspace() || '.';
@@ -1323,6 +1675,23 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         detail: 'Ctrl+Shift+S',
         category: 'File',
         action: () => saveAsActiveFile()
+      },
+      {
+        id: 'view.closeActiveEditor',
+        title: 'View: Close Active Editor',
+        detail: 'Ctrl+W',
+        category: 'View',
+        action: () => {
+          const active = editorState.getActiveTab();
+          if (active) editorState.closeTab(active.id);
+        }
+      },
+      {
+        id: 'view.closeAllEditors',
+        title: 'View: Close All Editors / Tabs',
+        detail: 'Ctrl+K Ctrl+W',
+        category: 'View',
+        action: () => editorState.closeAllTabs()
       },
       {
         id: 'file.toggleAutoSave',
@@ -1651,6 +2020,12 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         });
         return;
       }
+      if (e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        isCtrlK = false;
+        editorState.closeAllTabs();
+        return;
+      }
       isCtrlK = false;
     }
 
@@ -1743,6 +2118,13 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
       if (active) {
         editorState.closeTab(active.id);
       }
+      return;
+    }
+
+    // Close All Editors
+    if (matchAction('workbench.action.closeAllEditors')) {
+      e.preventDefault();
+      editorState.closeAllTabs();
       return;
     }
 
