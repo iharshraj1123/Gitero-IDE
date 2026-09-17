@@ -545,6 +545,38 @@ export class GitService {
   }
 
   /**
+   * Move HEAD to a specific commit (detached HEAD checkout)
+   */
+  public async checkoutCommit(hash: string): Promise<{ success: boolean; error?: string }> {
+    const res = await this.runGitCommand(`checkout "${hash}"`, false);
+    await this.refresh(true);
+    if (res.exitCode === 0) {
+      return { success: true };
+    }
+    return { success: false, error: res.stderr || res.stdout };
+  }
+
+  /**
+   * Hard reset current branch and working tree to a specific commit
+   */
+  public async resetHard(hash: string): Promise<{ success: boolean; error?: string }> {
+    const res = await this.runGitCommand(`reset --hard "${hash}"`, false);
+    await this.refresh(true);
+    if (res.exitCode === 0) {
+      return { success: true };
+    }
+    return { success: false, error: res.stderr || res.stdout };
+  }
+
+  /**
+   * Retrieve full SHA of current HEAD commit
+   */
+  public async getHeadHash(): Promise<string> {
+    const res = await this.runGitCommand('rev-parse HEAD', true);
+    return res.exitCode === 0 ? res.stdout.trim() : '';
+  }
+
+  /**
    * Retrieve diff for a changed file
    */
   public async getFileDiff(relPath: string, staged: boolean = false): Promise<{ diff: string; isNew: boolean }> {
