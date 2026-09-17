@@ -133,11 +133,11 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     id: 'subtle-glass',
     name: 'Subtle Glass',
     description: 'Gentle transparency with smooth frosted backdrop blur',
-    blur: 12,
+    blur: 14,
     masterBg: 100,
     masterText: 100,
-    atmosphereMood: 'none',
-    atmosphereIntensity: 0,
+    atmosphereMood: 'deep-space',
+    atmosphereIntensity: 55,
     sections: {
       titleBar: { bg: 80, text: 100 },
       activityBar: { bg: 75, text: 100 },
@@ -156,8 +156,8 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     blur: 20,
     masterBg: 100,
     masterText: 100,
-    atmosphereMood: 'none',
-    atmosphereIntensity: 0,
+    atmosphereMood: 'deep-space',
+    atmosphereIntensity: 75,
     sections: {
       titleBar: { bg: 60, text: 100 },
       activityBar: { bg: 55, text: 100 },
@@ -176,8 +176,8 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     blur: 16,
     masterBg: 100,
     masterText: 100,
-    atmosphereMood: 'none',
-    atmosphereIntensity: 0,
+    atmosphereMood: 'accent',
+    atmosphereIntensity: 60,
     sections: {
       titleBar: { bg: 65, text: 100 },
       activityBar: { bg: 60, text: 100 },
@@ -320,23 +320,21 @@ export class TransparencyService {
     root.style.setProperty('--opacity-master-bg', masterBg.toFixed(3));
     root.style.setProperty('--opacity-master-fg', Math.max(0.3, masterText).toFixed(3));
 
-    // Manage Glass Luminance Element (Active whenever transparency is enabled and intensity > 0)
+    // Manage Glass Luminance Element (Active whenever transparency is enabled)
     let luminanceEl = document.getElementById('app-glass-luminance');
-    if (atmosphereIntensity > 0) {
-      if (!luminanceEl) {
-        luminanceEl = document.createElement('div');
-        luminanceEl.id = 'app-glass-luminance';
-        luminanceEl.className = 'app-glass-luminance';
-        luminanceEl.setAttribute('aria-hidden', 'true');
-        const app = document.getElementById('app');
-        if (app) {
-          app.insertBefore(luminanceEl, app.firstChild);
-        }
+    if (!luminanceEl) {
+      luminanceEl = document.createElement('div');
+      luminanceEl.id = 'app-glass-luminance';
+      luminanceEl.className = 'app-glass-luminance';
+      luminanceEl.setAttribute('aria-hidden', 'true');
+      const app = document.getElementById('app') || document.body;
+      if (app) {
+        app.insertBefore(luminanceEl, app.firstChild);
       }
+    }
+    if (luminanceEl) {
       luminanceEl.setAttribute('data-mood', atmosphereMood);
       luminanceEl.style.display = '';
-    } else if (luminanceEl) {
-      luminanceEl.style.display = 'none';
     }
 
     TRANSPARENCY_SECTIONS.forEach(sec => {

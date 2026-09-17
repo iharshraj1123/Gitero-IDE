@@ -1981,6 +1981,8 @@ export class SettingsModalComponent {
           fgVar = 'var(--status-fg)';
         } else if (sec.id === 'activityBar') {
           bgVar = 'var(--bg-activity)';
+        } else if (sec.id === 'tabBar') {
+          bgVar = 'var(--tab-inactive-bg)';
         }
 
         chipInner.style.backgroundColor = `color-mix(in srgb, ${bgVar} ${effBg}%, transparent)`;
@@ -2057,6 +2059,7 @@ export class SettingsModalComponent {
       else if (meta.id === 'editor') { bgVar = 'var(--editor-bg)'; fgVar = 'var(--editor-fg)'; }
       else if (meta.id === 'statusBar') { bgVar = 'var(--status-bg)'; fgVar = 'var(--status-fg)'; }
       else if (meta.id === 'activityBar') bgVar = 'var(--bg-activity)';
+      else if (meta.id === 'tabBar') bgVar = 'var(--tab-inactive-bg)';
 
       chipInner.style.backgroundColor = `color-mix(in srgb, ${bgVar} ${effBg}%, transparent)`;
       chipInner.style.color = `color-mix(in srgb, ${fgVar} ${effText}%, transparent)`;

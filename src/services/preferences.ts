@@ -141,7 +141,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'search.useRegex': false,
   'updater.githubToken': '',
   'transparency.enabled': false,
-  'transparency.atmosphereMood': 'none',
+  'transparency.atmosphereMood': 'deep-space',
   'transparency.atmosphereIntensity': 65,
   'transparency.blur': 14,
   'transparency.master.bgOpacity': 100,
