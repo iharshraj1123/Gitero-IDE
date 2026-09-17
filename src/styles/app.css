@@ -993,10 +993,10 @@ html.init-sidebar-collapsed .sidebar {
 
 .btn-minimap-toggle {
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid transparent;
   color: var(--fg-muted);
   border-radius: 3px;
-  padding: 2px 5px;
+  padding: 3px 5px;
   font-size: 11px;
   display: inline-flex;
   align-items: center;
@@ -1004,24 +1004,14 @@ html.init-sidebar-collapsed .sidebar {
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1;
+  opacity: 0.8;
 }
 
 .btn-minimap-toggle:hover {
   background: var(--bg-hover);
   color: var(--fg-primary);
-  border-color: var(--accent-color);
-}
-
-.btn-minimap-toggle.active {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--accent-color);
-  border-color: var(--accent-color);
-}
-
-.theme-light .btn-minimap-toggle.active,
-[data-theme*="light"] .btn-minimap-toggle.active {
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--accent-color);
+  border-color: var(--border-color);
+  opacity: 1;
 }
 
 .btn-md-toggle {
@@ -6743,9 +6733,9 @@ html.init-minimap-collapsed .gitero-minimap {
   left: 0;
   right: 0;
   width: 100%;
-  background: rgba(200, 215, 240, 0.16);
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   cursor: grab;
   pointer-events: auto;
   box-sizing: border-box;
@@ -6754,10 +6744,26 @@ html.init-minimap-collapsed .gitero-minimap {
 
 .gitero-minimap-slider:hover,
 .gitero-minimap-slider.is-dragging {
-  background: rgba(220, 230, 255, 0.26);
-  border-top-color: rgba(255, 255, 255, 0.45);
-  border-bottom-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.3);
+  border-bottom-color: rgba(255, 255, 255, 0.3);
   cursor: grabbing;
+}
+
+.theme-light .gitero-minimap-slider,
+[data-theme*="light"] .gitero-minimap-slider {
+  background: rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .gitero-minimap-slider:hover,
+[data-theme*="light"] .gitero-minimap-slider:hover,
+.theme-light .gitero-minimap-slider.is-dragging,
+[data-theme*="light"] .gitero-minimap-slider.is-dragging {
+  background: rgba(0, 0, 0, 0.12);
+  border-top-color: rgba(0, 0, 0, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.22);
 }
 
 /* Separate Scrollbar & Overview Ruler */

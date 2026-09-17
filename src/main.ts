@@ -103,12 +103,15 @@ async function bootstrap() {
     }
   });
 
+  const ICON_MINIMAP_VISIBLE = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><line x1="10.5" y1="2" x2="10.5" y2="14" stroke-opacity="0.6"/><rect x="10.5" y="2" width="4" height="12" fill="currentColor" fill-opacity="0.18" stroke="none"/><line x1="12" y1="4.5" x2="13.5" y2="4.5" stroke-linecap="round" stroke-width="1"/><line x1="12" y1="7" x2="13.5" y2="7" stroke-linecap="round" stroke-width="1"/><line x1="12" y1="9.5" x2="13.5" y2="9.5" stroke-linecap="round" stroke-width="1"/></svg>';
+  const ICON_MINIMAP_HIDDEN = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><line x1="10.5" y1="2.5" x2="10.5" y2="13.5" stroke-dasharray="1.5 1.5" stroke-opacity="0.35"/></svg>';
+
   const btnMinimapToggle = document.getElementById('btn-minimap-toggle') as HTMLElement;
   const updateMinimapBtn = (enabled: boolean) => {
     if (!btnMinimapToggle) return;
-    btnMinimapToggle.classList.toggle('active', enabled);
-    btnMinimapToggle.setAttribute('title', enabled ? 'Collapse Minimap' : 'Expand Minimap');
-    btnMinimapToggle.setAttribute('aria-label', enabled ? 'Collapse Minimap' : 'Expand Minimap');
+    btnMinimapToggle.innerHTML = enabled ? ICON_MINIMAP_VISIBLE : ICON_MINIMAP_HIDDEN;
+    btnMinimapToggle.setAttribute('title', enabled ? 'Hide Minimap' : 'Show Minimap');
+    btnMinimapToggle.setAttribute('aria-label', enabled ? 'Hide Minimap' : 'Show Minimap');
   };
 
   if (btnMinimapToggle) {
