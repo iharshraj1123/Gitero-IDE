@@ -193,28 +193,7 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
 
 export class TransparencyService {
   private isInitialized = false;
-  private atmosphereEl: HTMLElement | null = null;
 
-  private ensureAtmosphereElement(): HTMLElement {
-    if (this.atmosphereEl && document.body.contains(this.atmosphereEl)) {
-      return this.atmosphereEl;
-    }
-    let el = document.getElementById('gitero-glass-atmosphere');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'gitero-glass-atmosphere';
-      el.className = 'gitero-glass-atmosphere';
-      el.innerHTML = `
-        <div class="glass-orb glass-orb-1"></div>
-        <div class="glass-orb glass-orb-2"></div>
-        <div class="glass-orb glass-orb-3"></div>
-        <div class="glass-mesh-overlay"></div>
-      `;
-      document.body.prepend(el);
-    }
-    this.atmosphereEl = el;
-    return el;
-  }
 
   init() {
     if (this.isInitialized) return;
@@ -265,11 +244,7 @@ export class TransparencyService {
       root.style.removeProperty('background-color');
       body.style.removeProperty('background');
       body.style.removeProperty('background-color');
-      if (this.atmosphereEl) {
-        this.atmosphereEl.style.display = 'none';
-      }
       root.style.setProperty('--transparency-blur', '0px');
-      root.style.setProperty('--opacity-master-bg', '1');
       root.style.setProperty('--opacity-master-fg', '1');
 
       TRANSPARENCY_SECTIONS.forEach(sec => {
@@ -285,16 +260,6 @@ export class TransparencyService {
     root.style.setProperty('background-color', 'transparent', 'important');
     body.style.setProperty('background', 'transparent', 'important');
     body.style.setProperty('background-color', 'transparent', 'important');
-
-
-    // Manage Ambient Atmosphere Element & Properties
-    const atmosphere = this.ensureAtmosphereElement();
-    const mood = preferencesService.get('transparency.atmosphereMood') ?? 'none';
-    const intensity = preferencesService.get('transparency.atmosphereIntensity') ?? 65;
-
-    atmosphere.className = `gitero-glass-atmosphere mood-${mood}`;
-    atmosphere.style.display = mood === 'none' ? 'none' : 'block';
-    root.style.setProperty('--glass-atmosphere-intensity', (intensity / 100).toFixed(2));
 
     const blur = preferencesService.get('transparency.blur') ?? 14;
     const masterBg = (preferencesService.get('transparency.master.bgOpacity') ?? 100) / 100;
