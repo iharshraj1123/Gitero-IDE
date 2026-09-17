@@ -235,6 +235,9 @@ Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueN
 ; 8. Windows Startup for Explorer Ctrl+. Shortcut
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "GiteroExplorerHotkey"; ValueData: """{app}\bin\gitero_explorer_hotkey.exe"""; Flags: uninsdeletevalue; Tasks: explorer_hotkey
 
+; 9. Microsoft WebView2 Window Transparency Environment Variable
+Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "WEBVIEW2_DEFAULT_BACKGROUND_COLOR"; ValueData: "00FFFFFF"; Flags: preservestringtype
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\bin\gitero_explorer_hotkey.exe"; Flags: nowait; Tasks: explorer_hotkey
@@ -314,6 +317,7 @@ begin
   else if CurStep = ssPostInstall then
   begin
     RegisterPath();
+    RegWriteStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'WEBVIEW2_DEFAULT_BACKGROUND_COLOR', '00FFFFFF');
     SHChangeNotify($08000000, 0, 0, 0);
   end;
 end;

@@ -39,7 +39,10 @@ if not defined GITERO_EXE (
   exit /b 1
 )
 
-:: 2. Resolve target argument and launch
+:: 2. Set Microsoft WebView2 transparent canvas environment
+set "WEBVIEW2_DEFAULT_BACKGROUND_COLOR=00FFFFFF"
+
+:: 3. Resolve target argument and launch
 if "%~1"=="" (
   start "" "!GITERO_EXE!"
 ) else if "%~1"=="." (

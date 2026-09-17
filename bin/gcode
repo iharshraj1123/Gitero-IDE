@@ -27,6 +27,8 @@ if [ -z "$GITERO_EXE" ]; then
   exit 1
 fi
 
+export WEBVIEW2_DEFAULT_BACKGROUND_COLOR="00FFFFFF"
+
 if [ -z "$1" ]; then
   "$GITERO_EXE" &
 elif [ "$1" = "." ]; then

@@ -48,6 +48,13 @@ namespace GiteroExplorerHotkey
         [STAThread]
         static void Main(string[] args)
         {
+            try
+            {
+                Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00FFFFFF", EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00FFFFFF", EnvironmentVariableTarget.User);
+            }
+            catch {}
+
             if (args != null && args.Length > 0)
             {
                 string cmd = args[0].ToLowerInvariant().Trim();
@@ -438,9 +445,10 @@ namespace GiteroExplorerHotkey
                 {
                     FileName = giteroExe,
                     Arguments = "\"" + safeArg + "\"",
-                    UseShellExecute = true,
+                    UseShellExecute = false,
                     WorkingDirectory = targetPath
                 };
+                psi.EnvironmentVariables["WEBVIEW2_DEFAULT_BACKGROUND_COLOR"] = "00FFFFFF";
                 Process.Start(psi);
             }
             catch {}
