@@ -76,22 +76,39 @@ updateFile('gemini.md', (content) => {
   return res;
 });
 
-// 5. Sync documentation guides
-updateFile('docs/getting-started.md', (content) => {
-  return content.replace(
-    /Gitero-Setup-[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?\.exe/g,
-    `Gitero-Setup-${version}.exe`
+// 5. Sync all markdown documentation files in docs/
+const docsDir = path.join(rootDir, 'docs');
+if (fs.existsSync(docsDir)) {
+  const docFiles = fs.readdirSync(docsDir).filter((f) => f.endsWith('.md'));
+  for (const docFile of docFiles) {
+    updateFile(path.join('docs', docFile), (content) => {
+      let res = content.replace(
+        /Gitero-Setup-[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?\.exe/g,
+        `Gitero-Setup-${version}.exe`
+      );
+      res = res.replace(
+        /(- \*\*Version\*\*:\s*Current semantic version \(e\.g\.,\s*`)[^`\r\n]+(`\)\.)/g,
+        `$1${version}$2`
+      );
+      return res;
+    });
+  }
+}
+
+// 6. Sync fallback default in src/version.ts
+updateFile('src/version.ts', (content) => {
+  let res = content.replace(
+    /(\(\(typeof window !== 'undefined' && \(window as any\)\.NL_APPVERSION\) \? \(window as any\)\.NL_APPVERSION : ')[^']+/g,
+    `$1${version}`
   );
+  res = res.replace(
+    /(\/\*\*[\s\S]*?Formatted display version \(e\.g\. "v)[^"]+("\)[\s\S]*?\*\/)/g,
+    `$1${version}$2`
+  );
+  return res;
 });
 
-updateFile('docs/development-and-building.md', (content) => {
-  return content.replace(
-    /Gitero-Setup-[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?\.exe/g,
-    `Gitero-Setup-${version}.exe`
-  );
-});
-
-// 6. Stage updated files if executed during npm version lifecycle or with --stage
+// 7. Stage updated files if executed during npm version lifecycle or with --stage
 if (process.env.npm_lifecycle_event === 'version' || process.argv.includes('--stage')) {
   if (stagedFiles.length > 0) {
     try {
