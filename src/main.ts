@@ -103,6 +103,28 @@ async function bootstrap() {
     }
   });
 
+  const btnMinimapToggle = document.getElementById('btn-minimap-toggle') as HTMLElement;
+  const updateMinimapBtn = (enabled: boolean) => {
+    if (!btnMinimapToggle) return;
+    btnMinimapToggle.classList.toggle('active', enabled);
+    btnMinimapToggle.setAttribute('title', enabled ? 'Collapse Minimap' : 'Expand Minimap');
+    btnMinimapToggle.setAttribute('aria-label', enabled ? 'Collapse Minimap' : 'Expand Minimap');
+  };
+
+  if (btnMinimapToggle) {
+    updateMinimapBtn(preferencesService.get('editor.minimap.enabled') !== false);
+
+    btnMinimapToggle.addEventListener('click', () => {
+      const nextState = editorManager.toggleMinimap();
+      updateMinimapBtn(nextState);
+      statusBar.showMessage(`Minimap: ${nextState ? 'Expanded' : 'Collapsed'}`);
+    });
+
+    preferencesService.subscribe('editor.minimap.enabled', (enabled) => {
+      updateMinimapBtn(enabled);
+    });
+  }
+
   const workspaceTitle = document.getElementById('workspace-title') as HTMLElement;
 
   const btnActExplorer = document.getElementById('btn-act-explorer') as HTMLElement;
@@ -807,6 +829,10 @@ async function bootstrap() {
           settingsModal.openWithAddServer(ext, lang);
         });
       }
+    }
+
+    if (btnMinimapToggle) {
+      btnMinimapToggle.style.display = cmRoot.style.display === 'block' ? 'inline-flex' : 'none';
     }
   });
 

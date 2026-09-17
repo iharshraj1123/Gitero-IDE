@@ -14,7 +14,6 @@ export interface OverviewMarker {
 class OverviewRulerPlugin {
   private readonly rulerDom: HTMLElement;
   private readonly markersContainer: HTMLElement;
-  private tooltipEl: HTMLElement | null = null;
   private rafId: number | null = null;
   private markers: OverviewMarker[] = [];
 
@@ -27,86 +26,9 @@ class OverviewRulerPlugin {
     this.markersContainer.className = 'gitero-overview-ruler-markers';
     this.rulerDom.appendChild(this.markersContainer);
 
-    this.bindEvents();
-
     // Attach to editor DOM
     this.view.dom.appendChild(this.rulerDom);
     this.scheduleRender();
-  }
-
-  private bindEvents() {
-    this.markersContainer.addEventListener('click', (e) => {
-      const target = (e.target as HTMLElement).closest('.gitero-ruler-marker') as HTMLElement;
-      if (target) {
-        const from = Number(target.dataset.from);
-        const to = Number(target.dataset.to);
-        if (!isNaN(from)) {
-          this.view.dispatch({
-            selection: { anchor: from, head: to || from },
-            scrollIntoView: true
-          });
-          this.view.focus();
-        }
-        return;
-      }
-
-      // Clicking on the ruler track jumps to that vertical percentage
-      const rect = this.markersContainer.getBoundingClientRect();
-      if (rect.height <= 0) return;
-      const clickY = e.clientY - rect.top;
-      const ratio = Math.max(0, Math.min(1, clickY / rect.height));
-      const totalLines = this.view.state.doc.lines;
-      const targetLine = Math.max(1, Math.min(totalLines, Math.round(ratio * totalLines)));
-      const lineObj = this.view.state.doc.line(targetLine);
-      this.view.dispatch({
-        selection: { anchor: lineObj.from, head: lineObj.from },
-        scrollIntoView: true
-      });
-      this.view.focus();
-    });
-
-    this.markersContainer.addEventListener('mouseover', (e) => {
-      const target = (e.target as HTMLElement).closest('.gitero-ruler-marker') as HTMLElement;
-      if (target && target.dataset.tooltip) {
-        this.showTooltip(target, target.dataset.tooltip);
-      }
-    });
-
-    this.markersContainer.addEventListener('mouseout', (e) => {
-      const target = (e.target as HTMLElement).closest('.gitero-ruler-marker') as HTMLElement;
-      if (target) {
-        this.hideTooltip();
-      }
-    });
-  }
-
-  private showTooltip(target: HTMLElement, text: string) {
-    if (!this.tooltipEl) {
-      this.tooltipEl = document.createElement('div');
-      this.tooltipEl.className = 'gitero-ruler-tooltip';
-      document.body.appendChild(this.tooltipEl);
-    }
-    this.tooltipEl.textContent = text;
-    this.tooltipEl.style.display = 'block';
-
-    const rect = target.getBoundingClientRect();
-    const tooltipRect = this.tooltipEl.getBoundingClientRect();
-    let top = rect.top + rect.height / 2 - tooltipRect.height / 2;
-    let right = window.innerWidth - rect.left + 8;
-
-    if (top < 8) top = 8;
-    if (top + tooltipRect.height > window.innerHeight - 8) {
-      top = window.innerHeight - tooltipRect.height - 8;
-    }
-
-    this.tooltipEl.style.top = `${top}px`;
-    this.tooltipEl.style.right = `${right}px`;
-  }
-
-  private hideTooltip() {
-    if (this.tooltipEl) {
-      this.tooltipEl.style.display = 'none';
-    }
   }
 
   public update(update: ViewUpdate) {
@@ -243,11 +165,6 @@ class OverviewRulerPlugin {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
-    }
-    this.hideTooltip();
-    if (this.tooltipEl) {
-      this.tooltipEl.remove();
-      this.tooltipEl = null;
     }
     this.rulerDom.remove();
   }

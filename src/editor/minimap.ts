@@ -20,8 +20,6 @@ class MinimapPlugin {
   private readonly slider: HTMLElement;
 
   private isDragging = false;
-  private dragStartY = 0;
-  private dragStartScrollTop = 0;
   private rafId: number | null = null;
   private scrollHandler: () => void;
 
@@ -49,95 +47,63 @@ class MinimapPlugin {
     this.scheduleRender();
   }
 
-  private jumpToCodeAt(clickY: number) {
-    const doc = this.view.state.doc;
-    const totalLines = doc.lines;
-    const totalMinimapHeight = totalLines * LINE_PITCH;
-    const height = this.container.clientHeight || 1;
+  private scrollMinimapTo(clickY: number) {
+    const { scrollHeight, clientHeight } = this.view.scrollDOM;
+    const maxScroll = Math.max(0, scrollHeight - clientHeight);
+    if (maxScroll <= 0) return;
 
-    const { scrollHeight, clientHeight, scrollTop } = this.view.scrollDOM;
-    const maxScroll = Math.max(1, scrollHeight - clientHeight);
-    const scrollRatio = Math.max(0, Math.min(1, scrollTop / maxScroll));
+    const containerHeight = this.container.clientHeight || 1;
+    const ratio = clientHeight / scrollHeight;
+    const sliderHeight = Math.max(20, Math.min(containerHeight, containerHeight * ratio));
+    const maxSliderTop = Math.max(0, containerHeight - sliderHeight);
+    if (maxSliderTop <= 0) return;
 
-    let minimapOffsetY = 0;
-    if (totalMinimapHeight > height) {
-      minimapOffsetY = scrollRatio * (totalMinimapHeight - height);
-    }
+    // Center the clicked point in the highlighter (slider), bounded by boundaries (top 0 and bottom maxSliderTop)
+    const targetSliderTop = Math.max(0, Math.min(maxSliderTop, clickY - sliderHeight / 2));
+    const scrollRatio = targetSliderTop / maxSliderTop;
 
-    // Calculate exact code line in the document based on the clicked Y coordinate
-    const targetDocY = clickY + minimapOffsetY;
-    const targetLine = Math.max(1, Math.min(totalLines, Math.floor(targetDocY / LINE_PITCH) + 1));
-    const lineObj = doc.line(targetLine);
-
-    // Jump directly to that line of code, center it in the editor, and focus
-    this.view.dispatch({
-      selection: { anchor: lineObj.from, head: lineObj.from },
-      effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' })
-    });
-    this.view.focus();
+    this.view.scrollDOM.scrollTop = scrollRatio * maxScroll;
   }
 
   private bindEvents() {
-    // Slider dragging
-    this.slider.addEventListener('mousedown', (e) => {
+    // Clicking or dragging anywhere on the minimap centers the highlighter directly on the click
+    this.container.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
+
       this.isDragging = true;
-      this.dragStartY = e.clientY;
-      this.dragStartScrollTop = this.view.scrollDOM.scrollTop;
       this.slider.classList.add('is-dragging');
+
+      const rect = this.container.getBoundingClientRect();
+      const clickY = e.clientY - rect.top;
+
+      this.scrollMinimapTo(clickY);
+
       window.addEventListener('mousemove', this.onMouseMove);
       window.addEventListener('mouseup', this.onMouseUp);
     });
 
-    // Clicking anywhere on the minimap jumps directly to that code line
-    this.container.addEventListener('mousedown', (e) => {
-      if (e.target === this.slider) return;
+    this.container.addEventListener('wheel', (e) => {
       e.preventDefault();
-
-      const rect = this.container.getBoundingClientRect();
-      const clickY = e.clientY - rect.top;
-      this.jumpToCodeAt(clickY);
-    });
+      this.view.scrollDOM.scrollTop += e.deltaY;
+    }, { passive: false });
   }
 
   private onMouseMove = (e: MouseEvent) => {
     if (!this.isDragging) return;
     e.preventDefault();
 
-    const deltaY = e.clientY - this.dragStartY;
-    const { scrollHeight, clientHeight } = this.view.scrollDOM;
-    const containerHeight = this.container.clientHeight || 1;
-    const totalLines = this.view.state.doc.lines;
-    const totalMinimapHeight = totalLines * LINE_PITCH;
-
-    let scrollDelta = 0;
-    if (totalMinimapHeight <= containerHeight) {
-      const sliderTrackHeight = containerHeight;
-      const ratio = deltaY / sliderTrackHeight;
-      scrollDelta = ratio * (scrollHeight - clientHeight);
-    } else {
-      const scale = (scrollHeight - clientHeight) / (containerHeight - (this.slider.clientHeight || 20));
-      scrollDelta = deltaY * scale;
-    }
-
-    this.view.scrollDOM.scrollTop = Math.max(0, Math.min(scrollHeight - clientHeight, this.dragStartScrollTop + scrollDelta));
+    const rect = this.container.getBoundingClientRect();
+    const currentY = e.clientY - rect.top;
+    this.scrollMinimapTo(currentY);
   };
 
-  private onMouseUp = (e: MouseEvent) => {
+  private onMouseUp = () => {
     if (this.isDragging) {
-      const moved = Math.abs(e.clientY - this.dragStartY) > 3;
       this.isDragging = false;
       this.slider.classList.remove('is-dragging');
       window.removeEventListener('mousemove', this.onMouseMove);
       window.removeEventListener('mouseup', this.onMouseUp);
-
-      // If user simply clicked on the slider without dragging, jump to the clicked code as well
-      if (!moved) {
-        const rect = this.container.getBoundingClientRect();
-        const clickY = e.clientY - rect.top;
-        this.jumpToCodeAt(clickY);
-      }
     }
   };
 
@@ -324,7 +290,7 @@ class MinimapPlugin {
     this.updateSlider(height, totalMinimapHeight);
   }
 
-  private updateSlider(containerHeight: number, totalMinimapHeight: number) {
+  private updateSlider(containerHeight: number, _totalMinimapHeight: number) {
     const { scrollTop, scrollHeight, clientHeight } = this.view.scrollDOM;
     if (scrollHeight <= clientHeight) {
       this.slider.style.display = 'none';
@@ -332,20 +298,12 @@ class MinimapPlugin {
     }
     this.slider.style.display = 'block';
 
-    let sliderTop = 0;
-    let sliderHeight = 0;
-
-    if (totalMinimapHeight <= containerHeight) {
-      const ratio = clientHeight / scrollHeight;
-      sliderHeight = Math.max(16, containerHeight * ratio);
-      const scrollRatio = scrollTop / (scrollHeight - clientHeight);
-      sliderTop = scrollRatio * (containerHeight - sliderHeight);
-    } else {
-      const ratio = clientHeight / scrollHeight;
-      sliderHeight = Math.max(20, containerHeight * ratio);
-      const scrollRatio = scrollTop / (scrollHeight - clientHeight);
-      sliderTop = scrollRatio * (containerHeight - sliderHeight);
-    }
+    const ratio = clientHeight / scrollHeight;
+    const sliderHeight = Math.max(20, Math.min(containerHeight, containerHeight * ratio));
+    const maxSliderTop = Math.max(0, containerHeight - sliderHeight);
+    const maxScroll = Math.max(1, scrollHeight - clientHeight);
+    const scrollRatio = Math.max(0, Math.min(1, scrollTop / maxScroll));
+    const sliderTop = Math.max(0, Math.min(maxSliderTop, scrollRatio * maxSliderTop));
 
     this.slider.style.top = `${Math.round(sliderTop)}px`;
     this.slider.style.height = `${Math.round(sliderHeight)}px`;

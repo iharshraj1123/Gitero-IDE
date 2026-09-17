@@ -427,6 +427,7 @@ export class EditorManager {
   }
 
   setMinimap(enabled: boolean) {
+    document.documentElement.classList.toggle('init-minimap-collapsed', !enabled);
     if (!this.view) return;
     this.view.dom.setAttribute('data-minimap', String(enabled));
     this.view.dispatch({
