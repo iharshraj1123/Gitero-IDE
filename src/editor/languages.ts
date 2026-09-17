@@ -16,6 +16,7 @@ import { php } from '@codemirror/lang-php';
 
 export interface LanguageInfo {
   name: string;
+  languageId?: string;
   extension: () => Extension;
 }
 
@@ -56,115 +57,116 @@ export function detectLanguage(filePath: string): LanguageInfo {
     case 'ts':
     case 'mts':
     case 'cts':
-      return { name: 'TypeScript', extension: () => javascript({ typescript: true }) };
+      return { name: 'TypeScript', languageId: 'typescript', extension: () => javascript({ typescript: true }) };
     case 'tsx':
-      return { name: 'React TSX', extension: () => javascript({ jsx: true, typescript: true }) };
+      return { name: 'React TSX', languageId: 'typescriptreact', extension: () => javascript({ jsx: true, typescript: true }) };
     case 'js':
     case 'mjs':
     case 'cjs':
     case 'es6':
     case 'pac':
-      return { name: 'JavaScript', extension: () => javascript() };
+      return { name: 'JavaScript', languageId: 'javascript', extension: () => javascript() };
     case 'jsx':
-      return { name: 'React JSX', extension: () => javascript({ jsx: true }) };
+      return { name: 'React JSX', languageId: 'javascriptreact', extension: () => javascript({ jsx: true }) };
     case 'html':
     case 'htm':
     case 'xhtml':
-      return { name: 'HTML', extension: () => html() };
+      return { name: 'HTML', languageId: 'html', extension: () => html() };
     case 'css':
     case 'scss':
     case 'less':
     case 'sass':
-      return { name: 'CSS', extension: () => css() };
+      return { name: 'CSS', languageId: 'css', extension: () => css() };
     case 'py':
     case 'pyw':
     case 'pyi':
-      return { name: 'Python', extension: () => python() };
+      return { name: 'Python', languageId: 'python', extension: () => python() };
     case 'rs':
-      return { name: 'Rust', extension: () => rust() };
+      return { name: 'Rust', languageId: 'rust', extension: () => rust() };
     case 'c':
     case 'h':
+      return { name: 'C / C++', languageId: 'c', extension: () => cpp() };
     case 'cpp':
     case 'hpp':
     case 'cc':
     case 'cxx':
     case 'ino':
-      return { name: 'C / C++', extension: () => cpp() };
+      return { name: 'C / C++', languageId: 'cpp', extension: () => cpp() };
     case 'go':
-      return { name: 'Go', extension: () => go() };
+      return { name: 'Go', languageId: 'go', extension: () => go() };
     case 'java':
     case 'jav':
-      return { name: 'Java', extension: () => java() };
+      return { name: 'Java', languageId: 'java', extension: () => java() };
     case 'json':
     case 'jsonc':
     case 'json5':
     case 'babelrc':
     case 'eslintrc':
     case 'prettierrc':
-      return { name: 'JSON', extension: () => json() };
+      return { name: 'JSON', languageId: 'json', extension: () => json() };
     case 'md':
     case 'markdown':
     case 'mdown':
     case 'mkd':
-      return { name: 'Markdown', extension: () => markdown() };
+      return { name: 'Markdown', languageId: 'markdown', extension: () => markdown() };
     case 'yaml':
     case 'yml':
-      return { name: 'YAML', extension: () => yaml() };
+      return { name: 'YAML', languageId: 'yaml', extension: () => yaml() };
     case 'sql':
     case 'pgsql':
     case 'mysql':
     case 'sqlite':
-      return { name: 'SQL', extension: () => sql() };
+      return { name: 'SQL', languageId: 'sql', extension: () => sql() };
     case 'xml':
     case 'svg':
     case 'plist':
     case 'xaml':
     case 'rss':
     case 'atom':
-      return { name: 'XML', extension: () => xml() };
+      return { name: 'XML', languageId: 'xml', extension: () => xml() };
     case 'php':
     case 'phtml':
     case 'php3':
     case 'php4':
     case 'php5':
     case 'phps':
-      return { name: 'PHP', extension: () => php() };
+      return { name: 'PHP', languageId: 'php', extension: () => php() };
     case 'sh':
     case 'bash':
     case 'zsh':
     case 'ps1':
     case 'bat':
     case 'cmd':
-      return { name: 'Shell Script', extension: () => [] };
+      return { name: 'Shell Script', languageId: 'shellscript', extension: () => [] };
     case 'toml':
     case 'ini':
     case 'properties':
     case 'conf':
-      return { name: 'Configuration', extension: () => [] };
+      return { name: 'Configuration', languageId: 'ini', extension: () => [] };
     default:
-      return { name: 'Plain Text', extension: () => [] };
+      return { name: 'Plain Text', languageId: 'plaintext', extension: () => [] };
   }
 }
 
 export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
-  { name: 'TypeScript', extension: () => javascript({ typescript: true }) },
-  { name: 'React TSX', extension: () => javascript({ jsx: true, typescript: true }) },
-  { name: 'JavaScript', extension: () => javascript() },
-  { name: 'React JSX', extension: () => javascript({ jsx: true }) },
-  { name: 'Python', extension: () => python() },
-  { name: 'Rust', extension: () => rust() },
-  { name: 'C / C++', extension: () => cpp() },
-  { name: 'HTML', extension: () => html() },
-  { name: 'CSS', extension: () => css() },
-  { name: 'JSON', extension: () => json() },
-  { name: 'Markdown', extension: () => markdown() },
-  { name: 'Go', extension: () => go() },
-  { name: 'Java', extension: () => java() },
-  { name: 'YAML', extension: () => yaml() },
-  { name: 'SQL', extension: () => sql() },
-  { name: 'XML', extension: () => xml() },
-  { name: 'PHP', extension: () => php() },
-  { name: 'Plain Text', extension: () => [] }
+  { name: 'TypeScript', languageId: 'typescript', extension: () => javascript({ typescript: true }) },
+  { name: 'React TSX', languageId: 'typescriptreact', extension: () => javascript({ jsx: true, typescript: true }) },
+  { name: 'JavaScript', languageId: 'javascript', extension: () => javascript() },
+  { name: 'React JSX', languageId: 'javascriptreact', extension: () => javascript({ jsx: true }) },
+  { name: 'Python', languageId: 'python', extension: () => python() },
+  { name: 'Rust', languageId: 'rust', extension: () => rust() },
+  { name: 'C / C++', languageId: 'cpp', extension: () => cpp() },
+  { name: 'HTML', languageId: 'html', extension: () => html() },
+  { name: 'CSS', languageId: 'css', extension: () => css() },
+  { name: 'JSON', languageId: 'json', extension: () => json() },
+  { name: 'Markdown', languageId: 'markdown', extension: () => markdown() },
+  { name: 'Go', languageId: 'go', extension: () => go() },
+  { name: 'Java', languageId: 'java', extension: () => java() },
+  { name: 'YAML', languageId: 'yaml', extension: () => yaml() },
+  { name: 'SQL', languageId: 'sql', extension: () => sql() },
+  { name: 'XML', languageId: 'xml', extension: () => xml() },
+  { name: 'PHP', languageId: 'php', extension: () => php() },
+  { name: 'Plain Text', languageId: 'plaintext', extension: () => [] }
 ];
 
 export function getLanguageByName(name: string): LanguageInfo {

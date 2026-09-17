@@ -20,6 +20,7 @@ export class EditorStateManager {
   private tabs: EditorTab[] = [];
   private activeTabId: string | null = null;
   private listeners: StateChangeListener[] = [];
+  private closeListeners: ((tab: EditorTab) => void)[] = [];
   private closedTabsHistory: EditorTab[] = [];
 
   constructor() {
@@ -224,6 +225,12 @@ export class EditorStateManager {
       }
     }
 
+    if (closedTab) {
+      for (const l of this.closeListeners) {
+        try { l(closedTab); } catch (err) { console.warn('Close listener error:', err); }
+      }
+    }
+
     if (this.activeTabId === id) {
       if (this.tabs.length > 0) {
         const nextIndex = Math.min(index, this.tabs.length - 1);
@@ -236,6 +243,14 @@ export class EditorStateManager {
     this.persist();
     this.notify();
     return true;
+  }
+
+  onClose(listener: (tab: EditorTab) => void): () => void {
+    this.closeListeners.push(listener);
+    return () => {
+      const idx = this.closeListeners.indexOf(listener);
+      if (idx !== -1) this.closeListeners.splice(idx, 1);
+    };
   }
 
   canReopenClosedTab(): boolean {

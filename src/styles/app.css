@@ -5307,4 +5307,370 @@ body.transparency-active .settings-body-wrapper {
   filter: brightness(1.1);
 }
 
+/* ==========================================================================
+   LSP & Autocomplete & Code Intelligence Styles
+   ========================================================================== */
+
+/* Status Bar LSP Badge */
+.status-lsp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0 6px;
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+
+.status-lsp-badge:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+.status-lsp-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-lsp-dot.ready {
+  background: #3fb950;
+  box-shadow: 0 0 6px rgba(63, 185, 80, 0.5);
+}
+
+.status-lsp-dot.starting {
+  background: #d29922;
+  box-shadow: 0 0 6px rgba(210, 153, 34, 0.5);
+  animation: lsp-pulse 1.2s infinite ease-in-out;
+}
+
+.status-lsp-dot.error {
+  background: #f85149;
+  box-shadow: 0 0 6px rgba(248, 81, 73, 0.5);
+}
+
+.status-lsp-dot.stopped {
+  background: #8b949e;
+}
+
+@keyframes lsp-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* CodeMirror Autocomplete Popover */
+.cm-tooltip-autocomplete {
+  background: var(--bg-secondary, #161b22) !important;
+  border: 1px solid var(--border-color, #30363d) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden !important;
+  max-height: 320px !important;
+  font-family: var(--font-mono, monospace) !important;
+  font-size: 12px !important;
+}
+
+.cm-tooltip-autocomplete > ul {
+  font-family: var(--font-mono, monospace) !important;
+  max-height: 280px !important;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+  padding: 4px 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: var(--fg-primary, #e6edf3) !important;
+  border-radius: 0 !important;
+  transition: background 0.1s ease !important;
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--accent-primary, #1f6feb) !important;
+  color: #ffffff !important;
+}
+
+.cm-completionLabel {
+  font-weight: 500;
+}
+
+.cm-completionMatchedText {
+  text-decoration: underline;
+  font-weight: 700;
+  color: #79c0ff;
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionMatchedText {
+  color: #ffffff;
+}
+
+.cm-completionDetail {
+  font-style: normal !important;
+  color: var(--fg-muted, #8b949e) !important;
+  font-size: 11px !important;
+  margin-left: auto !important;
+  padding-left: 12px !important;
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Autocomplete Kind Icons */
+.cm-completionIcon {
+  width: 16px !important;
+  height: 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 3px !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  margin-right: 4px !important;
+  flex-shrink: 0 !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.cm-completionIcon-function,
+.cm-completionIcon-method {
+  background: rgba(187, 128, 255, 0.2) !important;
+  color: #d2a8ff !important;
+}
+
+.cm-completionIcon-variable,
+.cm-completionIcon-property {
+  background: rgba(88, 166, 255, 0.2) !important;
+  color: #79c0ff !important;
+}
+
+.cm-completionIcon-class,
+.cm-completionIcon-type {
+  background: rgba(227, 179, 65, 0.2) !important;
+  color: #e3b341 !important;
+}
+
+.cm-completionIcon-keyword {
+  background: rgba(255, 123, 114, 0.2) !important;
+  color: #ff7b72 !important;
+}
+
+.cm-completionIcon-snippet {
+  background: rgba(86, 211, 100, 0.2) !important;
+  color: #56d364 !important;
+}
+
+.cm-completionIcon-text {
+  background: rgba(139, 148, 158, 0.2) !important;
+  color: #8b949e !important;
+}
+
+.cm-completionIcon-enum {
+  background: rgba(240, 136, 62, 0.2) !important;
+  color: #f0883e !important;
+}
+
+.cm-completionIcon-constant {
+  background: rgba(121, 192, 255, 0.2) !important;
+  color: #79c0ff !important;
+}
+
+/* Completion Documentation Side Panel */
+.cm-completionInfo {
+  background: var(--bg-secondary, #161b22) !important;
+  border: 1px solid var(--border-color, #30363d) !important;
+  border-radius: 6px !important;
+  padding: 10px 14px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  max-width: 380px !important;
+  color: var(--fg-primary, #e6edf3) !important;
+}
+
+.cm-completion-doc code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.cm-completion-doc pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin: 6px 0;
+  overflow-x: auto;
+}
+
+/* Diagnostics & Linting Squiggles */
+.cm-lintRange-error {
+  background-image: none !important;
+  border-bottom: 2px wavy #f85149 !important;
+}
+
+.cm-lintRange-warning {
+  background-image: none !important;
+  border-bottom: 2px wavy #d29922 !important;
+}
+
+.cm-lintRange-info {
+  background-image: none !important;
+  border-bottom: 2px wavy #58a6ff !important;
+}
+
+.cm-gutter-lint {
+  width: 16px;
+}
+
+.cm-lint-marker-error {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f85149;
+  box-shadow: 0 0 5px rgba(248, 81, 73, 0.7);
+  margin: 6px auto;
+}
+
+.cm-lint-marker-warning {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d29922;
+  box-shadow: 0 0 5px rgba(210, 153, 34, 0.7);
+  margin: 6px auto;
+}
+
+.cm-tooltip-lint {
+  background: var(--bg-secondary, #161b22) !important;
+  border: 1px solid var(--border-color, #30363d) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  color: var(--fg-primary, #e6edf3) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Hover Tooltip */
+.cm-lsp-hover-tooltip {
+  background: var(--bg-secondary, #1c2128);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+  padding: 8px 12px;
+  max-width: 480px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-primary, #e6edf3);
+}
+
+.cm-lsp-hover-tooltip pre {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin: 4px 0;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.cm-lsp-hover-tooltip code {
+  font-family: var(--font-mono, monospace);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* Settings LSP Server Cards */
+.lsp-servers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lsp-server-card {
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lsp-server-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lsp-server-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lsp-server-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fg-primary);
+}
+
+.lsp-server-languages {
+  font-size: 11px;
+  color: var(--fg-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.lsp-server-status-group {
+  display: flex;
+  align-items: center;
+}
+
+.lsp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.lsp-status-badge .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.lsp-status-badge.installed {
+  background: rgba(63, 185, 80, 0.15);
+  color: #3fb950;
+  border: 1px solid rgba(63, 185, 80, 0.3);
+}
+
+.lsp-status-badge.installed .status-dot {
+  background: #3fb950;
+}
+
+.lsp-status-badge.not-found {
+  background: rgba(139, 148, 158, 0.15);
+  color: #8b949e;
+  border: 1px solid rgba(139, 148, 158, 0.3);
+}
+
+.lsp-status-badge.not-found .status-dot {
+  background: #8b949e;
+}
+
+
 

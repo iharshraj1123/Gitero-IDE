@@ -3,6 +3,8 @@ import { themeManager } from '../themes/themeManager';
 import { EditorTab } from '../state/editorState';
 import { preferencesService } from '../services/preferences';
 import { gitService } from '../services/git';
+import { lspClient } from '../services/lsp/lspClient';
+import { LspServerStatus } from '../services/lsp/lspTypes';
 
 export class StatusBarComponent {
   private container: HTMLElement;
@@ -15,6 +17,7 @@ export class StatusBarComponent {
   private cursorEl!: HTMLElement;
   private spacesEl!: HTMLElement;
   private encodingEl!: HTMLElement;
+  private lspEl!: HTMLElement;
   private languageEl!: HTMLElement;
   private themeEl!: HTMLElement;
 
@@ -22,6 +25,7 @@ export class StatusBarComponent {
   private onOpenThemePicker?: () => void;
   private onOpenLanguagePicker?: () => void;
   private onOpenIndentationPicker?: () => void;
+  private onOpenLspSettings?: () => void;
   private onOpenGit?: () => void;
   private onSwitchBranch?: () => void;
   private onSyncGit?: () => void;
@@ -31,6 +35,7 @@ export class StatusBarComponent {
     onOpenThemePicker?: () => void;
     onOpenLanguagePicker?: () => void;
     onOpenIndentationPicker?: () => void;
+    onOpenLspSettings?: () => void;
     onOpenGit?: () => void;
     onSwitchBranch?: () => void;
     onSyncGit?: () => void;
@@ -40,6 +45,7 @@ export class StatusBarComponent {
     this.onOpenThemePicker = options?.onOpenThemePicker;
     this.onOpenLanguagePicker = options?.onOpenLanguagePicker;
     this.onOpenIndentationPicker = options?.onOpenIndentationPicker;
+    this.onOpenLspSettings = options?.onOpenLspSettings;
     this.onOpenGit = options?.onOpenGit;
     this.onSwitchBranch = options?.onSwitchBranch;
     this.onSyncGit = options?.onSyncGit;
@@ -68,6 +74,10 @@ export class StatusBarComponent {
         <div class="status-item" id="status-cursor">Ln 1, Col 1</div>
         <div class="status-item" id="status-spaces" title="Click to select Indentation">Spaces: 2</div>
         <div class="status-item" id="status-encoding">UTF-8</div>
+        <div class="status-item status-lsp-badge" id="status-lsp" title="Language Server Protocol (Click to configure)">
+          <span class="status-lsp-dot stopped"></span>
+          <span class="status-lsp-text">LSP: Off</span>
+        </div>
         <div class="status-item" id="status-language" title="Click to change Language Mode">Plain Text</div>
         <div class="status-item status-theme" id="status-theme" title="Click to change color theme">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
@@ -84,8 +94,13 @@ export class StatusBarComponent {
     this.cursorEl = this.container.querySelector('#status-cursor') as HTMLElement;
     this.spacesEl = this.container.querySelector('#status-spaces') as HTMLElement;
     this.encodingEl = this.container.querySelector('#status-encoding') as HTMLElement;
+    this.lspEl = this.container.querySelector('#status-lsp') as HTMLElement;
     this.languageEl = this.container.querySelector('#status-language') as HTMLElement;
     this.themeEl = this.container.querySelector('#status-theme') as HTMLElement;
+
+    this.lspEl.addEventListener('click', () => {
+      this.onOpenLspSettings?.();
+    });
 
     this.vimModeEl.addEventListener('click', () => {
       this.onToggleVim?.();
@@ -126,6 +141,11 @@ export class StatusBarComponent {
     themeManager.onThemeChange((theme) => {
       const nameSpan = this.themeEl.querySelector('.theme-name');
       if (nameSpan) nameSpan.textContent = theme.name;
+    });
+
+    // LSP status changes
+    lspClient.onStatusChange((evt) => {
+      this.updateLspStatus(evt.status, evt.serverName);
     });
 
     // Tab size updates
@@ -196,6 +216,27 @@ export class StatusBarComponent {
           this.messageEl.textContent = '';
         }
       }, timeoutMs);
+    }
+  }
+
+  updateLspStatus(status: LspServerStatus, serverName?: string) {
+    const dot = this.lspEl?.querySelector('.status-lsp-dot');
+    const text = this.lspEl?.querySelector('.status-lsp-text');
+    if (!dot || !text) return;
+
+    dot.className = `status-lsp-dot ${status}`;
+    if (status === 'ready') {
+      text.textContent = serverName ? `LSP: ${serverName.split(' ')[0]}` : 'LSP: Ready';
+      this.lspEl.title = `LSP: ${serverName || 'Ready'} active (Click to configure)`;
+    } else if (status === 'starting') {
+      text.textContent = 'LSP: Starting...';
+      this.lspEl.title = `LSP: Starting ${serverName || 'server'}... (Click to configure)`;
+    } else if (status === 'error') {
+      text.textContent = 'LSP: Error';
+      this.lspEl.title = `LSP: Server error (Click to configure)`;
+    } else {
+      text.textContent = 'LSP: Off';
+      this.lspEl.title = `LSP: Inactive (Click to configure)`;
     }
   }
 }

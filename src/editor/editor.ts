@@ -10,6 +10,7 @@ import {
 } from '@codemirror/commands';
 import { foldGutter, foldKeymap, indentOnInput, bracketMatching } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap, snippet } from '@codemirror/autocomplete';
+import { lintGutter } from '@codemirror/lint';
 import { search, searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
 import { FindWidgetPanel, openReplaceWidget } from './findWidget';
 
@@ -17,7 +18,14 @@ import { themeManager } from '../themes/themeManager';
 import { vimIntegration } from './vim';
 import { detectLanguage, getLanguageByName } from './languages';
 import { preferencesService, CursorStyle } from '../services/preferences';
-import { createSnippetCompletionSource } from './snippets';
+import {
+  createCompositeCompletionSource,
+  createLspHoverExtension,
+  createLspDefinitionExtension,
+  updateViewDiagnostics,
+  NavigateToLocationHandler
+} from './lspExtension';
+import { lspClient, pathToUri } from '../services/lsp/lspClient';
 
 // Smart active line highlighter that automatically yields during selections (e.g. Ctrl+A)
 // so the selection highlight is never occluded or hidden by the active line background.
@@ -58,6 +66,13 @@ export interface CursorPosition {
 export class EditorManager {
   private view: EditorView | null = null;
   private container: HTMLElement | null = null;
+
+  // Active document and LSP tracking
+  private currentFilePath: string | null = null;
+  private currentLanguageId: string = 'plaintext';
+  private documentVersion: number = 1;
+  private lspChangeDebounceTimer: any = null;
+  private onNavigateToLocation?: NavigateToLocationHandler;
   
   // Compartments for dynamic reconfiguration
   private lineNumbersCompartment = new Compartment();
@@ -87,9 +102,32 @@ export class EditorManager {
       indentOnInput(),
       bracketMatching(),
       closeBrackets(),
+      lintGutter(),
       autocompletion({
-        override: [createSnippetCompletionSource()]
+        override: [
+          createCompositeCompletionSource(
+            () => this.currentFilePath,
+            () => this.currentLanguageId
+          )
+        ],
+        activateOnTyping: true,
+        icons: true
       }),
+      createLspHoverExtension(
+        () => this.currentFilePath,
+        () => this.currentLanguageId
+      ),
+      createLspDefinitionExtension(
+        () => this.currentFilePath,
+        () => this.currentLanguageId,
+        (targetPath, line, col) => {
+          if (this.onNavigateToLocation) {
+            this.onNavigateToLocation(targetPath, line, col);
+          } else {
+            this.gotoLine(line, col);
+          }
+        }
+      ),
       smartHighlightActiveLine,
       highlightSelectionMatches(),
       search({
@@ -123,8 +161,24 @@ export class EditorManager {
         indentWithTab
       ]),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged && this.onContentChange) {
-          this.onContentChange(update.state.doc.toString());
+        if (update.docChanged) {
+          this.documentVersion++;
+          if (this.onContentChange) {
+            this.onContentChange(update.state.doc.toString());
+          }
+
+          // Debounced LSP document change notification
+          clearTimeout(this.lspChangeDebounceTimer);
+          this.lspChangeDebounceTimer = setTimeout(() => {
+            if (this.currentFilePath) {
+              lspClient.notifyDidChange(
+                this.currentFilePath,
+                this.currentLanguageId,
+                this.documentVersion,
+                update.state.doc.toString()
+              );
+            }
+          }, 150);
         }
 
         if (update.selectionSet && this.onCursorChange) {
@@ -144,14 +198,19 @@ export class EditorManager {
     filePath?: string;
     onCursorChange?: (pos: CursorPosition) => void;
     onContentChange?: (content: string) => void;
+    onNavigateToLocation?: NavigateToLocationHandler;
   }) {
     this.container = container;
     this.onCursorChange = options.onCursorChange;
     this.onContentChange = options.onContentChange;
+    this.onNavigateToLocation = options.onNavigateToLocation;
 
     const initialContent = options.initialContent || '';
     const filePath = options.filePath || 'untitled.txt';
+    this.currentFilePath = filePath;
     const langInfo = detectLanguage(filePath);
+    this.currentLanguageId = langInfo.languageId || 'plaintext';
+    this.documentVersion = 1;
 
     const state = EditorState.create({
       doc: initialContent,
@@ -202,12 +261,22 @@ export class EditorManager {
     preferencesService.subscribe('editor.lineNumbers', (enabled) => {
       this.setLineNumbers(enabled);
     });
+
+    // Subscribe to LSP diagnostics
+    lspClient.onDiagnostics((params) => {
+      if (this.view && this.currentFilePath && params.uri === pathToUri(this.currentFilePath)) {
+        updateViewDiagnostics(this.view, this.currentFilePath, params.diagnostics);
+      }
+    });
   }
 
   loadDocument(content: string, filePath: string) {
     if (!this.view) return;
 
+    this.currentFilePath = filePath;
     const langInfo = detectLanguage(filePath);
+    this.currentLanguageId = langInfo.languageId || 'plaintext';
+    this.documentVersion = 1;
 
     this.view.setState(
       EditorState.create({
@@ -219,6 +288,27 @@ export class EditorManager {
     this.applyCursorPreferences();
     vimIntegration.attachView(this.view);
     this.view.focus();
+
+    lspClient.notifyDidOpen(filePath, this.currentLanguageId, this.documentVersion, content);
+  }
+
+  notifyDidSave() {
+    if (this.currentFilePath) {
+      lspClient.notifyDidSave(this.currentFilePath, this.currentLanguageId, this.getContent());
+    }
+  }
+
+  notifyDidClose(filePath: string, languageId?: string) {
+    const lang = languageId || (this.currentFilePath === filePath ? this.currentLanguageId : detectLanguage(filePath).languageId) || 'plaintext';
+    lspClient.notifyDidClose(filePath, lang);
+  }
+
+  getCurrentFilePath(): string | null {
+    return this.currentFilePath;
+  }
+
+  getCurrentLanguageId(): string {
+    return this.currentLanguageId;
   }
 
   getContent(): string {
@@ -239,6 +329,7 @@ export class EditorManager {
   setLanguage(filePath: string) {
     if (!this.view) return;
     const langInfo = detectLanguage(filePath);
+    this.currentLanguageId = langInfo.languageId || 'plaintext';
     this.view.dispatch({
       effects: this.languageCompartment.reconfigure(langInfo.extension())
     });
@@ -247,6 +338,7 @@ export class EditorManager {
   setLanguageByName(langName: string) {
     if (!this.view) return;
     const langInfo = getLanguageByName(langName);
+    this.currentLanguageId = langInfo.languageId || 'plaintext';
     this.view.dispatch({
       effects: this.languageCompartment.reconfigure(langInfo.extension())
     });

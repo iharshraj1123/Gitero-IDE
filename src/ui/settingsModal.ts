@@ -6,6 +6,8 @@ import { preferencesService, CursorStyle, IconTheme } from '../services/preferen
 import { renderIconPreview } from './icons';
 import { fileAssociationService } from '../services/fileAssociation';
 import { transparencyService, TRANSPARENCY_SECTIONS, TRANSPARENCY_PRESETS, TransparencyCategory } from '../services/transparencyService';
+import { DEFAULT_SERVERS, lspServerRegistry } from '../services/lsp/lspServerRegistry';
+import { lspClient } from '../services/lsp/lspClient';
 
 export interface KeybindingDefinition {
   id: string;
@@ -14,6 +16,7 @@ export interface KeybindingDefinition {
 }
 
 export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
+  { id: 'editor.action.goToDefinition', name: 'Go to Definition (F12 / Ctrl+Click)', category: 'Editor' },
   { id: 'workbench.action.quickOpen', name: 'Quick Open File', category: 'File' },
   { id: 'workbench.action.showCommands', name: 'Command Palette', category: 'View' },
   { id: 'workbench.action.files.save', name: 'Save File', category: 'File' },
@@ -95,6 +98,10 @@ export class SettingsModalComponent {
             <button class="settings-tab-btn" data-target="shortcuts">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
               <span>Shortcuts</span>
+            </button>
+            <button class="settings-tab-btn" data-target="lsp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><circle cx="12" cy="12" r="2"/></svg>
+              <span>Languages & LSP</span>
             </button>
             <button class="settings-tab-btn" data-target="updates">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
@@ -661,6 +668,61 @@ export class SettingsModalComponent {
                 <textarea id="setting-custom-css" class="setting-textarea" placeholder="/* Enter custom CSS rules here */&#10;/* Example: */&#10;/* .cm-cursor { border-left-color: #58a6ff !important; box-shadow: 0 0 8px #58a6ff; } */"></textarea>
               </div>
             </div>
+
+            <!-- 7. Languages & LSP Tab Pane -->
+            <div class="settings-tab-pane" id="tab-pane-lsp" data-tab="lsp">
+              <div class="settings-section-header">
+                <div class="settings-section-title">Language Server Protocol (LSP) & Code Intelligence</div>
+                <div class="settings-section-subtitle">Manage background language servers, real-time diagnostics, hover tooltips, and autocompletion.</div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">General Code Intelligence</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Enable Language Server Protocol (LSP)</span>
+                    <span class="setting-desc">Automatically launch background language servers found in system PATH for rich IntelliSense</span>
+                  </div>
+                  <label class="setting-toggle">
+                    <input type="checkbox" id="setting-lsp-enabled" checked />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Real-Time Diagnostics</span>
+                    <span class="setting-desc">Display compiler error and warning squiggly lines and gutter indicators</span>
+                  </div>
+                  <label class="setting-toggle">
+                    <input type="checkbox" id="setting-lsp-diagnostics" checked />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Hover Tooltip Inspector</span>
+                    <span class="setting-desc">Inspect function signatures, types, and Markdown documentation on cursor hover</span>
+                  </div>
+                  <label class="setting-toggle">
+                    <input type="checkbox" id="setting-lsp-hover" checked />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Supported Language Servers</span>
+                  <button class="btn btn-secondary btn-sm" id="btn-refresh-lsp-status">Refresh PATH</button>
+                </div>
+                <div style="font-size: 11px; color: var(--fg-muted); margin-bottom: 12px;">
+                  Gitero auto-detects standard language servers on your system PATH. When detected, full IntelliSense activates seamlessly.
+                </div>
+                <div class="lsp-servers-list" id="lsp-servers-list">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -707,6 +769,7 @@ export class SettingsModalComponent {
     this.setupTerminalSettingsListeners();
     this.setupFileAssociationListeners();
     this.setupTransparencyStudioListeners();
+    this.setupLspSettingsListeners();
   }
 
   private setupAppearanceSubtabs() {
@@ -1294,6 +1357,8 @@ export class SettingsModalComponent {
 
     if (tabId === 'updates') {
       this.loadBranches();
+    } else if (tabId === 'lsp') {
+      this.renderLspServersList();
     }
   }
 
@@ -2146,5 +2211,153 @@ export class SettingsModalComponent {
 
     this.updateAllSectionChips();
     this.updateBorderRadiusControlState();
+  }
+
+  private setupLspSettingsListeners() {
+    const lspEnabledInput = this.overlay.querySelector('#setting-lsp-enabled') as HTMLInputElement;
+    const lspDiagnosticsInput = this.overlay.querySelector('#setting-lsp-diagnostics') as HTMLInputElement;
+    const lspHoverInput = this.overlay.querySelector('#setting-lsp-hover') as HTMLInputElement;
+    const refreshBtn = this.overlay.querySelector('#btn-refresh-lsp-status') as HTMLButtonElement;
+
+    if (lspEnabledInput) {
+      lspEnabledInput.checked = preferencesService.get('lsp.enabled') !== false;
+      lspEnabledInput.addEventListener('change', () => {
+        preferencesService.set('lsp.enabled', lspEnabledInput.checked);
+      });
+    }
+
+    if (lspDiagnosticsInput) {
+      lspDiagnosticsInput.checked = preferencesService.get('lsp.diagnostics') !== false;
+      lspDiagnosticsInput.addEventListener('change', () => {
+        preferencesService.set('lsp.diagnostics', lspDiagnosticsInput.checked);
+      });
+    }
+
+    if (lspHoverInput) {
+      lspHoverInput.checked = preferencesService.get('lsp.hover') !== false;
+      lspHoverInput.addEventListener('change', () => {
+        preferencesService.set('lsp.hover', lspHoverInput.checked);
+      });
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Scanning...';
+        lspServerRegistry.clearCache();
+        await this.renderLspServersList();
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Refresh PATH';
+      });
+    }
+  }
+
+  private async renderLspServersList() {
+    const container = this.overlay.querySelector('#lsp-servers-list');
+    if (!container) return;
+
+    container.innerHTML = '<div style="padding: 12px; font-size: 12px; color: var(--fg-muted);">Scanning system PATH for language servers...</div>';
+
+    const customServers = (preferencesService.get('lsp.customServers') as Record<string, any>) || {};
+
+    const items: HTMLElement[] = [];
+    for (const server of DEFAULT_SERVERS) {
+      const isInstalled = await lspServerRegistry.isServerInstalled(server);
+      const userConfig = customServers[server.id] || {};
+      const isEnabled = userConfig.enabled !== false;
+      const customCmd = userConfig.command || '';
+
+      const card = document.createElement('div');
+      card.className = 'lsp-server-card';
+      card.innerHTML = `
+        <div class="lsp-server-header">
+          <div class="lsp-server-title-group">
+            <span class="lsp-server-name">${server.name}</span>
+            <span class="lsp-server-languages">${server.languages.map(l => '.' + l).join(', ')}</span>
+          </div>
+          <div class="lsp-server-status-group">
+            <span class="lsp-status-badge ${isInstalled ? 'installed' : 'not-found'}">
+              <span class="status-dot"></span>
+              ${isInstalled ? 'Installed on PATH' : 'Not Found in PATH'}
+            </span>
+            <label class="setting-toggle" style="margin-left: 12px;">
+              <input type="checkbox" class="server-enable-toggle" data-server-id="${server.id}" ${isEnabled ? 'checked' : ''} />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="lsp-server-details">
+          <div class="lsp-server-field">
+            <label style="font-size: 11px; color: var(--fg-muted); display: block; margin-bottom: 4px;">Executable Command / Path:</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="setting-input server-cmd-input" data-server-id="${server.id}"
+                placeholder="${server.defaultCommand} ${server.defaultArgs.join(' ')}"
+                value="${customCmd}" style="flex: 1; font-family: var(--font-mono, monospace); font-size: 11px;" />
+              <button class="btn btn-secondary btn-sm server-cmd-save-btn" data-server-id="${server.id}">Save</button>
+            </div>
+          </div>
+
+          <div class="lsp-server-install-row" style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+              <span style="color: var(--fg-muted); white-space: nowrap;">Install guide:</span>
+              <code style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono, monospace); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${server.installGuide}</code>
+            </div>
+            <button class="btn btn-secondary btn-sm copy-install-btn" data-cmd="${server.installGuide}" style="margin-left: 8px; white-space: nowrap;">Copy</button>
+          </div>
+        </div>
+      `;
+
+      // Wire enable toggle
+      const enableToggle = card.querySelector('.server-enable-toggle') as HTMLInputElement;
+      enableToggle?.addEventListener('change', () => {
+        const current = (preferencesService.get('lsp.customServers') as Record<string, any>) || {};
+        preferencesService.set('lsp.customServers', {
+          ...current,
+          [server.id]: {
+            ...current[server.id],
+            enabled: enableToggle.checked
+          }
+        });
+      });
+
+      // Wire save button
+      const saveBtn = card.querySelector('.server-cmd-save-btn') as HTMLButtonElement;
+      const cmdInput = card.querySelector('.server-cmd-input') as HTMLInputElement;
+      saveBtn?.addEventListener('click', () => {
+        const current = (preferencesService.get('lsp.customServers') as Record<string, any>) || {};
+        preferencesService.set('lsp.customServers', {
+          ...current,
+          [server.id]: {
+            ...current[server.id],
+            command: cmdInput.value.trim()
+          }
+        });
+        saveBtn.textContent = 'Saved!';
+        setTimeout(() => { saveBtn.textContent = 'Save'; }, 1500);
+      });
+
+      // Wire copy button
+      const copyBtn = card.querySelector('.copy-install-btn') as HTMLButtonElement;
+      copyBtn?.addEventListener('click', async () => {
+        const cmd = copyBtn.getAttribute('data-cmd');
+        if (cmd) {
+          try {
+            await navigator.clipboard.writeText(cmd);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+          } catch {
+            copyBtn.textContent = 'Copied!';
+          }
+        }
+      });
+
+      items.push(card);
+    }
+
+    container.innerHTML = '';
+    for (const item of items) {
+      container.appendChild(item);
+    }
   }
 }

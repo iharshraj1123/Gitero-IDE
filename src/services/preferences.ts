@@ -68,6 +68,12 @@ export interface GiteroPreferences {
   'transparency.overlays.bgOpacity': number;
   'transparency.overlays.textOpacity': number;
 
+  // Language Server Protocol (LSP) & Code Intelligence
+  'lsp.enabled': boolean;
+  'lsp.diagnostics': boolean;
+  'lsp.hover': boolean;
+  'lsp.customServers': Record<string, { command: string; args: string[]; enabled: boolean }>;
+
   // Keybindings
   'keybindings': Record<string, string>;
 }
@@ -104,10 +110,10 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'markdown.showPreview': 'Ctrl+Shift+V',
   'workbench.action.openSettings': 'Ctrl+,',
   'workbench.action.openShortcuts': 'Ctrl+K Ctrl+S',
-  'workbench.action.toggleFullScreen': 'F11',
-  'workbench.action.toggleDevTools': 'F12',
+  'workbench.action.toggleDevTools': 'Ctrl+Shift+I',
   'workbench.action.explorerHotkey': 'Ctrl+.',
-  'editor.action.cycleCursorStyle': 'Alt+0'
+  'editor.action.cycleCursorStyle': 'Alt+0',
+  'editor.action.goToDefinition': 'F12'
 };
 
 export const DEFAULT_PREFERENCES: GiteroPreferences = {
@@ -140,6 +146,10 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'search.matchWholeWord': false,
   'search.useRegex': false,
   'updater.githubToken': '',
+  'lsp.enabled': true,
+  'lsp.diagnostics': true,
+  'lsp.hover': true,
+  'lsp.customServers': {},
   'transparency.enabled': false,
   'transparency.atmosphereMood': 'deep-space',
   'transparency.atmosphereIntensity': 65,

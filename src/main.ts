@@ -25,6 +25,7 @@ import { SNIPPETS } from './editor/snippets';
 import { fileAssociationService } from './services/fileAssociation';
 import { persistentStorage } from './services/storage';
 import { transparencyService } from './services/transparencyService';
+import { lspClient } from './services/lsp/lspClient';
 import { DISPLAY_VERSION } from './version';
 
 async function bootstrap() {
@@ -320,6 +321,9 @@ async function bootstrap() {
     onOpenIndentationPicker: () => {
       openIndentationPicker();
     },
+    onOpenLspSettings: () => {
+      settingsModal.open('lsp');
+    },
     onOpenGit: () => {
       showSidebarPane('git');
     },
@@ -371,6 +375,7 @@ async function bootstrap() {
           }
           await fsService.writeFile(activeTab.path, content);
           editorState.markSaved(activeTab.id, content);
+          editorManager.notifyDidSave();
           statusBar.showMessage(`Auto-saved ${activeTab.name}`);
           gitService.refresh();
         } catch (e) {
@@ -398,6 +403,7 @@ async function bootstrap() {
       }
       await fsService.writeFile(activeTab.path, currentContent);
       editorState.markSaved(activeTab.id, currentContent);
+      editorManager.notifyDidSave();
       statusBar.showMessage(`Saved ${activeTab.name}`);
       gitService.refresh();
     } catch (err) {
@@ -426,6 +432,7 @@ async function bootstrap() {
       } else {
         editorState.openFile(newPath, currentContent);
       }
+      editorManager.notifyDidSave();
       const newName = newPath.split(/[/\\]/).pop() || newPath;
       statusBar.showMessage(`Saved as ${newName}`);
 
@@ -630,7 +637,28 @@ async function bootstrap() {
       if (activeTab) {
         editorState.updateCursor(activeTab.id, pos.line, pos.col);
       }
+    },
+    onNavigateToLocation: async (targetPath, line, col) => {
+      const activeTab = editorState.getActiveTab();
+      if (activeTab && activeTab.path.toLowerCase() === targetPath.toLowerCase()) {
+        editorManager.gotoLine(line, col);
+      } else {
+        try {
+          const content = await fsService.readFile(targetPath);
+          editorState.openFile(targetPath, content, { viewMode: 'raw' });
+          setTimeout(() => {
+            editorManager.gotoLine(line, col);
+          }, 80);
+        } catch (err) {
+          console.warn('Failed to open definition target:', err);
+        }
+      }
     }
+  });
+
+  // Notify LSP when tabs close
+  editorState.onClose((closedTab) => {
+    editorManager.notifyDidClose(closedTab.path, closedTab.language);
   });
 
   // 9. Connect Vim Ex-Commands (:w, :q)
@@ -741,6 +769,7 @@ async function bootstrap() {
   // 12. Workspace Loader
   async function loadWorkspace(dirPath: string) {
     fsService.setWorkspace(dirPath);
+    lspClient.setWorkspaceRoot(dirPath);
     const folderName = dirPath.split(/[/\\]/).filter(Boolean).pop() || dirPath;
     workspaceTitle.textContent = folderName.toUpperCase();
     await fileTree.loadWorkspace(dirPath);
@@ -1748,3 +1777,6 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
 
 // Start app
 window.addEventListener('DOMContentLoaded', bootstrap);
+window.addEventListener('beforeunload', () => {
+  lspClient.stopAll();
+});
