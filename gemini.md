@@ -46,6 +46,29 @@
   2. **Maximized Work-Area Alignment**: Handles `WM_NCCALCSIZE` and `WM_GETMINMAXINFO` using `mi.rcWork` to prevent 7-8px border clipping.
   3. **Auto-Hide Taskbar Sensor**: Reserves 1px at bottom edge when `rcWork == rcMonitor` so auto-hiding taskbars pop up on cursor hover.
   4. **Taskbar App Window Registration**: Restores `WS_EX_APPWINDOW` in `__undoFakeHidden()` so app icon appears on the taskbar.
+  5. **DWM System Backdrop (Desktop Acrylic)**: Applies `DWMWA_SYSTEMBACKDROP_TYPE` (`38`) with `DWMSBT_TRANSIENTWINDOW` (`3`) for native blurred backdrop or `DWMSBT_NONE` (`1`) for 100% clear transparency; suppresses native caption buttons via `DWMWA_NCRENDERING_POLICY` (`DWMNCRP_DISABLED`) and strips `WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX`.
+  6. **Dead-Zone & Click Pass-Through Fix**: Permanently strips `WS_EX_LAYERED` and legacy `SetWindowCompositionAttribute` calls to guarantee 100% hit testing across the screen at fractional DPI scales (e.g. 125%).
+  7. **Ghost Window & Stale Redirection Elimination**: Creates window with `WS_EX_NOREDIRECTIONBITMAP` (`0x00200000L`) via `CreateWindowEx`, sets `wc.hbrBackground = nullptr`, and suppresses `WM_ERASEBKGND` to prevent DWM from caching outdated GDI redirection bitmaps behind WebView2.
+  8. **Non-Client Frame Suppression on Inactivity**: Handles `WM_NCACTIVATE` returning `DefWindowProc(hwnd, msg, wp, -1)` and `WM_NCPAINT` returning `0` when borderless to stop Windows from repainting inactive frames and flickering on focus loss.
+  9. **Dynamic DWM Frame Synchronization**: Hooks `WM_WINDOWPOSCHANGED` (when `!(flags & SWP_NOSIZE)`) and `WM_SIZE` to re-invoke `DwmExtendFrameIntoClientArea(hwnd, &margins)`, ensuring backdrop bounds continuously track window resizing and maximize/restore transitions.
+  10. **Native Windows 11 Rounded Corners**: Enforces `DWMWA_WINDOW_CORNER_PREFERENCE` (`33`) with `DWMWCP_ROUND` (`2`) in `TrySetWindowBackdrop()` and `setBorderless()`, enabling OS-level corner rounding and drop shadows for borderless windows.
+
+---
+
+## Stability & Fallback Anchors
+
+* **Gitero IDE Stable Anchor**: Tag `v0.2.7-beta` & branch `stable/0.2.7-beta` at `5e03a57` on GitHub.
+* **Neutralino Fork Stable Anchor**: Tag `v0.2.7-beta` & branch `stable/0.2.7-beta` at `930dfdc` on GitHub.
+* Both repositories maintain these permanent fallback anchors for zero-loss recovery.
+
+---
+
+## Workspace Transparency & Glassmorphism Architecture
+
+* **Service Controller**: `TransparencyService` (`src/services/transparencyService.ts`).
+* **CSS Custom Properties**: Controls `--transparency-blur`, `--transparency-atmosphere-intensity`, `--opacity-master-bg`, `--opacity-master-fg`, and individual category opacities (`chrome`, `workspace`, `editor`, `overlays`).
+* **Atmosphere Shaders**: Managed via `.app-glass-luminance` DOM element supporting presets (`none`, `deep-space`, `aurora`, `monochrome`, `accent`).
+* **Corner Radius Synchronization**: Non-maximized window border radius (`workbench.windowBorderRadius`) defaults to `8px` (`--window-border-radius: 8px`), aligning the CSS `#app` container with Windows 11's native `DWMWCP_ROUND` geometry with zero gap. Maximize state cleanly resets radius to `0` via `body.window-maximized #app`.
 
 ---
 
