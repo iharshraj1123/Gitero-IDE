@@ -170,6 +170,26 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     }
   },
   {
+    id: 'dark-glass',
+    name: 'Dark Glass',
+    description: 'Deep obsidian aesthetic engineered with rich frosted blur and high-contrast glowing syntax',
+    blur: 24,
+    masterBg: 95,
+    masterText: 100,
+    atmosphereMood: 'deep-space',
+    atmosphereIntensity: 80,
+    sections: {
+      titleBar: { bg: 55, text: 100 },
+      activityBar: { bg: 50, text: 100 },
+      sidebar: { bg: 55, text: 100 },
+      tabBar: { bg: 40, text: 100 },
+      editor: { bg: 62, text: 100 },
+      terminal: { bg: 65, text: 100 },
+      statusBar: { bg: 50, text: 100 },
+      overlays: { bg: 65, text: 100 }
+    }
+  },
+  {
     id: 'code-focus',
     name: 'Code Focus',
     description: 'Translucent sidebars and chrome with 100% solid, distraction-free code canvas',

@@ -5,6 +5,7 @@ import { Extension } from '@codemirror/state';
 import { THEMES, ThemeDefinition } from './themes';
 
 import { preferencesService } from '../services/preferences';
+import { transparencyService } from '../services/transparencyService';
 
 export const CUSTOM_THEMES_KEY = 'gitero_custom_themes_v1';
 
@@ -130,6 +131,12 @@ export class ThemeManager {
       this.activeThemeOverride = null;
       if (persist) {
         preferencesService.set('editor.theme', theme.id);
+        if (theme.id === 'dark-glass') {
+          const isTransEnabled = preferencesService.get('transparency.enabled');
+          if (!isTransEnabled) {
+            transparencyService.applyPreset('dark-glass');
+          }
+        }
       }
     } else {
       theme = themeInput;

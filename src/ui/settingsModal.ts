@@ -334,6 +334,7 @@ export class SettingsModalComponent {
                       <button type="button" class="preset-chip-btn" data-preset="solid">Solid (Default)</button>
                       <button type="button" class="preset-chip-btn" data-preset="subtle-glass">Subtle Glass</button>
                       <button type="button" class="preset-chip-btn" data-preset="frosted-acrylic">Frosted Acrylic</button>
+                      <button type="button" class="preset-chip-btn" data-preset="dark-glass">Dark Glass</button>
                       <button type="button" class="preset-chip-btn" data-preset="code-focus">Code Focus</button>
                     </div>
                   </div>

@@ -252,5 +252,41 @@ export const THEMES: Record<string, ThemeDefinition> = {
       synNumber: '#79c0ff',
       synOperator: '#ff7b72'
     }
+  },
+  'dark-glass': {
+    id: 'dark-glass',
+    name: 'Dark Glass',
+    isDark: true,
+    colors: {
+      bgPrimary: '#080b11',
+      bgSecondary: '#030508',
+      bgSidebar: '#05080f',
+      bgActivity: '#030508',
+      bgHover: '#131b2e',
+      bgActive: '#1a243d',
+      fgPrimary: '#e2e8f0',
+      fgMuted: '#64748b',
+      borderColor: '#1e293b',
+      accent: '#38bdf8',
+      statusBarBg: '#05080f',
+      statusBarFg: '#94a3b8',
+      tabActiveBg: '#080b11',
+      tabInactiveBg: '#030508',
+      tabBorder: '#1e293b',
+      editorBg: '#080b11',
+      editorFg: '#f1f5f9',
+      editorLineNumber: '#475569',
+      editorCursor: '#38bdf8',
+      editorSelection: '#1e3a8a66',
+      editorActiveLine: '#0f172a88',
+      synKeyword: '#f472b6',
+      synString: '#4ade80',
+      synFunction: '#38bdf8',
+      synVariable: '#fbbf24',
+      synComment: '#64748b',
+      synType: '#22d3ee',
+      synNumber: '#a78bfa',
+      synOperator: '#f43f5e'
+    }
   }
 };
