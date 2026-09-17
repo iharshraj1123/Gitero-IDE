@@ -139,14 +139,14 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     atmosphereMood: 'none',
     atmosphereIntensity: 0,
     sections: {
-      titleBar: { bg: 60, text: 100 },
-      activityBar: { bg: 50, text: 100 },
-      sidebar: { bg: 55, text: 100 },
-      tabBar: { bg: 60, text: 100 },
-      editor: { bg: 85, text: 100 },
-      terminal: { bg: 65, text: 100 },
-      statusBar: { bg: 50, text: 100 },
-      overlays: { bg: 80, text: 100 }
+      titleBar: { bg: 80, text: 100 },
+      activityBar: { bg: 75, text: 100 },
+      sidebar: { bg: 78, text: 100 },
+      tabBar: { bg: 80, text: 100 },
+      editor: { bg: 92, text: 100 },
+      terminal: { bg: 85, text: 100 },
+      statusBar: { bg: 75, text: 100 },
+      overlays: { bg: 90, text: 100 }
     }
   },
   {
@@ -159,14 +159,14 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     atmosphereMood: 'none',
     atmosphereIntensity: 0,
     sections: {
-      titleBar: { bg: 35, text: 100 },
-      activityBar: { bg: 30, text: 100 },
-      sidebar: { bg: 35, text: 100 },
-      tabBar: { bg: 40, text: 100 },
-      editor: { bg: 65, text: 100 },
-      terminal: { bg: 45, text: 100 },
-      statusBar: { bg: 30, text: 100 },
-      overlays: { bg: 75, text: 100 }
+      titleBar: { bg: 60, text: 100 },
+      activityBar: { bg: 55, text: 100 },
+      sidebar: { bg: 60, text: 100 },
+      tabBar: { bg: 65, text: 100 },
+      editor: { bg: 85, text: 100 },
+      terminal: { bg: 70, text: 100 },
+      statusBar: { bg: 55, text: 100 },
+      overlays: { bg: 88, text: 100 }
     }
   },
   {
@@ -179,14 +179,14 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
     atmosphereMood: 'none',
     atmosphereIntensity: 0,
     sections: {
-      titleBar: { bg: 40, text: 100 },
-      activityBar: { bg: 35, text: 100 },
-      sidebar: { bg: 40, text: 100 },
-      tabBar: { bg: 45, text: 100 },
+      titleBar: { bg: 65, text: 100 },
+      activityBar: { bg: 60, text: 100 },
+      sidebar: { bg: 65, text: 100 },
+      tabBar: { bg: 70, text: 100 },
       editor: { bg: 100, text: 100 },
-      terminal: { bg: 50, text: 100 },
-      statusBar: { bg: 35, text: 100 },
-      overlays: { bg: 78, text: 100 }
+      terminal: { bg: 72, text: 100 },
+      statusBar: { bg: 60, text: 100 },
+      overlays: { bg: 90, text: 100 }
     }
   }
 ];
@@ -198,6 +198,29 @@ export class TransparencyService {
   init() {
     if (this.isInitialized) return;
     this.isInitialized = true;
+
+    // Auto-upgrade legacy low preset opacities if below 50%
+    const currentSidebar = preferencesService.get('transparency.sidebar.bgOpacity');
+    if (typeof currentSidebar === 'number' && currentSidebar > 0 && currentSidebar <= 40) {
+      const updates: Partial<GiteroPreferences> = {};
+      const chromeKeys: (keyof GiteroPreferences)[] = [
+        'transparency.titleBar.bgOpacity',
+        'transparency.activityBar.bgOpacity',
+        'transparency.sidebar.bgOpacity',
+        'transparency.tabBar.bgOpacity',
+        'transparency.terminal.bgOpacity',
+        'transparency.statusBar.bgOpacity'
+      ];
+      chromeKeys.forEach(k => {
+        const val = preferencesService.get(k) as number;
+        if (typeof val === 'number' && val <= 45) {
+          (updates as any)[k] = Math.min(100, val + 25);
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        preferencesService.update(updates);
+      }
+    }
 
     this.apply();
 

@@ -4095,6 +4095,28 @@ body.transparency-active .status-bar span {
   opacity: var(--opacity-statusbar-fg, 1);
 }
 
+body.transparency-active .status-bar .status-vim-badge.mode-disabled,
+body.transparency-active .status-bar .status-vim-badge.mode-text {
+  background-color: color-mix(in srgb, var(--bg-secondary, #21262d) calc(var(--opacity-statusbar-bg, 1) * 85%), transparent) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+body.transparency-active .status-bar .status-vim-badge.mode-disabled:hover,
+body.transparency-active .status-bar .status-vim-badge.mode-text:hover {
+  background-color: color-mix(in srgb, var(--bg-hover, #30363d) calc(var(--opacity-statusbar-bg, 1) * 100%), transparent) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+body.transparency-active .status-bar .status-vim-badge.mode-normal {
+  background-color: color-mix(in srgb, #3b82f6 calc(var(--opacity-statusbar-bg, 1) * 90%), transparent) !important;
+}
+body.transparency-active .status-bar .status-vim-badge.mode-insert {
+  background-color: color-mix(in srgb, #10b981 calc(var(--opacity-statusbar-bg, 1) * 90%), transparent) !important;
+}
+body.transparency-active .status-bar .status-vim-badge.mode-visual,
+body.transparency-active .status-bar .status-vim-badge.mode-v-line,
+body.transparency-active .status-bar .status-vim-badge.mode-v-block {
+  background-color: color-mix(in srgb, #f59e0b calc(var(--opacity-statusbar-bg, 1) * 90%), transparent) !important;
+}
+
 /* 8. Modals & Overlays */
 body.transparency-active .command-palette,
 body.transparency-active .settings-modal,
