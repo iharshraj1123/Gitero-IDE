@@ -58,7 +58,20 @@
   user-select: none;
 }
 
-body, html {
+html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--fg-primary);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -3939,7 +3952,10 @@ body.window-maximized .win-resize-handle {
    ========================================================================== */
 
 html.transparency-active,
-body.transparency-active {
+body.transparency-active,
+:root.transparency-active,
+html:has(body.transparency-active),
+:root:has(body.transparency-active) {
   background-color: transparent !important;
   background: transparent !important;
 }

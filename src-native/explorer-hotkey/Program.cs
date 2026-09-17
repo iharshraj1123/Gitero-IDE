@@ -212,6 +212,8 @@ namespace GiteroExplorerHotkey
                 MARGINS margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
                 DwmExtendFrameIntoClientArea(hwnd, ref margins);
 
+                SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, GetStockObject(BLACK_BRUSH));
+
                 int backdrop = 3; // 3 = Acrylic (DWMSBT_TRANSIENTWINDOW)
                 DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));
 
@@ -528,6 +530,26 @@ namespace GiteroExplorerHotkey
 
         [DllImport("user32.dll")]
         private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        private const int GCLP_HBRBACKGROUND = -10;
+        private const int BLACK_BRUSH = 4;
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr GetStockObject(int fnObject);
+
+        [DllImport("user32.dll", EntryPoint = "SetClassLongPtr")]
+        private static extern IntPtr SetClassLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        [DllImport("user32.dll", EntryPoint = "SetClassLong")]
+        private static extern int SetClassLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        private static IntPtr SetClassLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
+        {
+            if (IntPtr.Size > 4)
+                return SetClassLongPtr64(hWnd, nIndex, dwNewLong);
+            else
+                return new IntPtr(SetClassLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+        }
 
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
     }

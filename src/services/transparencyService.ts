@@ -259,7 +259,12 @@ export class TransparencyService {
     const enabled = preferencesService.get('transparency.enabled');
 
     if (!enabled) {
+      root.classList.remove('transparency-active');
       body.classList.remove('transparency-active');
+      root.style.removeProperty('background');
+      root.style.removeProperty('background-color');
+      body.style.removeProperty('background');
+      body.style.removeProperty('background-color');
       if (this.atmosphereEl) {
         this.atmosphereEl.style.display = 'none';
       }
@@ -274,7 +279,12 @@ export class TransparencyService {
       return;
     }
 
+    root.classList.add('transparency-active');
     body.classList.add('transparency-active');
+    root.style.setProperty('background', 'transparent', 'important');
+    root.style.setProperty('background-color', 'transparent', 'important');
+    body.style.setProperty('background', 'transparent', 'important');
+    body.style.setProperty('background-color', 'transparent', 'important');
 
     // Trigger Windows DWM Acrylic backdrop and ensure WS_EX_LAYERED is stripped
     if (typeof window !== 'undefined' && (window as any).Neutralino?.os?.execCommand) {

@@ -28,6 +28,9 @@
           if (parsed && parsed['workbench.sidebarVisible'] === false) {
             sidebarVisible = false;
           }
+          if (parsed && parsed['transparency.enabled']) {
+            document.documentElement.classList.add('transparency-active');
+          }
         }
         if (isExternalFile || !sidebarVisible) {
           document.documentElement.classList.add('init-sidebar-collapsed');
