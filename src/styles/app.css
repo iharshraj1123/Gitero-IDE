@@ -6005,7 +6005,7 @@ body.transparency-active .settings-body-wrapper {
   align-items: center !important;
   justify-content: center !important;
   padding: 0 !important;
-  min-height: 100%;
+  box-sizing: border-box !important;
 }
 
 .cm-foldMarker {
@@ -6074,6 +6074,10 @@ body.transparency-active .settings-body-wrapper {
   border-color: var(--accent-color, #0969da);
 }
 
+.cm-tooltip {
+  z-index: 10000 !important;
+}
+
 .cm-tooltip-lint {
   background: var(--bg-secondary, #161b22) !important;
   border: 1px solid var(--border-color, #30363d) !important;
@@ -6082,6 +6086,7 @@ body.transparency-active .settings-body-wrapper {
   font-size: 12px !important;
   color: var(--fg-primary, #e6edf3) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  z-index: 10000 !important;
 }
 
 /* Hover Tooltip */
@@ -6095,6 +6100,7 @@ body.transparency-active .settings-body-wrapper {
   font-size: 12px;
   line-height: 1.5;
   color: var(--fg-primary, #e6edf3);
+  z-index: 10000 !important;
 }
 
 .cm-lsp-hover-tooltip pre {

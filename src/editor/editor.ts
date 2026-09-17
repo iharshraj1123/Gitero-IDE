@@ -1,6 +1,6 @@
 import {
   EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection,
-  dropCursor, keymap, ViewPlugin, Decoration, DecorationSet, ViewUpdate
+  dropCursor, keymap, ViewPlugin, Decoration, DecorationSet, ViewUpdate, tooltips
 } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import {
@@ -131,6 +131,20 @@ export class EditorManager {
       bracketMatching(),
       closeBrackets(),
       lintGutter(),
+      tooltips({
+        position: 'fixed',
+        parent: document.body,
+        tooltipSpace: (view) => {
+          const rect = view.dom.getBoundingClientRect();
+          const docElt = view.dom.ownerDocument.documentElement;
+          return {
+            top: rect.top + 6,
+            left: rect.left,
+            bottom: rect.bottom - 6,
+            right: docElt.clientWidth
+          };
+        }
+      }),
       autocompletion({
         override: [
           createCompositeCompletionSource(
