@@ -27,6 +27,8 @@ import { persistentStorage } from './services/storage';
 import { transparencyService } from './services/transparencyService';
 import { lspClient } from './services/lsp/lspClient';
 import { NotificationToastComponent } from './ui/notificationToast';
+import { NotificationCenterComponent } from './ui/notificationCenter';
+import { notificationService } from './services/notification';
 import { checkMissingLsp } from './services/lsp/lspDetector';
 import { DISPLAY_VERSION } from './version';
 
@@ -118,6 +120,11 @@ async function bootstrap() {
 
   const shortcutsModal = new ShortcutsModalComponent();
   new NotificationToastComponent();
+  const notificationCenter = new NotificationCenterComponent();
+
+  window.addEventListener('gitero:open-settings', (e: any) => {
+    settingsModal.open(e.detail?.tab || 'editor');
+  });
 
   // 5. Initialize Side Panes & Bottom Panels
   const searchPanel = new SearchPanelComponent(searchPane);
@@ -301,8 +308,24 @@ async function bootstrap() {
     const res = await gitService.push();
     if (res.success) {
       statusBar.showMessage('Git: Successfully synced with remote');
+      notificationService.success('Git Synced', 'Successfully synchronized local branch with remote repository.');
     } else {
       statusBar.showMessage(`Git sync error: ${res.error || 'Failed'}`);
+      notificationService.error(
+        'Git Sync Failed',
+        res.error || 'Failed to push changes to remote repository.',
+        [
+          {
+            label: 'View Output',
+            primary: true,
+            onClick: () => {
+              terminalPanel.toggle(true);
+              const outBtn = document.getElementById('tab-btn-output') as HTMLElement;
+              outBtn?.click();
+            }
+          }
+        ]
+      );
     }
   }
 
@@ -335,6 +358,9 @@ async function bootstrap() {
     },
     onSyncGit: () => {
       syncGit();
+    },
+    onToggleNotifications: () => {
+      notificationCenter.toggle();
     }
   });
 

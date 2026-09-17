@@ -1,6 +1,7 @@
 /**
  * Floating Toast Notification Component
- * Renders non-blocking, actionable notification cards in the bottom-right viewport.
+ * Renders non-blocking, actionable notification cards in the bottom-right viewport
+ * with countdown progress bars, hover pause, and de-duplication count badges.
  */
 
 import { notificationService, NotificationItem, NotificationType } from '../services/notification';
@@ -24,7 +25,9 @@ export class NotificationToastComponent {
     element: HTMLElement;
     timer?: any;
     remainingMs: number;
+    totalMs: number;
     startTime: number;
+    progressFill?: HTMLElement;
   }>();
 
   constructor() {
@@ -38,9 +41,40 @@ export class NotificationToastComponent {
   }
 
   private renderToast(item: NotificationItem) {
-    // If already rendered, remove old
-    if (this.toastElements.has(item.id)) {
-      this.removeToast(item.id);
+    // If already rendered (e.g. de-duplicated notification bump), update in-place
+    const existing = this.toastElements.get(item.id);
+    if (existing) {
+      const countBadge = existing.element.querySelector('.toast-count-badge') as HTMLElement;
+      if (countBadge) {
+        countBadge.textContent = String(item.count);
+        countBadge.style.display = item.count > 1 ? 'inline-block' : 'none';
+      }
+      const msgEl = existing.element.querySelector('.toast-message') as HTMLElement;
+      if (msgEl) msgEl.textContent = item.message;
+
+      // Reset timer and progress bar
+      if (existing.timer) clearTimeout(existing.timer);
+      const totalMs = item.durationMs || 5000;
+      existing.remainingMs = totalMs;
+      existing.totalMs = totalMs;
+      existing.startTime = Date.now();
+
+      if (existing.progressFill) {
+        existing.progressFill.style.transition = 'none';
+        existing.progressFill.style.width = '100%';
+        requestAnimationFrame(() => {
+          if (existing.progressFill) {
+            existing.progressFill.style.transition = `width ${totalMs}ms linear`;
+            existing.progressFill.style.width = '0%';
+          }
+        });
+      }
+
+      existing.timer = setTimeout(() => {
+        notificationService.dismiss(item.id);
+      }, totalMs);
+
+      return;
     }
 
     const toast = document.createElement('div');
@@ -60,14 +94,19 @@ export class NotificationToastComponent {
       `;
     }
 
+    const duration = item.durationMs || 0;
+    const hasProgress = duration > 0;
+
     toast.innerHTML = `
       <div class="toast-header">
         <div class="toast-icon">${getIconSvg(item.type)}</div>
         <span class="toast-title">${item.title}</span>
+        <span class="toast-count-badge" style="display: ${item.count > 1 ? 'inline-block' : 'none'};">${item.count}</span>
         <button class="toast-close-btn" aria-label="Close">×</button>
       </div>
       <div class="toast-message">${item.message}</div>
       ${actionsHtml}
+      ${hasProgress ? '<div class="toast-progress-bar"><div class="toast-progress-fill"></div></div>' : ''}
     `;
 
     // Wire close button
@@ -98,30 +137,51 @@ export class NotificationToastComponent {
 
     // Auto-dismiss handling
     let timer: any;
-    let remainingMs = item.durationMs || 0;
+    let remainingMs = duration;
     let startTime = Date.now();
+    const progressFill = toast.querySelector('.toast-progress-fill') as HTMLElement | null;
 
     if (remainingMs > 0) {
       const startDismissTimer = () => {
         startTime = Date.now();
+        if (progressFill) {
+          progressFill.style.transition = `width ${remainingMs}ms linear`;
+          progressFill.style.width = '0%';
+        }
         timer = setTimeout(() => {
           notificationService.dismiss(item.id);
         }, remainingMs);
       };
 
-      startDismissTimer();
+      // Start initial animation after layout paint
+      requestAnimationFrame(() => {
+        if (progressFill) {
+          progressFill.style.width = '100%';
+        }
+        requestAnimationFrame(() => {
+          startDismissTimer();
+        });
+      });
 
-      // Pause timer on hover
+      // Pause timer and progress on hover
       toast.addEventListener('mouseenter', () => {
         if (timer) {
           clearTimeout(timer);
-          remainingMs -= (Date.now() - startTime);
+          const elapsed = Date.now() - startTime;
+          remainingMs = Math.max(0, remainingMs - elapsed);
+          if (progressFill) {
+            const computedWidth = window.getComputedStyle(progressFill).width;
+            progressFill.style.transition = 'none';
+            progressFill.style.width = computedWidth;
+          }
         }
       });
 
       toast.addEventListener('mouseleave', () => {
         if (remainingMs > 0) {
           startDismissTimer();
+        } else {
+          notificationService.dismiss(item.id);
         }
       });
     }
@@ -130,7 +190,9 @@ export class NotificationToastComponent {
       element: toast,
       timer,
       remainingMs,
-      startTime
+      totalMs: duration,
+      startTime,
+      progressFill: progressFill || undefined
     });
 
     // Trigger entrance animation

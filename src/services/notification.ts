@@ -1,6 +1,6 @@
 /**
  * Gitero IDE Notification Service
- * Manages floating toast notifications with severity levels and interactive actions.
+ * Manages floating toast notifications, session history, and unread counts.
  */
 
 export type NotificationType = 'info' | 'warning' | 'error' | 'success';
@@ -19,13 +19,18 @@ export interface NotificationItem {
   durationMs?: number; // 0 or undefined for persistent / action-required
   actions?: NotificationAction[];
   onDismiss?: () => void;
+  timestamp: number;
+  isRead: boolean;
+  count: number;
 }
 
 export class NotificationService {
   private nextId = 1;
   private listeners: ((item: NotificationItem) => void)[] = [];
   private dismissListeners: ((id: string) => void)[] = [];
+  private historyListeners: ((history: NotificationItem[]) => void)[] = [];
   private activeNotifications = new Map<string, NotificationItem>();
+  private history: NotificationItem[] = [];
 
   onNotification(listener: (item: NotificationItem) => void): () => void {
     this.listeners.push(listener);
@@ -43,15 +48,71 @@ export class NotificationService {
     };
   }
 
-  show(item: Omit<NotificationItem, 'id'>): string {
-    const id = `notif-${this.nextId++}-${Date.now()}`;
+  onHistoryChange(listener: (history: NotificationItem[]) => void): () => void {
+    this.historyListeners.push(listener);
+    return () => {
+      const idx = this.historyListeners.indexOf(listener);
+      if (idx !== -1) this.historyListeners.splice(idx, 1);
+    };
+  }
+
+  private emitHistoryChange() {
+    const copy = [...this.history];
+    for (const listener of this.historyListeners) {
+      try {
+        listener(copy);
+      } catch (err) {
+        console.error('[NotificationService] History listener error:', err);
+      }
+    }
+  }
+
+  show(item: Omit<NotificationItem, 'id' | 'timestamp' | 'isRead' | 'count'>): string {
+    const now = Date.now();
+
+    // Check for de-duplication with active notifications (within last 8 seconds)
+    for (const [, active] of this.activeNotifications) {
+      if (
+        active.type === item.type &&
+        active.title === item.title &&
+        active.message === item.message &&
+        now - active.timestamp < 8000
+      ) {
+        active.count = (active.count || 1) + 1;
+        active.timestamp = now;
+        active.isRead = false;
+
+        // Notify toast listener of update
+        for (const listener of this.listeners) {
+          try {
+            listener(active);
+          } catch (err) {
+            console.error('[NotificationService] Listener error:', err);
+          }
+        }
+        this.emitHistoryChange();
+        return active.id;
+      }
+    }
+
+    const id = `notif-${this.nextId++}-${now}`;
     const fullItem: NotificationItem = {
       ...item,
       id,
+      timestamp: now,
+      isRead: false,
+      count: 1,
       durationMs: item.durationMs !== undefined ? item.durationMs : (item.actions && item.actions.length > 0 ? 0 : 5000)
     };
 
     this.activeNotifications.set(id, fullItem);
+    this.history.unshift(fullItem);
+
+    // Limit history to last 50 items
+    if (this.history.length > 50) {
+      this.history.pop();
+    }
+
     for (const listener of this.listeners) {
       try {
         listener(fullItem);
@@ -60,6 +121,7 @@ export class NotificationService {
       }
     }
 
+    this.emitHistoryChange();
     return id;
   }
 
@@ -94,6 +156,48 @@ export class NotificationService {
       } catch (err) {
         console.error('[NotificationService] Dismiss listener error:', err);
       }
+    }
+  }
+
+  getHistory(): NotificationItem[] {
+    return [...this.history];
+  }
+
+  getUnreadCount(): number {
+    return this.history.filter((h) => !h.isRead).length;
+  }
+
+  markRead(id: string): void {
+    const item = this.history.find((h) => h.id === id);
+    if (item && !item.isRead) {
+      item.isRead = true;
+      this.emitHistoryChange();
+    }
+  }
+
+  markAllRead(): void {
+    let changed = false;
+    for (const item of this.history) {
+      if (!item.isRead) {
+        item.isRead = true;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.emitHistoryChange();
+    }
+  }
+
+  clearHistory(): void {
+    this.history = [];
+    this.emitHistoryChange();
+  }
+
+  removeHistoryItem(id: string): void {
+    const idx = this.history.findIndex((h) => h.id === id);
+    if (idx !== -1) {
+      this.history.splice(idx, 1);
+      this.emitHistoryChange();
     }
   }
 }

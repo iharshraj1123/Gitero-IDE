@@ -18,6 +18,7 @@ import { JsonRpcConnection } from './jsonRpc';
 import { LspProcess } from './lspProcess';
 import { lspServerRegistry } from './lspServerRegistry';
 import { preferencesService } from '../preferences';
+import { notificationService } from '../notification';
 
 export function pathToUri(filePath: string): string {
   let normalized = filePath.replace(/\\/g, '/');
@@ -171,6 +172,29 @@ export class LspClient {
         },
         (exitCode) => {
           console.warn(`[LSP ${config.name}] Process exited with code ${exitCode}`);
+          const curSession = this.sessions.get(normLang);
+          if (exitCode !== 0 && curSession && curSession.status === 'ready') {
+            notificationService.warn(
+              `LSP Terminated: ${config.name}`,
+              `Language server process exited unexpectedly with code ${exitCode}.`,
+              [
+                {
+                  label: 'Restart',
+                  primary: true,
+                  onClick: () => {
+                    this.restartServer(normLang);
+                  }
+                },
+                {
+                  label: 'Configure',
+                  primary: false,
+                  onClick: () => {
+                    window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
+                  }
+                }
+              ]
+            );
+          }
           this.handleServerExit(normLang, config.name);
         }
       );
@@ -254,8 +278,41 @@ export class LspClient {
     } catch (err: any) {
       console.warn(`[LSP Client] Failed to launch server for ${config.name}:`, err);
       this.emitStatus(normLang, 'error', config.name, err?.message || String(err));
+      notificationService.error(
+        `LSP Error: ${config.name}`,
+        `Failed to launch language server: ${err?.message || err}`,
+        [
+          {
+            label: 'Configure LSP',
+            primary: true,
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
+            }
+          }
+        ]
+      );
       return null;
     }
+  }
+
+  async restartServer(languageId: string): Promise<ActiveSession | null> {
+    const norm = languageId.toLowerCase();
+    const session = this.sessions.get(norm);
+    if (session) {
+      for (const lang of session.config.languages) {
+        this.sessions.delete(lang.toLowerCase());
+      }
+      try {
+        await session.connection.request('shutdown', undefined, 1000).catch(() => {});
+        await session.connection.notify('exit');
+        await session.process.stop();
+      } catch {
+        await session.process.stop();
+      } finally {
+        session.connection.dispose();
+      }
+    }
+    return this.ensureServerRunning(norm);
   }
 
   private handleServerExit(languageId: string, serverName: string) {

@@ -3,6 +3,7 @@
 
 import { isNative } from './neutralino';
 import { preferencesService } from './preferences';
+import { notificationService } from './notification';
 
 export interface BranchInfo {
   name: string;
@@ -235,6 +236,23 @@ export class UpdaterService {
     try {
       const latest = await this.fetchLatestCommit(branch);
       const isAvailable = latest.shortSha.toLowerCase() !== this.currentSha.toLowerCase();
+
+      if (isAvailable) {
+        notificationService.info(
+          'Gitero Update Available',
+          `New commit on branch "${branch}": ${latest.message} (${latest.shortSha})`,
+          [
+            {
+              label: 'Update Now',
+              primary: true,
+              onClick: () => {
+                window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'updates' } }));
+              }
+            }
+          ],
+          15000
+        );
+      }
 
       return {
         isUpdateAvailable: isAvailable,

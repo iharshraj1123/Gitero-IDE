@@ -5,6 +5,7 @@ import { preferencesService } from '../services/preferences';
 import { gitService } from '../services/git';
 import { lspClient } from '../services/lsp/lspClient';
 import { LspServerStatus } from '../services/lsp/lspTypes';
+import { notificationService } from '../services/notification';
 
 export class StatusBarComponent {
   private container: HTMLElement;
@@ -20,6 +21,8 @@ export class StatusBarComponent {
   private lspEl!: HTMLElement;
   private languageEl!: HTMLElement;
   private themeEl!: HTMLElement;
+  private notifEl!: HTMLElement;
+  private notifBadgeEl!: HTMLElement;
 
   private onToggleVim?: () => void;
   private onOpenThemePicker?: () => void;
@@ -29,6 +32,7 @@ export class StatusBarComponent {
   private onOpenGit?: () => void;
   private onSwitchBranch?: () => void;
   private onSyncGit?: () => void;
+  private onToggleNotifications?: () => void;
 
   constructor(container: HTMLElement, options?: {
     onToggleVim?: () => void;
@@ -39,6 +43,7 @@ export class StatusBarComponent {
     onOpenGit?: () => void;
     onSwitchBranch?: () => void;
     onSyncGit?: () => void;
+    onToggleNotifications?: () => void;
   }) {
     this.container = container;
     this.onToggleVim = options?.onToggleVim;
@@ -49,6 +54,7 @@ export class StatusBarComponent {
     this.onOpenGit = options?.onOpenGit;
     this.onSwitchBranch = options?.onSwitchBranch;
     this.onSyncGit = options?.onSyncGit;
+    this.onToggleNotifications = options?.onToggleNotifications;
     this.build();
     this.setupListeners();
   }
@@ -83,6 +89,10 @@ export class StatusBarComponent {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
           <span class="theme-name">Tokyo Night</span>
         </div>
+        <div class="status-item status-bell-btn" id="status-notifications" title="Notifications">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="status-bell-badge" id="status-bell-badge" style="display: none;">0</span>
+        </div>
       </div>
     `;
 
@@ -97,6 +107,12 @@ export class StatusBarComponent {
     this.lspEl = this.container.querySelector('#status-lsp') as HTMLElement;
     this.languageEl = this.container.querySelector('#status-language') as HTMLElement;
     this.themeEl = this.container.querySelector('#status-theme') as HTMLElement;
+    this.notifEl = this.container.querySelector('#status-notifications') as HTMLElement;
+    this.notifBadgeEl = this.container.querySelector('#status-bell-badge') as HTMLElement;
+
+    this.notifEl?.addEventListener('click', () => {
+      this.onToggleNotifications?.();
+    });
 
     this.lspEl.addEventListener('click', () => {
       this.onOpenLspSettings?.();
@@ -163,6 +179,11 @@ export class StatusBarComponent {
       }
     });
 
+    // Notifications history updates
+    notificationService.onHistoryChange(() => {
+      this.updateNotificationsBadge();
+    });
+
     // Initial values
     this.updateVimMode(vimIntegration.getCurrentMode());
     const initialTheme = themeManager.getCurrentTheme();
@@ -170,6 +191,15 @@ export class StatusBarComponent {
     if (nameSpan) nameSpan.textContent = initialTheme.name;
     const initialTabSize = preferencesService.get('editor.tabSize') || 2;
     this.spacesEl.textContent = `Spaces: ${initialTabSize}`;
+    this.updateNotificationsBadge();
+  }
+
+  updateNotificationsBadge() {
+    const count = notificationService.getUnreadCount();
+    if (this.notifBadgeEl) {
+      this.notifBadgeEl.textContent = String(count);
+      this.notifBadgeEl.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
   }
 
   updateGitBranch(branch: string) {
