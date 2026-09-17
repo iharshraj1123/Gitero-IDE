@@ -37,7 +37,7 @@ export interface UpdateHistoryEntry {
   type: 'update' | 'rollback';
 }
 
-import { DISPLAY_VERSION } from '../version';
+import { DISPLAY_VERSION, GIT_COMMIT_SHA, GIT_BRANCH } from '../version';
 
 const GITHUB_REPO = 'iharshraj1123/Glitero-IDE';
 const CURRENT_VERSION = DISPLAY_VERSION;
@@ -48,8 +48,15 @@ export class UpdaterService {
   private currentSha: string;
 
   constructor() {
-    this.currentBranch = localStorage.getItem('gitero_update_branch') || 'main';
-    this.currentSha = localStorage.getItem('gitero_current_sha') || '791a8ec';
+    this.currentBranch = localStorage.getItem('gitero_update_branch') || GIT_BRANCH;
+    const storedSha = localStorage.getItem('gitero_current_sha');
+    // If empty or set to the legacy placeholder SHA '791a8ec', update to the real build SHA
+    if (!storedSha || storedSha === '791a8ec') {
+      this.currentSha = GIT_COMMIT_SHA;
+      localStorage.setItem('gitero_current_sha', GIT_COMMIT_SHA);
+    } else {
+      this.currentSha = storedSha;
+    }
     this.ensureInitialHistory();
   }
 
@@ -72,21 +79,35 @@ export class UpdaterService {
 
   private ensureInitialHistory() {
     const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
-    if (!raw) {
+    let history: UpdateHistoryEntry[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          // Purge legacy mock entries
+          history = parsed.filter((e) => e.toSha !== '791a8ec' && !e.commitMessage?.includes('v0.0.3-alpha'));
+        }
+      } catch {
+        history = [];
+      }
+    }
+
+    if (history.length === 0) {
       const now = new Date();
       const baseline: UpdateHistoryEntry = {
         id: `entry-${Date.now()}`,
         timestamp: now.toISOString(),
         formattedTime: now.toLocaleString(),
-        branch: 'main',
-        fromSha: 'initial',
-        toSha: '791a8ec',
-        commitMessage: 'Baseline Release (v0.0.3-alpha factory build)',
+        branch: this.currentBranch,
+        fromSha: 'factory',
+        toSha: this.currentSha,
+        commitMessage: `Factory Release (${DISPLAY_VERSION} build)`,
         author: 'Gitero Team',
         type: 'update'
       };
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify([baseline]));
+      history = [baseline];
     }
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
   }
 
   getHistory(): UpdateHistoryEntry[] {

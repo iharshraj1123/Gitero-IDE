@@ -22,7 +22,7 @@
 * **Output Folder**:  
   `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\`
 * **Current Installer Executable**:  
-  `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\Gitero-Setup-0.2.0-beta.exe`
+  `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\Gitero-Setup-0.2.1-beta.exe`
 * **Inno Setup Script**:  
   `d:\ProjectsNew\appDev2\Gitero IDE\installer\gitero.iss`
 
@@ -32,7 +32,7 @@
 
 * **GitHub Repository**: [https://github.com/iharshraj1123/Glitero-IDE](https://github.com/iharshraj1123/Glitero-IDE)
 * **Active Branch**: `main`
-* **Current Version**: `0.2.0-beta`
+* **Current Version**: `0.2.1-beta`
 
 ---
 
@@ -53,10 +53,10 @@
 ## Automated Version Synchronization Architecture
 
 * **Single Source of Truth**: `package.json` (`version`).
-* **Vite Compile-Time Injection**: `vite.config.ts` reads `package.json` and injects `__APP_VERSION__` into the frontend bundle at build/dev time.
-* **Central Export (`src/version.ts`)**: Exports `APP_VERSION` and `DISPLAY_VERSION` (`v<version>`), consumed by `src/main.ts` (Help -> About) and `src/services/updater.ts` (Settings -> Software Updates).
+* **Vite Compile-Time Injection**: `vite.config.ts` reads `package.json` and injects `__APP_VERSION__`, `__GIT_COMMIT_SHA__`, and `__GIT_BRANCH__` into the frontend bundle at build/dev time.
+* **Central Export (`src/version.ts`)**: Exports `APP_VERSION`, `DISPLAY_VERSION` (`v<version>`), `GIT_COMMIT_SHA`, and `GIT_BRANCH`, consumed by `src/main.ts` (Help -> About) and `src/services/updater.ts` (Settings -> Software Updates).
 * **Automated Config Sync (`scripts/sync-version.js`)**: Automatically syncs version from `package.json` into `neutralino.config.json` (`version`) and `installer/gitero.iss` (`#define MyAppVersion`). Executes automatically before `npm run dev`, `npm run build`, and on `npm version`.
-* **Version Bumping**: Run `npm version <patch|minor|major>` or `npm version <x.y.z>` to bump across all project files at once.
+* **Version Bumping**: Run `npm version <x.y.z>-beta` (or `npm version <patch|minor|major>`) to bump across all project files at once.
 
 ---
 
