@@ -3,17 +3,17 @@
 ## Production (Installed App) Locations
 
 * **Installation Directory**:  
-  `C:\Users\ihars\AppData\Local\Programs\Gitero IDE\`
+  `C:\Users\<user>\AppData\Local\Programs\Gitero IDE\`
 * **Main Application Executable**:  
-  `C:\Users\ihars\AppData\Local\Programs\Gitero IDE\Gitero.exe`
+  `C:\Users\<user>\AppData\Local\Programs\Gitero IDE\Gitero.exe`
 * **Packaged Resources Bundle**:  
-  `C:\Users\ihars\AppData\Local\Programs\Gitero IDE\resources.neu`
+  `C:\Users\<user>\AppData\Local\Programs\Gitero IDE\resources.neu`
 * **Configuration File**:  
-  `C:\Users\ihars\AppData\Local\Programs\Gitero IDE\neutralino.config.json`
+  `C:\Users\<user>\AppData\Local\Programs\Gitero IDE\neutralino.config.json`
 * **Application Icon**:  
-  `C:\Users\ihars\AppData\Local\Programs\Gitero IDE\appIcon.ico`
+  `C:\Users\<user>\AppData\Local\Programs\Gitero IDE\appIcon.ico`
 * **Document File Icons**:  
-  `C:\Users\ihars\AppData\Local\Programs\Gitero IDE\icons\file-types\`
+  `C:\Users\<user>\AppData\Local\Programs\Gitero IDE\icons\file-types\`
 
 ---
 
