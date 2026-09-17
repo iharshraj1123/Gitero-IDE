@@ -112,7 +112,7 @@ body {
 }
 
 body.window-maximized #app {
-  padding: 0;
+  padding: 6px 8px 8px 7px;
   box-sizing: border-box;
 }
 
