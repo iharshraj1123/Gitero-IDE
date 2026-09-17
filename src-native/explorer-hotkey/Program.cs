@@ -131,19 +131,16 @@ namespace GiteroExplorerHotkey
             return false;
         }
 
+        private static System.Collections.Generic.HashSet<IntPtr> _styledWindows = new System.Collections.Generic.HashSet<IntPtr>();
+
         private static void CheckAndApplyAcrylic(IntPtr hwnd)
         {
             try
             {
-                if (IsGiteroWindow(hwnd))
+                if (IsGiteroWindow(hwnd) && !_styledWindows.Contains(hwnd))
                 {
-                    int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-                    int currentBackdrop = -1;
-                    DwmGetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, out currentBackdrop, sizeof(int));
-                    if ((ex & WS_EX_LAYERED) != 0 || currentBackdrop != 3)
-                    {
-                        ApplyAcrylicToWindow(hwnd);
-                    }
+                    _styledWindows.Add(hwnd);
+                    ApplyAcrylicToWindow(hwnd);
                 }
             }
             catch {}
@@ -185,12 +182,14 @@ namespace GiteroExplorerHotkey
         {
             try
             {
+                _styledWindows.Clear();
                 EnumWindows((hwnd, lParam) =>
                 {
                     try
                     {
                         if (IsGiteroWindow(hwnd))
                         {
+                            _styledWindows.Add(hwnd);
                             ApplyAcrylicToWindow(hwnd);
                         }
                     }
@@ -209,6 +208,7 @@ namespace GiteroExplorerHotkey
                             {
                                 if (IsGiteroWindow(hwnd))
                                 {
+                                    _styledWindows.Add(hwnd);
                                     ApplyAcrylicToWindow(hwnd);
                                 }
                             }
@@ -227,9 +227,10 @@ namespace GiteroExplorerHotkey
             try
             {
                 int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-                if ((ex & WS_EX_LAYERED) != 0)
+                // Ensure WS_EX_LAYERED is PRESERVED so Neutralino's transparent: true works!
+                if ((ex & WS_EX_LAYERED) == 0)
                 {
-                    SetWindowLong(hwnd, GWL_EXSTYLE, ex & ~WS_EX_LAYERED);
+                    SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED);
                 }
 
                 int darkMode = 1;
@@ -239,6 +240,32 @@ namespace GiteroExplorerHotkey
                 DwmExtendFrameIntoClientArea(hwnd, ref margins);
 
                 SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, GetStockObject(BLACK_BRUSH));
+
+                // Apply Acrylic Blur Behind using SetWindowCompositionAttribute
+                AccentPolicy policy = new AccentPolicy
+                {
+                    AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND,
+                    AccentFlags = 2,
+                    GradientColor = unchecked((int)0x99010409) // dark acrylic tint matching Gitero theme
+                };
+
+                int size = Marshal.SizeOf(policy);
+                IntPtr pPolicy = Marshal.AllocHGlobal(size);
+                try
+                {
+                    Marshal.StructureToPtr(policy, pPolicy, false);
+                    WindowCompositionAttributeData data = new WindowCompositionAttributeData
+                    {
+                        Attribute = 19, // WCA_ACCENT_POLICY
+                        Data = pPolicy,
+                        SizeOfData = size
+                    };
+                    SetWindowCompositionAttribute(hwnd, ref data);
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(pPolicy);
+                }
 
                 int backdrop = 3; // 3 = Acrylic (DWMSBT_TRANSIENTWINDOW)
                 DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));
@@ -582,5 +609,36 @@ namespace GiteroExplorerHotkey
         }
 
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        private enum AccentState
+        {
+            ACCENT_DISABLED = 0,
+            ACCENT_ENABLE_GRADIENT = 1,
+            ACCENT_ENABLE_TRANSPARENTGRADIENT = 2,
+            ACCENT_ENABLE_BLURBEHIND = 3,
+            ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
+            ACCENT_ENABLE_HOSTBACKDROP = 5,
+            ACCENT_INVALID_STATE = 6
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct AccentPolicy
+        {
+            public AccentState AccentState;
+            public int AccentFlags;
+            public int GradientColor;
+            public int AnimationId;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WindowCompositionAttributeData
+        {
+            public int Attribute;
+            public IntPtr Data;
+            public int SizeOfData;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
     }
 }
