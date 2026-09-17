@@ -295,9 +295,9 @@ export class TransparencyService {
         root.style.setProperty(`--opacity-${sec.id.toLowerCase()}-fg`, '1');
       });
 
-      const atmosphereEl = document.getElementById('app-atmosphere-glow');
-      if (atmosphereEl) {
-        atmosphereEl.style.display = 'none';
+      const luminanceEl = document.getElementById('app-glass-luminance');
+      if (luminanceEl) {
+        luminanceEl.style.display = 'none';
       }
       return;
     }
@@ -312,7 +312,7 @@ export class TransparencyService {
     const blur = preferencesService.get('transparency.blur') ?? 14;
     const masterBg = (preferencesService.get('transparency.master.bgOpacity') ?? 100) / 100;
     const masterText = (preferencesService.get('transparency.master.textOpacity') ?? 100) / 100;
-    const atmosphereMood = preferencesService.get('transparency.atmosphereMood') ?? 'deep-space';
+    const atmosphereMood = preferencesService.get('transparency.atmosphereMood') ?? 'none';
     const atmosphereIntensity = (preferencesService.get('transparency.atmosphereIntensity') ?? 65) / 100;
 
     root.style.setProperty('--transparency-blur', `${blur}px`);
@@ -320,23 +320,23 @@ export class TransparencyService {
     root.style.setProperty('--opacity-master-bg', masterBg.toFixed(3));
     root.style.setProperty('--opacity-master-fg', Math.max(0.3, masterText).toFixed(3));
 
-    // Manage Atmosphere Underglow Element
-    let atmosphereEl = document.getElementById('app-atmosphere-glow');
-    if (atmosphereMood !== 'none' && atmosphereIntensity > 0) {
-      if (!atmosphereEl) {
-        atmosphereEl = document.createElement('div');
-        atmosphereEl.id = 'app-atmosphere-glow';
-        atmosphereEl.className = 'app-atmosphere-glow';
-        atmosphereEl.setAttribute('aria-hidden', 'true');
+    // Manage Glass Luminance Element (Active whenever transparency is enabled and intensity > 0)
+    let luminanceEl = document.getElementById('app-glass-luminance');
+    if (atmosphereIntensity > 0) {
+      if (!luminanceEl) {
+        luminanceEl = document.createElement('div');
+        luminanceEl.id = 'app-glass-luminance';
+        luminanceEl.className = 'app-glass-luminance';
+        luminanceEl.setAttribute('aria-hidden', 'true');
         const app = document.getElementById('app');
         if (app) {
-          app.insertBefore(atmosphereEl, app.firstChild);
+          app.insertBefore(luminanceEl, app.firstChild);
         }
       }
-      atmosphereEl.setAttribute('data-mood', atmosphereMood);
-      atmosphereEl.style.display = '';
-    } else if (atmosphereEl) {
-      atmosphereEl.style.display = 'none';
+      luminanceEl.setAttribute('data-mood', atmosphereMood);
+      luminanceEl.style.display = '';
+    } else if (luminanceEl) {
+      luminanceEl.style.display = 'none';
     }
 
     TRANSPARENCY_SECTIONS.forEach(sec => {
