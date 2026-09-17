@@ -3,7 +3,8 @@
  * Defines supported language servers and verifies machine availability.
  */
 
-import { ServerConfig } from './lspTypes';
+import type { ServerConfig } from './lspTypes';
+export type { ServerConfig };
 
 declare const window: any;
 
@@ -91,12 +92,51 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
   }
 ];
 
+import { preferencesService } from '../preferences';
+
 class LspServerRegistry {
   private cache = new Map<string, boolean>();
 
+  getUserServers(): ServerConfig[] {
+    try {
+      const userObj = preferencesService.get('lsp.userServers') as Record<string, any> || {};
+      return Object.values(userObj).map((u) => ({
+        id: u.id,
+        name: u.name,
+        languages: u.languages || [],
+        defaultCommand: u.defaultCommand || u.command || '',
+        defaultArgs: u.defaultArgs || u.args || [],
+        installGuide: u.installGuide || '',
+        commandAliases: u.commandAliases || []
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  getAllServers(): ServerConfig[] {
+    return [...DEFAULT_SERVERS, ...this.getUserServers()];
+  }
+
   findConfigForLanguage(languageId: string): ServerConfig | undefined {
     const lang = languageId.toLowerCase();
-    return DEFAULT_SERVERS.find((s) => s.languages.some((l) => l.toLowerCase() === lang));
+    return this.getAllServers().find((s: ServerConfig) => s.languages.some((l: string) => l.toLowerCase() === lang));
+  }
+
+  registerUserServer(config: ServerConfig): void {
+    const current = (preferencesService.get('lsp.userServers') as Record<string, any>) || {};
+    preferencesService.set('lsp.userServers', {
+      ...current,
+      [config.id]: config
+    });
+    this.cache.delete(config.id);
+  }
+
+  deleteUserServer(id: string): void {
+    const current = (preferencesService.get('lsp.userServers') as Record<string, any>) || {};
+    delete current[id];
+    preferencesService.set('lsp.userServers', current);
+    this.cache.delete(id);
   }
 
   async isServerInstalled(config: ServerConfig): Promise<boolean> {
@@ -109,7 +149,7 @@ class LspServerRegistry {
       return false;
     }
 
-    const commandsToTest = [config.defaultCommand, ...(config.commandAliases || [])];
+    const commandsToTest = [config.defaultCommand, ...(config.commandAliases || [])].filter(Boolean);
 
     for (const cmd of commandsToTest) {
       try {

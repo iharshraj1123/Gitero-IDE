@@ -73,6 +73,8 @@ export interface GiteroPreferences {
   'lsp.diagnostics': boolean;
   'lsp.hover': boolean;
   'lsp.customServers': Record<string, { command: string; args: string[]; enabled: boolean }>;
+  'lsp.userServers': Record<string, { id: string; name: string; languages: string[]; defaultCommand: string; defaultArgs: string[]; installGuide?: string }>;
+  'lsp.mutedPrompts': string[];
 
   // Keybindings
   'keybindings': Record<string, string>;
@@ -150,6 +152,8 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'lsp.diagnostics': true,
   'lsp.hover': true,
   'lsp.customServers': {},
+  'lsp.userServers': {},
+  'lsp.mutedPrompts': [],
   'transparency.enabled': false,
   'transparency.atmosphereMood': 'deep-space',
   'transparency.atmosphereIntensity': 65,

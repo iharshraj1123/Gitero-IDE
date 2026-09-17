@@ -26,6 +26,8 @@ import { fileAssociationService } from './services/fileAssociation';
 import { persistentStorage } from './services/storage';
 import { transparencyService } from './services/transparencyService';
 import { lspClient } from './services/lsp/lspClient';
+import { NotificationToastComponent } from './ui/notificationToast';
+import { checkMissingLsp } from './services/lsp/lspDetector';
 import { DISPLAY_VERSION } from './version';
 
 async function bootstrap() {
@@ -115,6 +117,7 @@ async function bootstrap() {
   });
 
   const shortcutsModal = new ShortcutsModalComponent();
+  new NotificationToastComponent();
 
   // 5. Initialize Side Panes & Bottom Panels
   const searchPanel = new SearchPanelComponent(searchPane);
@@ -762,6 +765,9 @@ async function bootstrap() {
       if (currentLoadedTabId !== activeTab.id) {
         currentLoadedTabId = activeTab.id;
         editorManager.loadDocument(activeTab.content, activeTab.path);
+        checkMissingLsp(activeTab.path, activeTab.language, (ext, lang) => {
+          settingsModal.openWithAddServer(ext, lang);
+        });
       }
     }
   });

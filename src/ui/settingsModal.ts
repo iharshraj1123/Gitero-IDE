@@ -7,6 +7,8 @@ import { renderIconPreview } from './icons';
 import { fileAssociationService } from '../services/fileAssociation';
 import { transparencyService, TRANSPARENCY_SECTIONS, TRANSPARENCY_PRESETS, TransparencyCategory } from '../services/transparencyService';
 import { DEFAULT_SERVERS, lspServerRegistry } from '../services/lsp/lspServerRegistry';
+import type { ServerConfig } from '../services/lsp/lspTypes';
+import { unmuteLanguagePrompt } from '../services/lsp/lspDetector';
 import { lspClient } from '../services/lsp/lspClient';
 
 export interface KeybindingDefinition {
@@ -713,13 +715,63 @@ export class SettingsModalComponent {
               <div class="setting-card">
                 <div class="setting-card-title" style="display: flex; justify-content: space-between; align-items: center;">
                   <span>Supported Language Servers</span>
-                  <button class="btn btn-secondary btn-sm" id="btn-refresh-lsp-status">Refresh PATH</button>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-add-custom-lsp">+ Add Custom Server</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-lsp-status">Refresh PATH</button>
+                  </div>
                 </div>
                 <div style="font-size: 11px; color: var(--fg-muted); margin-bottom: 12px;">
-                  Gitero auto-detects standard language servers on your system PATH. When detected, full IntelliSense activates seamlessly.
+                  Gitero auto-detects standard language servers on your system PATH, and lets you register custom servers for any language or framework.
                 </div>
+
+                <!-- Add / Edit Custom Server Form Card -->
+                <div id="add-lsp-server-form-card" class="add-lsp-server-form-card" style="display: none; margin-bottom: 16px; padding: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color, #30363d); border-radius: 6px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span id="lsp-form-title" style="font-weight: 600; font-size: 13px; color: var(--fg-primary);">Add Custom Language Server</span>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-custom-lsp">Cancel</button>
+                  </div>
+                  <input type="hidden" id="lsp-form-server-id" value="" />
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                    <div>
+                      <label style="display: block; font-size: 11px; color: var(--fg-muted); margin-bottom: 4px;">Server Name</label>
+                      <input type="text" id="lsp-form-name" class="setting-input" placeholder="e.g. Zig Language Server (zls)" style="width: 100%; box-sizing: border-box;" />
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 11px; color: var(--fg-muted); margin-bottom: 4px;">File Extensions (comma separated)</label>
+                      <input type="text" id="lsp-form-languages" class="setting-input" placeholder="e.g. zig, zls" style="width: 100%; box-sizing: border-box;" />
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; margin-bottom: 10px;">
+                    <div>
+                      <label style="display: block; font-size: 11px; color: var(--fg-muted); margin-bottom: 4px;">Executable Command / Path</label>
+                      <input type="text" id="lsp-form-command" class="setting-input" placeholder="e.g. zls or C:\\tools\\zls.exe" style="width: 100%; box-sizing: border-box; font-family: var(--font-mono, monospace); font-size: 11px;" />
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 11px; color: var(--fg-muted); margin-bottom: 4px;">Command Arguments (optional)</label>
+                      <input type="text" id="lsp-form-args" class="setting-input" placeholder="e.g. --stdio" style="width: 100%; box-sizing: border-box; font-family: var(--font-mono, monospace); font-size: 11px;" />
+                    </div>
+                  </div>
+                  <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 11px; color: var(--fg-muted); margin-bottom: 4px;">Documentation / Install URL (optional)</label>
+                    <input type="text" id="lsp-form-guide" class="setting-input" placeholder="e.g. https://github.com/zigtools/zls" style="width: 100%; box-sizing: border-box; font-size: 11px;" />
+                  </div>
+                  <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-custom-lsp-bottom">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-save-custom-lsp">Save Language Server</button>
+                  </div>
+                </div>
+
                 <div class="lsp-servers-list" id="lsp-servers-list">
                   <!-- Rendered dynamically -->
+                </div>
+
+                <!-- Muted Notifications Section -->
+                <div id="lsp-muted-prompts-section" style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color, #30363d); display: none;">
+                  <div style="font-size: 12px; font-weight: 600; color: var(--fg-primary); margin-bottom: 6px;">Muted Language Server Prompts</div>
+                  <div style="font-size: 11px; color: var(--fg-muted); margin-bottom: 8px;">
+                    You previously chose &quot;Don&apos;t Ask Again&quot; for the following file types:
+                  </div>
+                  <div id="lsp-muted-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
                 </div>
               </div>
             </div>
@@ -2213,11 +2265,62 @@ export class SettingsModalComponent {
     this.updateBorderRadiusControlState();
   }
 
+  openWithAddServer(prefilledExt?: string, prefilledName?: string): void {
+    this.open('lsp');
+    this.showAddServerForm(prefilledExt, prefilledName);
+  }
+
+  showAddServerForm(prefilledExt?: string, prefilledName?: string, existingConfig?: ServerConfig): void {
+    const form = this.overlay.querySelector('#add-lsp-server-form-card') as HTMLElement;
+    if (!form) return;
+    form.style.display = 'block';
+
+    const title = form.querySelector('#lsp-form-title') as HTMLElement;
+    const idInput = form.querySelector('#lsp-form-server-id') as HTMLInputElement;
+    const nameInput = form.querySelector('#lsp-form-name') as HTMLInputElement;
+    const langInput = form.querySelector('#lsp-form-languages') as HTMLInputElement;
+    const cmdInput = form.querySelector('#lsp-form-command') as HTMLInputElement;
+    const argsInput = form.querySelector('#lsp-form-args') as HTMLInputElement;
+    const guideInput = form.querySelector('#lsp-form-guide') as HTMLInputElement;
+
+    if (existingConfig) {
+      if (title) title.textContent = 'Edit Custom Language Server';
+      if (idInput) idInput.value = existingConfig.id;
+      if (nameInput) nameInput.value = existingConfig.name || '';
+      if (langInput) langInput.value = (existingConfig.languages || []).join(', ');
+      if (cmdInput) cmdInput.value = existingConfig.defaultCommand || '';
+      if (argsInput) argsInput.value = (existingConfig.defaultArgs || []).join(' ');
+      if (guideInput) guideInput.value = existingConfig.installGuide || '';
+    } else {
+      if (title) title.textContent = 'Add Custom Language Server';
+      if (idInput) idInput.value = '';
+      const rawExt = prefilledExt ? prefilledExt.replace(/^\./, '').trim() : '';
+      const capitalized = rawExt ? rawExt.charAt(0).toUpperCase() + rawExt.slice(1) : '';
+      if (nameInput) nameInput.value = prefilledName || (rawExt ? `${capitalized} Language Server` : '');
+      if (langInput) langInput.value = rawExt || '';
+      if (cmdInput) cmdInput.value = '';
+      if (argsInput) argsInput.value = '';
+      if (guideInput) guideInput.value = '';
+    }
+
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    nameInput?.focus();
+  }
+
+  hideAddServerForm(): void {
+    const form = this.overlay.querySelector('#add-lsp-server-form-card') as HTMLElement;
+    if (form) form.style.display = 'none';
+  }
+
   private setupLspSettingsListeners() {
     const lspEnabledInput = this.overlay.querySelector('#setting-lsp-enabled') as HTMLInputElement;
     const lspDiagnosticsInput = this.overlay.querySelector('#setting-lsp-diagnostics') as HTMLInputElement;
     const lspHoverInput = this.overlay.querySelector('#setting-lsp-hover') as HTMLInputElement;
     const refreshBtn = this.overlay.querySelector('#btn-refresh-lsp-status') as HTMLButtonElement;
+    const addServerBtn = this.overlay.querySelector('#btn-add-custom-lsp') as HTMLButtonElement;
+    const cancelBtn = this.overlay.querySelector('#btn-cancel-custom-lsp') as HTMLButtonElement;
+    const cancelBtnBottom = this.overlay.querySelector('#btn-cancel-custom-lsp-bottom') as HTMLButtonElement;
+    const saveServerBtn = this.overlay.querySelector('#btn-save-custom-lsp') as HTMLButtonElement;
 
     if (lspEnabledInput) {
       lspEnabledInput.checked = preferencesService.get('lsp.enabled') !== false;
@@ -2250,6 +2353,73 @@ export class SettingsModalComponent {
         refreshBtn.textContent = 'Refresh PATH';
       });
     }
+
+    addServerBtn?.addEventListener('click', () => {
+      this.showAddServerForm();
+    });
+
+    cancelBtn?.addEventListener('click', () => {
+      this.hideAddServerForm();
+    });
+
+    cancelBtnBottom?.addEventListener('click', () => {
+      this.hideAddServerForm();
+    });
+
+    saveServerBtn?.addEventListener('click', async () => {
+      const form = this.overlay.querySelector('#add-lsp-server-form-card') as HTMLElement;
+      if (!form) return;
+
+      const idInput = form.querySelector('#lsp-form-server-id') as HTMLInputElement;
+      const nameInput = form.querySelector('#lsp-form-name') as HTMLInputElement;
+      const langInput = form.querySelector('#lsp-form-languages') as HTMLInputElement;
+      const cmdInput = form.querySelector('#lsp-form-command') as HTMLInputElement;
+      const argsInput = form.querySelector('#lsp-form-args') as HTMLInputElement;
+      const guideInput = form.querySelector('#lsp-form-guide') as HTMLInputElement;
+
+      const name = nameInput.value.trim();
+      const rawLangs = langInput.value.trim();
+      const command = cmdInput.value.trim();
+      const rawArgs = argsInput.value.trim();
+      const installGuide = guideInput.value.trim();
+
+      if (!name) {
+        alert('Please provide a name for this language server.');
+        nameInput.focus();
+        return;
+      }
+      if (!rawLangs) {
+        alert('Please specify at least one file extension (e.g. zig, zls).');
+        langInput.focus();
+        return;
+      }
+      if (!command) {
+        alert('Please provide the executable command or executable path.');
+        cmdInput.focus();
+        return;
+      }
+
+      const languages = rawLangs
+        .split(',')
+        .map((l) => l.trim().replace(/^\./, '').toLowerCase())
+        .filter(Boolean);
+
+      const defaultArgs = rawArgs ? rawArgs.split(/\s+/).filter(Boolean) : [];
+      const id = idInput.value.trim() || `custom-lsp-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}`;
+
+      const config: ServerConfig = {
+        id,
+        name,
+        languages,
+        defaultCommand: command,
+        defaultArgs,
+        installGuide
+      };
+
+      lspServerRegistry.registerUserServer(config);
+      this.hideAddServerForm();
+      await this.renderLspServersList();
+    });
   }
 
   private async renderLspServersList() {
@@ -2259,8 +2429,79 @@ export class SettingsModalComponent {
     container.innerHTML = '<div style="padding: 12px; font-size: 12px; color: var(--fg-muted);">Scanning system PATH for language servers...</div>';
 
     const customServers = (preferencesService.get('lsp.customServers') as Record<string, any>) || {};
+    const userServers = lspServerRegistry.getUserServers();
 
-    const items: HTMLElement[] = [];
+    const sections: HTMLElement[] = [];
+
+    // 1. Custom User Servers (if any)
+    if (userServers.length > 0) {
+      const userSection = document.createElement('div');
+      userSection.className = 'lsp-servers-group';
+      userSection.innerHTML = `
+        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-color, #58a6ff); margin-bottom: 8px;">
+          Custom Configured Servers (${userServers.length})
+        </div>
+      `;
+
+      for (const server of userServers) {
+        const isInstalled = await lspServerRegistry.isServerInstalled(server);
+        const card = document.createElement('div');
+        card.className = 'lsp-server-card custom-lsp-card';
+        card.innerHTML = `
+          <div class="lsp-server-header">
+            <div class="lsp-server-title-group">
+              <span class="lsp-server-name">${server.name}</span>
+              <span class="lsp-server-languages">${server.languages.map((l: string) => '.' + l).join(', ')}</span>
+              <span class="lsp-server-custom-badge" style="font-size: 10px; background: rgba(88, 166, 255, 0.15); color: var(--accent-color, #58a6ff); padding: 2px 6px; border-radius: 3px; font-weight: 600;">Custom</span>
+            </div>
+            <div class="lsp-server-status-group" style="gap: 8px;">
+              <span class="lsp-status-badge ${isInstalled ? 'installed' : 'not-found'}">
+                <span class="status-dot"></span>
+                ${isInstalled ? 'Available' : 'Command Not Found'}
+              </span>
+              <button class="btn btn-secondary btn-sm btn-edit-user-server" data-server-id="${server.id}" title="Edit server configuration">Edit</button>
+              <button class="btn btn-secondary btn-sm btn-delete-user-server" data-server-id="${server.id}" style="color: #f85149;" title="Delete custom server">Delete</button>
+            </div>
+          </div>
+
+          <div class="lsp-server-details">
+            <div style="font-size: 11px; color: var(--fg-muted);">
+              Command: <code style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono, monospace);">${server.defaultCommand} ${server.defaultArgs.join(' ')}</code>
+            </div>
+            ${server.installGuide ? `
+              <div style="font-size: 11px; color: var(--fg-muted); margin-top: 6px;">
+                Documentation: <a href="${server.installGuide}" target="_blank" style="color: var(--accent-color, #58a6ff); text-decoration: none;">${server.installGuide}</a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        card.querySelector('.btn-edit-user-server')?.addEventListener('click', () => {
+          this.showAddServerForm(undefined, undefined, server);
+        });
+
+        card.querySelector('.btn-delete-user-server')?.addEventListener('click', async () => {
+          if (confirm(`Remove custom language server "${server.name}"?`)) {
+            lspServerRegistry.deleteUserServer(server.id);
+            await this.renderLspServersList();
+          }
+        });
+
+        userSection.appendChild(card);
+      }
+      sections.push(userSection);
+    }
+
+    // 2. Built-in Standard Servers
+    const standardSection = document.createElement('div');
+    standardSection.className = 'lsp-servers-group';
+    standardSection.style.marginTop = userServers.length > 0 ? '16px' : '0';
+    standardSection.innerHTML = `
+      <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-muted); margin-bottom: 8px;">
+        Standard Pre-configured Servers (${DEFAULT_SERVERS.length})
+      </div>
+    `;
+
     for (const server of DEFAULT_SERVERS) {
       const isInstalled = await lspServerRegistry.isServerInstalled(server);
       const userConfig = customServers[server.id] || {};
@@ -2273,7 +2514,7 @@ export class SettingsModalComponent {
         <div class="lsp-server-header">
           <div class="lsp-server-title-group">
             <span class="lsp-server-name">${server.name}</span>
-            <span class="lsp-server-languages">${server.languages.map(l => '.' + l).join(', ')}</span>
+            <span class="lsp-server-languages">${server.languages.map((l: string) => '.' + l).join(', ')}</span>
           </div>
           <div class="lsp-server-status-group">
             <span class="lsp-status-badge ${isInstalled ? 'installed' : 'not-found'}">
@@ -2352,12 +2593,58 @@ export class SettingsModalComponent {
         }
       });
 
-      items.push(card);
+      standardSection.appendChild(card);
     }
+    sections.push(standardSection);
 
     container.innerHTML = '';
-    for (const item of items) {
-      container.appendChild(item);
+    for (const sec of sections) {
+      container.appendChild(sec);
+    }
+
+    // 3. Render Muted Prompts list
+    this.renderMutedPrompts();
+  }
+
+  private renderMutedPrompts() {
+    const mutedSection = this.overlay.querySelector('#lsp-muted-prompts-section') as HTMLElement;
+    const chipsContainer = this.overlay.querySelector('#lsp-muted-chips-container') as HTMLElement;
+    if (!mutedSection || !chipsContainer) return;
+
+    const muted = (preferencesService.get('lsp.mutedPrompts') as string[]) || [];
+    if (muted.length === 0) {
+      mutedSection.style.display = 'none';
+      chipsContainer.innerHTML = '';
+      return;
+    }
+
+    mutedSection.style.display = 'block';
+    chipsContainer.innerHTML = '';
+
+    for (const ext of muted) {
+      const chip = document.createElement('div');
+      chip.className = 'lsp-muted-chip';
+      chip.style.display = 'inline-flex';
+      chip.style.alignItems = 'center';
+      chip.style.gap = '6px';
+      chip.style.padding = '3px 8px';
+      chip.style.background = 'rgba(255, 255, 255, 0.06)';
+      chip.style.border = '1px solid var(--border-color, #30363d)';
+      chip.style.borderRadius = '4px';
+      chip.style.fontSize = '11px';
+      chip.style.color = 'var(--fg-primary)';
+
+      chip.innerHTML = `
+        <span>.${ext}</span>
+        <button type="button" class="btn-unmute-chip" data-ext="${ext}" style="background: none; border: none; color: var(--fg-muted); cursor: pointer; padding: 0 2px; font-size: 13px; line-height: 1;">×</button>
+      `;
+
+      chip.querySelector('.btn-unmute-chip')?.addEventListener('click', () => {
+        unmuteLanguagePrompt(ext);
+        this.renderMutedPrompts();
+      });
+
+      chipsContainer.appendChild(chip);
     }
   }
 }
