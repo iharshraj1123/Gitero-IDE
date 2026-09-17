@@ -193,6 +193,19 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
 
 export class TransparencyService {
   private isInitialized = false;
+  private lastBackdropState: boolean | null = null;
+
+  private async updateNativeBackdrop(enable: boolean) {
+    if (this.lastBackdropState === enable) return;
+    this.lastBackdropState = enable;
+    try {
+      if (typeof window !== 'undefined' && window.Neutralino?.window?.setBackdrop) {
+        await window.Neutralino.window.setBackdrop({ enabled: enable });
+      }
+    } catch {
+      // Non-fatal if native window API is not ready or not running in Neutralino
+    }
+  }
 
   init() {
     if (this.isInitialized) return;
@@ -247,9 +260,9 @@ export class TransparencyService {
     // Subscribe to all transparency preferences
     const keys: (keyof GiteroPreferences)[] = [
       'transparency.enabled',
+      'transparency.blur',
       'transparency.atmosphereMood',
       'transparency.atmosphereIntensity',
-      'transparency.blur',
       'transparency.master.bgOpacity',
       'transparency.master.textOpacity',
       'transparency.titleBar.bgOpacity',
@@ -299,6 +312,7 @@ export class TransparencyService {
       if (luminanceEl) {
         luminanceEl.style.display = 'none';
       }
+      this.updateNativeBackdrop(false);
       return;
     }
 
@@ -310,6 +324,7 @@ export class TransparencyService {
     body.style.setProperty('background-color', 'transparent', 'important');
 
     const blur = preferencesService.get('transparency.blur') ?? 14;
+    this.updateNativeBackdrop(blur > 0);
     const masterBg = (preferencesService.get('transparency.master.bgOpacity') ?? 100) / 100;
     const masterText = (preferencesService.get('transparency.master.textOpacity') ?? 100) / 100;
     const atmosphereMood = preferencesService.get('transparency.atmosphereMood') ?? 'none';
