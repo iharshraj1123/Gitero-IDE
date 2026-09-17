@@ -8,13 +8,15 @@
 [![Language](https://img.shields.io/badge/language-TypeScript%205-3178c6.svg?style=flat-square)](https://www.typescriptlang.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4.svg?style=flat-square)](https://github.com/iharshraj1123/Glitero-IDE)
 [![License](https://img.shields.io/badge/license-Custom%20(Non--Commercial)-red.svg?style=flat-square)](LICENSE)
-[![Design](https://img.shields.io/badge/style-Zero%20Emojis-10b981.svg?style=flat-square)](https://github.com/iharshraj1123/Glitero-IDE)
 
 ---
 
 ## Overview
 
-Gitero IDE is a lightweight, ultra-fast native code editor engineered for developers who demand sub-80ms startup times, minimal memory consumption, authentic Vim modal editing, and deep customizability. 
+<img width="1917" height="1077" alt="image" src="https://github.com/user-attachments/assets/d09e5db8-b153-4c09-b036-46fb71b1efde" />
+
+
+Gitero IDE is a lightweight (~4 MB installer, <10MB RAM), ultra-fast native code editor engineered for developers who demand sub-80ms startup times, minimal memory consumption, authentic Vim modal editing, and deep customizability. 
 
 Built on the **Neutralinojs native runtime** and **CodeMirror 6**, Gitero eliminates the heavy RAM footprint and sluggish launch times of traditional Electron applications while providing a modern VS Code-like workspace, integrated terminal, built-in Git source control, workspace-wide search, live theme switching, custom CSS injection, native Windows shell document associations, and an in-app GitHub branch updater.
 
