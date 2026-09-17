@@ -13,24 +13,6 @@ namespace GiteroExplorerHotkey
     {
         private const string MUTEX_NAME = "Gitero_Explorer_Hotkey_Single_Instance_Mutex_v1";
 
-        private const int GWL_EXSTYLE = -20;
-        private const int WS_EX_LAYERED = 0x00080000;
-        private const uint SWP_NOMOVE = 0x0002;
-        private const uint SWP_NOSIZE = 0x0001;
-        private const uint SWP_NOZORDER = 0x0004;
-        private const uint SWP_FRAMECHANGED = 0x0020;
-        private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
-        private const uint MAXIMUM_ALLOWED = 0x02000000;
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct MARGINS
-        {
-            public int cxLeftWidth;
-            public int cxRightWidth;
-            public int cyTopHeight;
-            public int cyBottomHeight;
-        }
-
         private const int WH_KEYBOARD_LL = 13;
         private const int WM_KEYDOWN = 0x0100;
         private const int WM_SYSKEYDOWN = 0x0104;
@@ -46,25 +28,8 @@ namespace GiteroExplorerHotkey
         private static Mutex _mutex = null;
 
         [STAThread]
-        static void Main(string[] args)
+        static void Main()
         {
-            try
-            {
-                Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00FFFFFF", EnvironmentVariableTarget.Process);
-                Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00FFFFFF", EnvironmentVariableTarget.User);
-            }
-            catch {}
-
-            if (args != null && args.Length > 0)
-            {
-                string cmd = args[0].ToLowerInvariant().Trim();
-                if (cmd == "--apply-acrylic" || cmd == "-apply-acrylic" || cmd == "/apply-acrylic")
-                {
-                    ApplyAcrylicToAllGiteroWindows();
-                    return;
-                }
-            }
-
             bool createdNew;
             _mutex = new Mutex(true, MUTEX_NAME, out createdNew);
 
@@ -75,11 +40,6 @@ namespace GiteroExplorerHotkey
             }
 
             _hookId = SetHook(_proc);
-
-            // Start background watcher thread to automatically strip WS_EX_LAYERED and apply Acrylic to Gitero windows
-            Thread watcherThread = new Thread(GiteroWatcherLoop);
-            watcherThread.IsBackground = true;
-            watcherThread.Start();
 
             Application.ApplicationExit += (s, e) =>
             {
@@ -92,187 +52,6 @@ namespace GiteroExplorerHotkey
             };
 
             Application.Run();
-        }
-
-        private static bool IsGiteroWindow(IntPtr hwnd)
-        {
-            try
-            {
-                StringBuilder cls = new StringBuilder(256);
-                GetClassName(hwnd, cls, cls.Capacity);
-                string clsName = cls.ToString();
-
-                // Never touch Windows Explorer or desktop windows
-                if (IsExplorerClass(clsName)) return false;
-
-                // Match Neutralino webview class
-                if (clsName == "Neutralinojs_webview") return true;
-
-                // Verify process name of the window's owning process
-                uint pid;
-                GetWindowThreadProcessId(hwnd, out pid);
-                if (pid != 0)
-                {
-                    try
-                    {
-                        using (Process p = Process.GetProcessById((int)pid))
-                        {
-                            string pname = p.ProcessName.ToLowerInvariant();
-                            if (pname == "gitero" || pname == "gitero-win_x64")
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                    catch {}
-                }
-            }
-            catch {}
-            return false;
-        }
-
-        private static System.Collections.Generic.HashSet<IntPtr> _styledWindows = new System.Collections.Generic.HashSet<IntPtr>();
-
-        private static void CheckAndApplyAcrylic(IntPtr hwnd)
-        {
-            try
-            {
-                if (IsGiteroWindow(hwnd) && !_styledWindows.Contains(hwnd))
-                {
-                    _styledWindows.Add(hwnd);
-                    ApplyAcrylicToWindow(hwnd);
-                }
-            }
-            catch {}
-        }
-
-        private static void GiteroWatcherLoop()
-        {
-            while (true)
-            {
-                try
-                {
-                    EnumWindows((hwnd, lParam) =>
-                    {
-                        CheckAndApplyAcrylic(hwnd);
-                        return true;
-                    }, IntPtr.Zero);
-
-                    try
-                    {
-                        IntPtr hDesk = OpenDesktop("Default", 0, false, MAXIMUM_ALLOWED);
-                        if (hDesk != IntPtr.Zero)
-                        {
-                            EnumDesktopWindows(hDesk, (hwnd, lParam) =>
-                            {
-                                CheckAndApplyAcrylic(hwnd);
-                                return true;
-                            }, IntPtr.Zero);
-                        }
-                    }
-                    catch {}
-                }
-                catch {}
-
-                Thread.Sleep(500);
-            }
-        }
-
-        public static void ApplyAcrylicToAllGiteroWindows()
-        {
-            try
-            {
-                _styledWindows.Clear();
-                EnumWindows((hwnd, lParam) =>
-                {
-                    try
-                    {
-                        if (IsGiteroWindow(hwnd))
-                        {
-                            _styledWindows.Add(hwnd);
-                            ApplyAcrylicToWindow(hwnd);
-                        }
-                    }
-                    catch {}
-                    return true;
-                }, IntPtr.Zero);
-
-                try
-                {
-                    IntPtr hDesk = OpenDesktop("Default", 0, false, MAXIMUM_ALLOWED);
-                    if (hDesk != IntPtr.Zero)
-                    {
-                        EnumDesktopWindows(hDesk, (hwnd, lParam) =>
-                        {
-                            try
-                            {
-                                if (IsGiteroWindow(hwnd))
-                                {
-                                    _styledWindows.Add(hwnd);
-                                    ApplyAcrylicToWindow(hwnd);
-                                }
-                            }
-                            catch {}
-                            return true;
-                        }, IntPtr.Zero);
-                    }
-                }
-                catch {}
-            }
-            catch {}
-        }
-
-        public static void ApplyAcrylicToWindow(IntPtr hwnd)
-        {
-            try
-            {
-                int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-                // Ensure WS_EX_LAYERED is PRESERVED so Neutralino's transparent: true works!
-                if ((ex & WS_EX_LAYERED) == 0)
-                {
-                    SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED);
-                }
-
-                int darkMode = 1;
-                DwmSetWindowAttribute(hwnd, 20, ref darkMode, sizeof(int)); // DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-
-                MARGINS margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
-                DwmExtendFrameIntoClientArea(hwnd, ref margins);
-
-                SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, GetStockObject(BLACK_BRUSH));
-
-                // Apply Acrylic Blur Behind using SetWindowCompositionAttribute
-                AccentPolicy policy = new AccentPolicy
-                {
-                    AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND,
-                    AccentFlags = 2,
-                    GradientColor = unchecked((int)0x99010409) // dark acrylic tint matching Gitero theme
-                };
-
-                int size = Marshal.SizeOf(policy);
-                IntPtr pPolicy = Marshal.AllocHGlobal(size);
-                try
-                {
-                    Marshal.StructureToPtr(policy, pPolicy, false);
-                    WindowCompositionAttributeData data = new WindowCompositionAttributeData
-                    {
-                        Attribute = 19, // WCA_ACCENT_POLICY
-                        Data = pPolicy,
-                        SizeOfData = size
-                    };
-                    SetWindowCompositionAttribute(hwnd, ref data);
-                }
-                finally
-                {
-                    Marshal.FreeHGlobal(pPolicy);
-                }
-
-                int backdrop = 3; // 3 = Acrylic (DWMSBT_TRANSIENTWINDOW)
-                DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));
-
-                SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-            }
-            catch {}
         }
 
         private static IntPtr SetHook(LowLevelKeyboardProc proc)
@@ -472,10 +251,9 @@ namespace GiteroExplorerHotkey
                 {
                     FileName = giteroExe,
                     Arguments = "\"" + safeArg + "\"",
-                    UseShellExecute = false,
+                    UseShellExecute = true,
                     WorkingDirectory = targetPath
                 };
-                psi.EnvironmentVariables["WEBVIEW2_DEFAULT_BACKGROUND_COLOR"] = "00FFFFFF";
                 Process.Start(psi);
             }
             catch {}
@@ -548,97 +326,5 @@ namespace GiteroExplorerHotkey
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern IntPtr OpenWindowStation(string lpszWinSta, bool fInherit, uint dwDesiredAccess);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool SetProcessWindowStation(IntPtr hWinSta);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern IntPtr OpenDesktop(string lpszDesktop, uint dwFlags, bool fInherit, uint dwDesiredAccess);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool SetThreadDesktop(IntPtr hDesktop);
-
-        [DllImport("user32.dll")]
-        private static extern bool EnumDesktopWindows(IntPtr hDesktop, EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-        [DllImport("user32.dll")]
-        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-        private const int GCLP_HBRBACKGROUND = -10;
-        private const int BLACK_BRUSH = 4;
-
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr GetStockObject(int fnObject);
-
-        [DllImport("user32.dll", EntryPoint = "SetClassLongPtr")]
-        private static extern IntPtr SetClassLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
-        [DllImport("user32.dll", EntryPoint = "SetClassLong")]
-        private static extern int SetClassLong32(IntPtr hWnd, int nIndex, int dwNewLong);
-
-        private static IntPtr SetClassLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
-        {
-            if (IntPtr.Size > 4)
-                return SetClassLongPtr64(hWnd, nIndex, dwNewLong);
-            else
-                return new IntPtr(SetClassLong32(hWnd, nIndex, dwNewLong.ToInt32()));
-        }
-
-        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-        private enum AccentState
-        {
-            ACCENT_DISABLED = 0,
-            ACCENT_ENABLE_GRADIENT = 1,
-            ACCENT_ENABLE_TRANSPARENTGRADIENT = 2,
-            ACCENT_ENABLE_BLURBEHIND = 3,
-            ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
-            ACCENT_ENABLE_HOSTBACKDROP = 5,
-            ACCENT_INVALID_STATE = 6
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct AccentPolicy
-        {
-            public AccentState AccentState;
-            public int AccentFlags;
-            public int GradientColor;
-            public int AnimationId;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct WindowCompositionAttributeData
-        {
-            public int Attribute;
-            public IntPtr Data;
-            public int SizeOfData;
-        }
-
-        [DllImport("user32.dll")]
-        private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
     }
 }

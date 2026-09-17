@@ -37,10 +37,6 @@ async function bootstrap() {
     const nlPath = (window as any).NL_PATH || '.';
     const hotkeyCmd = `"${nlPath}\\bin\\gitero_explorer_hotkey.exe"`;
     (window as any).Neutralino.os.execCommand(hotkeyCmd, { background: true }).catch(() => {});
-    (window as any).Neutralino.os.execCommand(`${hotkeyCmd} --apply-acrylic`, { background: true }).catch(() => {});
-    setTimeout(() => {
-      (window as any).Neutralino.os.execCommand(`${hotkeyCmd} --apply-acrylic`, { background: true }).catch(() => {});
-    }, 400);
   }
   await persistentStorage.init();
   preferencesService.reload();

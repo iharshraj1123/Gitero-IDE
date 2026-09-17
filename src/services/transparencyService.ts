@@ -286,15 +286,6 @@ export class TransparencyService {
     body.style.setProperty('background', 'transparent', 'important');
     body.style.setProperty('background-color', 'transparent', 'important');
 
-    // Trigger Windows DWM Acrylic backdrop and ensure WS_EX_LAYERED is stripped
-    if (typeof window !== 'undefined' && (window as any).Neutralino?.os?.execCommand) {
-      const nlPath = (window as any).NL_PATH || '.';
-      const hotkeyCmd = `"${nlPath}\\bin\\gitero_explorer_hotkey.exe"`;
-      (window as any).Neutralino.os.execCommand(`${hotkeyCmd} --apply-acrylic`, { background: true }).catch(() => {});
-      setTimeout(() => {
-        (window as any).Neutralino.os.execCommand(`${hotkeyCmd} --apply-acrylic`, { background: true }).catch(() => {});
-      }, 400);
-    }
 
     // Manage Ambient Atmosphere Element & Properties
     const atmosphere = this.ensureAtmosphereElement();
