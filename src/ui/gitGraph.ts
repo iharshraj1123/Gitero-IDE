@@ -830,7 +830,6 @@ export class GitGraphFullComponent {
 
     if (this.btnMoveHeadEl) {
       if (isHead) {
-        this.btnMoveHeadEl.disabled = true;
         this.btnMoveHeadEl.classList.add('is-current-head');
         this.btnMoveHeadEl.innerHTML = `
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
@@ -838,16 +837,12 @@ export class GitGraphFullComponent {
         `;
         this.btnMoveHeadEl.title = 'HEAD is already pointing to this commit';
       } else {
-        this.btnMoveHeadEl.disabled = false;
         this.btnMoveHeadEl.classList.remove('is-current-head');
         this.btnMoveHeadEl.innerHTML = `
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
           <span>Move HEAD Here</span>
         `;
         this.btnMoveHeadEl.title = `Move HEAD to commit ${detail.shortHash} (checkout detached HEAD)`;
-        this.btnMoveHeadEl.title = `Move HEAD to commit ${detail.shortHash} (checkout)`;
-        const span = this.btnMoveHeadEl.querySelector('span');
-        if (span) span.textContent = 'Move HEAD Here';
       }
     }
 
@@ -1006,6 +1001,186 @@ export class GitGraphFullComponent {
       this.searchQuery = hash.slice(0, 7);
       this.reload();
     }
+  }
+
+  private promptMoveHead(detail: GitCommitDetail) {
+    this.showConfirmDialog({
+      title: 'Move HEAD to Commit',
+      iconSvg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>',
+      confirmText: 'Move HEAD',
+      isDanger: false,
+      detailsHtml: `
+        <div class="git-confirm-desc">
+          Are you sure you want to move HEAD to commit <code>${detail.shortHash}</code>?
+        </div>
+        <div class="git-confirm-summary-box">
+          <div class="summary-line"><strong>Commit:</strong> <span class="mono-sha">${detail.shortHash}</span></div>
+          <div class="summary-line"><strong>Subject:</strong> <span>${this.escapeHtml(detail.message)}</span></div>
+          <div class="summary-line"><strong>Author:</strong> <span>${this.escapeHtml(detail.authorName)} (${detail.relativeDate})</span></div>
+        </div>
+        <div class="git-confirm-info-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>
+            <strong>Detached HEAD State:</strong> Git will switch into a detached HEAD state at this commit. Your working tree files will be updated to match this commit so you can inspect, test, or create a new branch from here.
+          </div>
+        </div>
+      `,
+      onConfirm: async () => {
+        const res = await gitService.checkoutCommit(detail.hash);
+        if (res.success) {
+          notificationService.show({
+            type: 'success',
+            title: 'Git HEAD Moved',
+            message: `HEAD successfully moved to ${detail.shortHash}`
+          });
+          await this.reload();
+        } else {
+          notificationService.show({
+            type: 'error',
+            title: 'Failed to Move HEAD',
+            message: res.error || 'Unknown checkout error'
+          });
+        }
+      }
+    });
+  }
+
+  private promptHardReset(detail: GitCommitDetail) {
+    const gitState = gitService.getState();
+    const currentBranch = gitService.getCurrentBranch() || 'main';
+    const totalChanges = gitState.totalChanges;
+
+    let dirtyWarningHtml = '';
+    if (totalChanges > 0) {
+      dirtyWarningHtml = `
+        <div class="git-confirm-danger-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong>Uncommitted Changes Detected:</strong> You currently have <strong>${totalChanges}</strong> uncommitted or staged modification(s). All uncommitted changes will be <strong>permanently destroyed</strong>.
+          </div>
+        </div>
+      `;
+    }
+
+    this.showConfirmDialog({
+      title: 'Hard Reset to Commit',
+      iconSvg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      confirmText: 'Hard Reset (Discard Changes)',
+      isDanger: true,
+      detailsHtml: `
+        <div class="git-confirm-desc">
+          Are you sure you want to perform a hard reset to commit <code>${detail.shortHash}</code>?
+        </div>
+        <div class="git-confirm-summary-box">
+          <div class="summary-line"><strong>Target Commit:</strong> <span class="mono-sha">${detail.shortHash}</span></div>
+          <div class="summary-line"><strong>Current Branch:</strong> <span class="mono-branch">${this.escapeHtml(currentBranch)}</span></div>
+          <div class="summary-line"><strong>Subject:</strong> <span>${this.escapeHtml(detail.message)}</span></div>
+        </div>
+        ${dirtyWarningHtml}
+        <div class="git-confirm-alert-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          <div>
+            <strong>Destructive Operation:</strong> The current branch (<em>${this.escapeHtml(currentBranch)}</em>) and all working tree files will be forcefully reset to this commit. Any commits ahead of this point will no longer be on this branch. This action cannot be undone.
+          </div>
+        </div>
+      `,
+      onConfirm: async () => {
+        const res = await gitService.resetHard(detail.hash);
+        if (res.success) {
+          notificationService.show({
+            type: 'success',
+            title: 'Git Hard Reset Completed',
+            message: `Branch reset to commit ${detail.shortHash}`
+          });
+          await this.reload();
+        } else {
+          notificationService.show({
+            type: 'error',
+            title: 'Hard Reset Failed',
+            message: res.error || 'Unknown error occurred during hard reset.'
+          });
+        }
+      }
+    });
+  }
+
+  private showConfirmDialog(options: {
+    title: string;
+    iconSvg: string;
+    isDanger?: boolean;
+    confirmText: string;
+    detailsHtml: string;
+    onConfirm: () => Promise<void>;
+  }) {
+    document.querySelector('.git-confirm-overlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'git-confirm-overlay';
+
+    overlay.innerHTML = `
+      <div class="git-confirm-dialog" role="dialog" aria-modal="true">
+        <div class="git-confirm-header ${options.isDanger ? 'header-danger' : ''}">
+          <div class="git-confirm-icon ${options.isDanger ? 'icon-danger' : 'icon-info'}">
+            ${options.iconSvg}
+          </div>
+          <div class="git-confirm-title">${options.title}</div>
+          <button class="git-confirm-close" id="btn-dialog-close" title="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="git-confirm-body">
+          ${options.detailsHtml}
+        </div>
+        <div class="git-confirm-footer">
+          <button class="git-btn git-btn-secondary" id="btn-dialog-cancel">Cancel</button>
+          <button class="git-btn ${options.isDanger ? 'git-btn-danger' : 'git-btn-primary'}" id="btn-dialog-confirm">
+            <span>${options.confirmText}</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeDialog = () => {
+      overlay.remove();
+      window.removeEventListener('keydown', handleKey);
+    };
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleKey);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        closeDialog();
+      }
+    });
+
+    overlay.querySelector('#btn-dialog-close')?.addEventListener('click', () => closeDialog());
+
+    const cancelBtn = overlay.querySelector('#btn-dialog-cancel') as HTMLButtonElement;
+    cancelBtn?.addEventListener('click', () => closeDialog());
+    cancelBtn?.focus();
+
+    const confirmBtn = overlay.querySelector('#btn-dialog-confirm') as HTMLButtonElement;
+    confirmBtn?.addEventListener('click', async () => {
+      confirmBtn.disabled = true;
+      cancelBtn.disabled = true;
+      confirmBtn.innerHTML = `
+        <svg class="git-dialog-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+        <span>Executing...</span>
+      `;
+      try {
+        await options.onConfirm();
+      } finally {
+        closeDialog();
+      }
+    });
   }
 
   private escapeHtml(str: string): string {
