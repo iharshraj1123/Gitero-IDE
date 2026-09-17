@@ -39,6 +39,7 @@
       "openInspectorOnStartup": false,
       "borderless": true,
       "transparent": true,
+      "useLogicalPixels": true,
       "maximize": false,
       "hidden": false,
       "resizable": true,
