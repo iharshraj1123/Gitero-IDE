@@ -2,7 +2,7 @@
 ; Generates a lightweight (~3.5MB) native Windows Installer with desktop icon, Start menu, and "Open with Gitero" context menu.
 
 #define MyAppName "Gitero IDE"
-#define MyAppVersion "0.2.4-beta"
+#define MyAppVersion "0.2.5-beta"
 #define MyAppPublisher "Gitero Team"
 #define MyAppURL "https://github.com/iharshraj1123/Glitero-IDE"
 #define MyAppExeName "Gitero.exe"
