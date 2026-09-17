@@ -151,6 +151,8 @@ export interface ServerConfig {
   defaultCommand: string;
   defaultArgs: string[];
   installGuide: string;
+  installCommand?: string;
+  packageManager?: 'npm' | 'pip' | 'rustup' | 'go' | 'winget' | 'custom';
   commandAliases?: string[];
 }
 

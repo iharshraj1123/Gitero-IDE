@@ -12,3 +12,6 @@ neutralino.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# User test scratch files
+test*.*

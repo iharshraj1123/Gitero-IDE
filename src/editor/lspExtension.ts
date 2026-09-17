@@ -138,7 +138,7 @@ export function createCompositeCompletionSource(
     if (mergedOptions.length === 0) return null;
 
     return {
-      from: word ? word.from : context.pos,
+      from: localRes?.from ?? (word ? word.from : context.pos),
       options: mergedOptions,
       filter: true
     };

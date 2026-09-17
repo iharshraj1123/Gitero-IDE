@@ -10,6 +10,7 @@ import { DEFAULT_SERVERS, lspServerRegistry } from '../services/lsp/lspServerReg
 import type { ServerConfig } from '../services/lsp/lspTypes';
 import { unmuteLanguagePrompt } from '../services/lsp/lspDetector';
 import { lspClient } from '../services/lsp/lspClient';
+import { lspInstaller } from '../services/lsp/lspInstaller';
 
 export interface KeybindingDefinition {
   id: string;
@@ -2354,6 +2355,14 @@ export class SettingsModalComponent {
       });
     }
 
+    window.addEventListener('gitero:lsp-server-installed', async () => {
+      await this.renderLspServersList();
+    });
+
+    window.addEventListener('gitero:lsp-install-status', async () => {
+      await this.renderLspServersList();
+    });
+
     addServerBtn?.addEventListener('click', () => {
       this.showAddServerForm();
     });
@@ -2504,6 +2513,7 @@ export class SettingsModalComponent {
 
     for (const server of DEFAULT_SERVERS) {
       const isInstalled = await lspServerRegistry.isServerInstalled(server);
+      const isInstalling = lspInstaller.isInstalling(server.id);
       const userConfig = customServers[server.id] || {};
       const isEnabled = userConfig.enabled !== false;
       const customCmd = userConfig.command || '';
@@ -2544,10 +2554,25 @@ export class SettingsModalComponent {
               <span style="color: var(--fg-muted); white-space: nowrap;">Install guide:</span>
               <code style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono, monospace); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${server.installGuide}</code>
             </div>
-            <button class="btn btn-secondary btn-sm copy-install-btn" data-cmd="${server.installGuide}" style="margin-left: 8px; white-space: nowrap;">Copy</button>
+            <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px; flex-shrink: 0;">
+              ${!isInstalled && server.installCommand ? `
+                <button class="btn btn-primary btn-sm install-server-btn" data-server-id="${server.id}" ${isInstalling ? 'disabled' : ''} style="white-space: nowrap;">
+                  ${isInstalling ? 'Installing...' : 'Install'}
+                </button>
+              ` : ''}
+              <button class="btn btn-secondary btn-sm copy-install-btn" data-cmd="${server.installGuide}" style="white-space: nowrap;">Copy</button>
+            </div>
           </div>
         </div>
       `;
+
+      // Wire install button
+      const installBtn = card.querySelector('.install-server-btn') as HTMLButtonElement;
+      installBtn?.addEventListener('click', async () => {
+        installBtn.disabled = true;
+        installBtn.textContent = 'Installing...';
+        await lspInstaller.installServer(server);
+      });
 
       // Wire enable toggle
       const enableToggle = card.querySelector('.server-enable-toggle') as HTMLInputElement;

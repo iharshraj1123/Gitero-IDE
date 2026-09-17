@@ -5,8 +5,11 @@
  */
 
 import { lspServerRegistry } from './lspServerRegistry';
+import { lspInstaller } from './lspInstaller';
 import { notificationService } from '../notification';
 import { preferencesService } from '../preferences';
+
+declare const window: any;
 
 const IGNORED_EXTENSIONS = new Set([
   'txt',
@@ -67,11 +70,11 @@ export function clearSessionPrompted(): void {
  * Checks if the currently loaded file has LSP support.
  * If not configured and not muted, displays a non-blocking toast.
  */
-export function checkMissingLsp(
+export async function checkMissingLsp(
   filePath: string,
   languageId: string,
   openAddServerModal: (ext: string, langName: string) => void
-): void {
+): Promise<void> {
   // If LSP is globally disabled in preferences, do not prompt
   if (preferencesService.get('lsp.enabled') === false) {
     return;
@@ -89,21 +92,77 @@ export function checkMissingLsp(
     return;
   }
 
-  // Check if a server config already exists (built-in or user-registered)
-  const existingConfig = lspServerRegistry.findConfigForLanguage(languageId) ||
-    lspServerRegistry.findConfigForLanguage(ext);
-
-  if (existingConfig) {
-    return;
-  }
-
   // Check if muted
   if (isLanguageMuted(ext) || isLanguageMuted(languageId)) {
     return;
   }
 
-  // Check if already prompted in this session
-  const sessionKey = `${ext}:${languageId}`.toLowerCase();
+  // Check if a server config already exists (built-in or user-registered)
+  const existingConfig = lspServerRegistry.findConfigForLanguage(languageId) ||
+    lspServerRegistry.findConfigForLanguage(ext);
+
+  if (existingConfig) {
+    const isInstalled = await lspServerRegistry.isServerInstalled(existingConfig);
+    if (isInstalled) {
+      return; // Server is installed and ready
+    }
+
+    // Configured server is NOT installed on PATH
+    const sessionKey = `uninstalled:${existingConfig.id}`.toLowerCase();
+    if (sessionPromptedLangs.has(sessionKey)) {
+      return;
+    }
+    sessionPromptedLangs.add(sessionKey);
+
+    const actions: any[] = [];
+
+    // Provide one-click Install Now action if install command is available
+    if (existingConfig.installCommand) {
+      actions.push({
+        label: 'Install Now',
+        primary: true,
+        onClick: () => {
+          lspInstaller.installServer(existingConfig);
+        }
+      });
+    }
+
+    actions.push({
+      label: 'Configure',
+      primary: !existingConfig.installCommand,
+      onClick: () => {
+        window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
+      }
+    });
+
+    actions.push({
+      label: "Don't Ask Again",
+      primary: false,
+      onClick: () => {
+        muteLanguagePrompt(ext);
+        if (languageId && languageId !== 'plaintext') {
+          muteLanguagePrompt(languageId);
+        }
+        notificationService.info(
+          'Preference Saved',
+          `Muted LSP notifications for .${ext} files. You can configure language servers anytime in Settings -> Languages & LSP.`,
+          undefined,
+          4000
+        );
+      }
+    });
+
+    notificationService.warn(
+      `${existingConfig.name} Not Installed`,
+      `${existingConfig.name} is not installed on your system. Install it to enable IntelliSense, compiler diagnostics, and autocompletion.`,
+      actions,
+      12000
+    );
+    return;
+  }
+
+  // No server config exists at all
+  const sessionKey = `missing:${ext}:${languageId}`.toLowerCase();
   if (sessionPromptedLangs.has(sessionKey)) {
     return;
   }

@@ -829,6 +829,14 @@ async function bootstrap() {
     gitService.refresh();
   });
 
+  // Re-connect active document when a language server is installed
+  window.addEventListener('gitero:lsp-server-installed', () => {
+    const activeTab = editorState.getActiveTab();
+    if (activeTab && activeTab.viewMode !== 'image' && activeTab.viewMode !== 'binary' && activeTab.viewMode !== 'git-graph') {
+      editorManager.loadDocument(activeTab.content, activeTab.path);
+    }
+  });
+
   function openRecentWorkspacesPicker() {
     const recent = preferencesService.get('workbench.recentWorkspaces') || [];
     if (recent.length === 0) {

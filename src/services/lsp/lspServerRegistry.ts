@@ -16,7 +16,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'typescript-language-server',
     defaultArgs: ['--stdio'],
     commandAliases: ['typescript-language-server.cmd', 'typescript-language-server'],
-    installGuide: 'npm install -g typescript typescript-language-server'
+    installGuide: 'npm install -g typescript typescript-language-server',
+    installCommand: 'npm install -g typescript typescript-language-server',
+    packageManager: 'npm'
   },
   {
     id: 'python',
@@ -25,7 +27,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'pyright-langserver',
     defaultArgs: ['--stdio'],
     commandAliases: ['pyright-langserver.cmd', 'pyright-langserver', 'pylsp'],
-    installGuide: 'pip install pyright (or npm install -g pyright)'
+    installGuide: 'npm install -g pyright (or pip install pyright)',
+    installCommand: 'npm install -g pyright',
+    packageManager: 'npm'
   },
   {
     id: 'rust',
@@ -34,7 +38,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'rust-analyzer',
     defaultArgs: [],
     commandAliases: ['rust-analyzer.exe', 'rust-analyzer'],
-    installGuide: 'rustup component add rust-analyzer'
+    installGuide: 'rustup component add rust-analyzer',
+    installCommand: 'rustup component add rust-analyzer',
+    packageManager: 'rustup'
   },
   {
     id: 'cpp',
@@ -43,7 +49,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'clangd',
     defaultArgs: ['--background-index'],
     commandAliases: ['clangd.exe', 'clangd'],
-    installGuide: 'winget install LLVM.LLVM (or install LLVM Clang)'
+    installGuide: 'winget install LLVM.LLVM (or install LLVM Clang)',
+    installCommand: 'winget install LLVM.LLVM --silent',
+    packageManager: 'winget'
   },
   {
     id: 'go',
@@ -52,7 +60,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'gopls',
     defaultArgs: [],
     commandAliases: ['gopls.exe', 'gopls'],
-    installGuide: 'go install golang.org/x/tools/gopls@latest'
+    installGuide: 'go install golang.org/x/tools/gopls@latest',
+    installCommand: 'go install golang.org/x/tools/gopls@latest',
+    packageManager: 'go'
   },
   {
     id: 'php',
@@ -61,7 +71,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'intelephense',
     defaultArgs: ['--stdio'],
     commandAliases: ['intelephense.cmd', 'intelephense'],
-    installGuide: 'npm install -g intelephense'
+    installGuide: 'npm install -g intelephense',
+    installCommand: 'npm install -g intelephense',
+    packageManager: 'npm'
   },
   {
     id: 'html',
@@ -70,7 +82,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'vscode-html-language-server',
     defaultArgs: ['--stdio'],
     commandAliases: ['vscode-html-language-server.cmd', 'vscode-html-language-server'],
-    installGuide: 'npm install -g vscode-langservers-extracted'
+    installGuide: 'npm install -g vscode-langservers-extracted',
+    installCommand: 'npm install -g vscode-langservers-extracted',
+    packageManager: 'npm'
   },
   {
     id: 'css',
@@ -79,7 +93,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'vscode-css-language-server',
     defaultArgs: ['--stdio'],
     commandAliases: ['vscode-css-language-server.cmd', 'vscode-css-language-server'],
-    installGuide: 'npm install -g vscode-langservers-extracted'
+    installGuide: 'npm install -g vscode-langservers-extracted',
+    installCommand: 'npm install -g vscode-langservers-extracted',
+    packageManager: 'npm'
   },
   {
     id: 'json',
@@ -88,7 +104,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'vscode-json-language-server',
     defaultArgs: ['--stdio'],
     commandAliases: ['vscode-json-language-server.cmd', 'vscode-json-language-server'],
-    installGuide: 'npm install -g vscode-langservers-extracted'
+    installGuide: 'npm install -g vscode-langservers-extracted',
+    installCommand: 'npm install -g vscode-langservers-extracted',
+    packageManager: 'npm'
   }
 ];
 
@@ -107,6 +125,8 @@ class LspServerRegistry {
         defaultCommand: u.defaultCommand || u.command || '',
         defaultArgs: u.defaultArgs || u.args || [],
         installGuide: u.installGuide || '',
+        installCommand: u.installCommand || undefined,
+        packageManager: u.packageManager || undefined,
         commandAliases: u.commandAliases || []
       }));
     } catch {
