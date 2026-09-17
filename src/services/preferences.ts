@@ -133,7 +133,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'workbench.activeSidebarPane': 'explorer',
   'workbench.bottomPanelHeight': 220,
   'workbench.recentWorkspaces': [],
-  'workbench.windowBorderRadius': 10,
+  'workbench.windowBorderRadius': 13,
   'terminal.fontSize': 13,
   'terminal.fontFamily': '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace',
   'search.matchCase': false,

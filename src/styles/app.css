@@ -109,7 +109,10 @@ body {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  border-radius: var(--window-border-radius, 10px);
+}
+
+body.transparency-active:not(.window-maximized) #app {
+  border-radius: var(--window-border-radius, 13px);
   overflow: hidden;
 }
 
@@ -4198,6 +4201,64 @@ body.transparency-active .command-palette-item,
 body.transparency-active .settings-header,
 body.transparency-active .settings-body-wrapper {
   opacity: var(--opacity-overlays-fg, 1);
+}
+
+/* ==========================================================================
+   Appearance Sub-Tabs Navigation & Panes (Settings Modal)
+   ========================================================================== */
+
+.appearance-subtabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+
+.appearance-subtab-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.appearance-subtab-btn:hover {
+  color: var(--fg-primary);
+  background: var(--bg-hover);
+}
+
+.appearance-subtab-btn.active {
+  background: var(--bg-hover);
+  color: var(--accent-color, #58a6ff);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.appearance-subtab-btn svg {
+  flex-shrink: 0;
+}
+
+.appearance-subtab-pane {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeInPane 0.15s ease;
+}
+
+.appearance-subtab-pane.active {
+  display: flex;
 }
 
 /* ==========================================================================

@@ -294,202 +294,228 @@ export class SettingsModalComponent {
                 <div class="settings-section-subtitle">Customize workspace chrome, editor surfaces, and syntax highlighting tokens, or create and export your own custom themes.</div>
               </div>
 
-              <!-- File & Folder Icons Package -->
-              <div class="setting-card">
-                <div class="setting-card-title">File & Folder Icons Package</div>
-                <div class="setting-row">
-                  <div class="setting-label">
-                    <span class="setting-title">Icon Theme Package</span>
-                    <span class="setting-desc">Select from available icon packages (badges, lucide, material, or custom upload)</span>
+              <!-- Appearance Inner Sub-Tabs Navigation -->
+              <div class="appearance-subtabs-nav" id="appearance-subtabs-nav">
+                <button type="button" class="appearance-subtab-btn active" data-subtab="glass">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <span>Glass & Transparency</span>
+                </button>
+                <button type="button" class="appearance-subtab-btn" data-subtab="theme">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                  <span>Theme Studio & Colors</span>
+                </button>
+                <button type="button" class="appearance-subtab-btn" data-subtab="window-icons">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                  <span>Window & Icons</span>
+                </button>
+              </div>
+
+              <!-- Sub-Pane 1: Glass & Transparency -->
+              <div class="appearance-subtab-pane active" data-subpane="glass">
+                <!-- Workspace Transparency & Glassmorphism Studio -->
+                <div class="setting-card transparency-studio-card">
+                  <div class="transparency-master-header">
+                    <div>
+                      <div class="setting-card-title" style="margin-bottom: 4px;">Workspace Transparency & Glassmorphism</div>
+                      <div class="setting-desc">Control surface background opacity, independent text legibility, and frosted acrylic blur across IDE sections.</div>
+                    </div>
+                    <label class="transparency-switch-label">
+                      <span style="font-size: 12px; font-weight: 600; color: var(--fg-primary);">Enable Glass</span>
+                      <input type="checkbox" id="setting-transparency-enable-toggle" class="setting-checkbox" />
+                    </label>
                   </div>
-                  <select id="setting-icon-theme-select" class="setting-select">
-                    <option value="lucide">Lucide Icons (Pure Vector Line Outlines) [Default]</option>
-                    <option value="badges">Compact Badges (Classic Badges + Vector Folders)</option>
-                    <option value="material">Material Icons (Colored Glyphs)</option>
-                    <option value="custom">Custom Package (JSON / Uploaded Package)</option>
-                  </select>
+
+                  <!-- One-Click Presets -->
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="setting-label">
+                      <span class="setting-title">Quick Glassmorphism Presets</span>
+                    </div>
+                    <div class="transparency-presets-row" id="transparency-presets-container">
+                      <button type="button" class="preset-chip-btn" data-preset="solid">Solid (Default)</button>
+                      <button type="button" class="preset-chip-btn" data-preset="subtle-glass">Subtle Glass</button>
+                      <button type="button" class="preset-chip-btn" data-preset="frosted-acrylic">Frosted Acrylic</button>
+                      <button type="button" class="preset-chip-btn" data-preset="code-focus">Code Focus</button>
+                    </div>
+                  </div>
+
+                  <!-- Refractive Atmosphere Mood Engine -->
+                  <div class="setting-item-stack" style="margin-top: 14px; margin-bottom: 14px;">
+                    <div class="setting-label" style="margin-bottom: 6px;">
+                      <span class="setting-title">Refractive Atmosphere Mood</span>
+                      <span class="setting-description">Luminous ambient underglow diffused through frosted acrylic surfaces</span>
+                    </div>
+                    <div class="transparency-presets-row" id="transparency-mood-container">
+                      <button type="button" class="preset-chip-btn" data-mood="deep-space">Deep Space</button>
+                      <button type="button" class="preset-chip-btn" data-mood="aurora">Aurora</button>
+                      <button type="button" class="preset-chip-btn" data-mood="monochrome">Monochrome</button>
+                      <button type="button" class="preset-chip-btn" data-mood="accent">Theme Accent</button>
+                      <button type="button" class="preset-chip-btn" data-mood="none">Off</button>
+                    </div>
+                  </div>
+
+                  <!-- Master Global Controls -->
+                  <div class="transparency-master-sliders" id="transparency-master-sliders-box">
+                    <div class="transparency-slider-group">
+                      <div class="transparency-slider-header">
+                        <span>Master Surface Opacity</span>
+                        <span class="transparency-slider-val" id="val-master-bg">100%</span>
+                      </div>
+                      <input type="range" id="setting-master-bg-opacity" class="transparency-range-input" min="10" max="100" step="1" value="100" />
+                    </div>
+
+                    <div class="transparency-slider-group" title="Radiance and underglow intensity diffused across frosted surfaces">
+                      <div class="transparency-slider-header">
+                        <span>Atmosphere Luminance</span>
+                        <span class="transparency-slider-val" id="val-master-atmosphere">65%</span>
+                      </div>
+                      <input type="range" id="setting-master-atmosphere" class="transparency-range-input" min="0" max="100" step="1" value="65" />
+                    </div>
+
+                    <div class="transparency-slider-group">
+                      <div class="transparency-slider-header">
+                        <span>Master Text Contrast</span>
+                        <span class="transparency-slider-val" id="val-master-text">100%</span>
+                      </div>
+                      <input type="range" id="setting-master-text-opacity" class="transparency-range-input" min="30" max="100" step="1" value="100" />
+                    </div>
+
+                    <div class="transparency-slider-group" title="Diffusion blur for ambient underglow and overlay modals (desktop blur is native Windows DWM Acrylic)">
+                      <div class="transparency-slider-header">
+                        <span>Backdrop Blur & Diffusion</span>
+                        <span class="transparency-slider-val" id="val-master-blur">14px</span>
+                      </div>
+                      <input type="range" id="setting-master-blur" class="transparency-range-input" min="0" max="32" step="1" value="14" />
+                    </div>
+                  </div>
+
+                  <!-- Category Segmented Filters -->
+                  <div class="transparency-tabs-bar" id="transparency-category-tabs">
+                    <button type="button" class="transparency-tab-btn active" data-cat="all">All Sections (8)</button>
+                    <button type="button" class="transparency-tab-btn" data-cat="chrome">Chrome (3)</button>
+                    <button type="button" class="transparency-tab-btn" data-cat="workspace">Workspace (2)</button>
+                    <button type="button" class="transparency-tab-btn" data-cat="editor">Editor & Terminal (2)</button>
+                    <button type="button" class="transparency-tab-btn" data-cat="overlays">Overlays (1)</button>
+                  </div>
+
+                  <!-- Dynamic Sections Grid -->
+                  <div class="transparency-sections-grid" id="transparency-sections-grid"></div>
+                </div>
+              </div>
+
+              <!-- Sub-Pane 2: Theme Studio & Colors -->
+              <div class="appearance-subtab-pane" data-subpane="theme">
+                <!-- Theme Toolbar -->
+                <div class="setting-card theme-studio-card">
+                  <div class="theme-studio-header">
+                    <div class="theme-select-container">
+                      <label for="setting-theme-select" class="theme-field-label">Theme Preset:</label>
+                      <select id="setting-theme-select" class="setting-select"></select>
+                    </div>
+                    <div class="theme-studio-actions">
+                      <button class="btn btn-secondary btn-sm" id="btn-theme-new" title="Create new custom theme">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>New Theme</span>
+                      </button>
+                      <button class="btn btn-primary btn-sm" id="btn-theme-save" title="Save customizations to theme">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        <span>Save Theme</span>
+                      </button>
+                      <button class="btn btn-secondary btn-sm" id="btn-theme-export" title="Export current theme as JSON">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                        <span>Export JSON</span>
+                      </button>
+                      <button class="btn btn-secondary btn-sm" id="btn-theme-import" title="Import theme from JSON">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span>Import JSON</span>
+                      </button>
+                      <button class="btn btn-secondary btn-sm" id="btn-theme-delete" title="Delete custom theme" style="display: none; color: #f85149;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="setting-label" style="margin-top: 10px;">
-                  <span class="setting-title">Package Live Preview</span>
+                <!-- Live Interactive Code Preview -->
+                <div class="setting-card">
+                  <div class="setting-card-title">Live Code & Syntax Preview</div>
+                  <div id="theme-live-preview-box" class="theme-live-preview-box"></div>
                 </div>
-                <div id="icon-theme-preview-box"></div>
 
-                <!-- Custom Package Upload / Editor Section -->
-                <div id="custom-icon-section" style="display: none; margin-top: 14px;">
+                <!-- Workspace Colors -->
+                <div class="setting-card">
+                  <div class="setting-card-title">Workspace Chrome Colors</div>
+                  <div class="color-picker-grid" id="theme-colors-workspace"></div>
+                </div>
+
+                <!-- Editor Surface Colors -->
+                <div class="setting-card">
+                  <div class="setting-card-title">Editor Surface & Cursor Colors</div>
+                  <div class="color-picker-grid" id="theme-colors-editor"></div>
+                </div>
+
+                <!-- Syntax Highlighting Colors -->
+                <div class="setting-card">
+                  <div class="setting-card-title">Syntax Token Highlighting Colors</div>
+                  <div class="color-picker-grid" id="theme-colors-syntax"></div>
+                </div>
+              </div>
+
+              <!-- Sub-Pane 3: Window & Icons -->
+              <div class="appearance-subtab-pane" data-subpane="window-icons">
+                <!-- Window Frame & Geometry -->
+                <div class="setting-card">
+                  <div class="setting-card-title">Window Frame & Geometry</div>
                   <div class="setting-row">
                     <div class="setting-label">
-                      <span class="setting-title">Custom Icon JSON Package</span>
-                      <span class="setting-desc">Paste JSON or upload a custom icon definition package file</span>
+                      <span class="setting-title">Window Corner Radius (Non-Maximized)</span>
+                      <span class="setting-desc">Corner rounding applied to the Gitero window frame when not maximized (disabled automatically when maximized)</span>
+                      <span id="note-window-border-radius" style="font-size: 11px; margin-top: 5px; display: block; color: var(--fg-muted);">Requires Glass Transparency to be enabled.</span>
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                      <button type="button" class="btn btn-secondary btn-sm" id="btn-icon-upload-json">Upload JSON</button>
-                      <input type="file" id="input-icon-upload-json" accept=".json" style="display: none;" />
-                      <button type="button" class="btn btn-primary btn-sm" id="btn-icon-apply-custom">Apply Package</button>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <input type="range" id="setting-window-border-radius" class="transparency-range-input" min="0" max="24" step="1" value="13" style="width: 140px;" />
+                      <span id="val-window-border-radius" style="font-size: 12px; font-weight: 600; color: var(--fg-primary); min-width: 36px;">13px</span>
                     </div>
                   </div>
-                  <textarea id="setting-custom-icon-json" class="setting-textarea" rows="6" placeholder='{\n  "extensions": {\n    "ts": { "type": "badge", "text": "TS", "bg": "#3178c6", "fg": "#fff" }\n  }\n}' style="font-family: monospace; font-size: 11px;"></textarea>
-                </div>
-              </div>
-
-              <!-- Window Frame & Geometry -->
-              <div class="setting-card">
-                <div class="setting-card-title">Window Frame & Geometry</div>
-                <div class="setting-row">
-                  <div class="setting-label">
-                    <span class="setting-title">Window Corner Radius (Non-Maximized)</span>
-                    <span class="setting-desc">Corner rounding applied to the Gitero window frame when not maximized (disabled automatically when maximized)</span>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <input type="range" id="setting-window-border-radius" class="transparency-range-input" min="0" max="24" step="1" value="10" style="width: 140px;" />
-                    <span id="val-window-border-radius" style="font-size: 12px; font-weight: 600; color: var(--fg-primary); min-width: 36px;">10px</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Workspace Transparency & Glassmorphism Studio -->
-              <div class="setting-card transparency-studio-card">
-                <div class="transparency-master-header">
-                  <div>
-                    <div class="setting-card-title" style="margin-bottom: 4px;">Workspace Transparency & Glassmorphism</div>
-                    <div class="setting-desc">Control surface background opacity, independent text legibility, and frosted acrylic blur across IDE sections.</div>
-                  </div>
-                  <label class="transparency-switch-label">
-                    <span style="font-size: 12px; font-weight: 600; color: var(--fg-primary);">Enable Glass</span>
-                    <input type="checkbox" id="setting-transparency-enable-toggle" class="setting-checkbox" />
-                  </label>
                 </div>
 
-                <!-- One-Click Presets -->
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <div class="setting-label">
-                    <span class="setting-title">Quick Glassmorphism Presets</span>
-                  </div>
-                  <div class="transparency-presets-row" id="transparency-presets-container">
-                    <button type="button" class="preset-chip-btn" data-preset="solid">Solid (Default)</button>
-                    <button type="button" class="preset-chip-btn" data-preset="subtle-glass">Subtle Glass</button>
-                    <button type="button" class="preset-chip-btn" data-preset="frosted-acrylic">Frosted Acrylic</button>
-                    <button type="button" class="preset-chip-btn" data-preset="code-focus">Code Focus</button>
-                  </div>
-                </div>
-
-                <!-- Refractive Atmosphere Mood Engine -->
-                <div class="setting-item-stack" style="margin-top: 14px; margin-bottom: 14px;">
-                  <div class="setting-label" style="margin-bottom: 6px;">
-                    <span class="setting-title">Refractive Atmosphere Mood</span>
-                    <span class="setting-description">Luminous ambient underglow diffused through frosted acrylic surfaces</span>
-                  </div>
-                  <div class="transparency-presets-row" id="transparency-mood-container">
-                    <button type="button" class="preset-chip-btn" data-mood="deep-space">Deep Space</button>
-                    <button type="button" class="preset-chip-btn" data-mood="aurora">Aurora</button>
-                    <button type="button" class="preset-chip-btn" data-mood="monochrome">Monochrome</button>
-                    <button type="button" class="preset-chip-btn" data-mood="accent">Theme Accent</button>
-                    <button type="button" class="preset-chip-btn" data-mood="none">Off</button>
-                  </div>
-                </div>
-
-                <!-- Master Global Controls -->
-                <div class="transparency-master-sliders" id="transparency-master-sliders-box">
-                  <div class="transparency-slider-group">
-                    <div class="transparency-slider-header">
-                      <span>Master Surface Opacity</span>
-                      <span class="transparency-slider-val" id="val-master-bg">100%</span>
+                <!-- File & Folder Icons Package -->
+                <div class="setting-card">
+                  <div class="setting-card-title">File & Folder Icons Package</div>
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="setting-title">Icon Theme Package</span>
+                      <span class="setting-desc">Select from available icon packages (badges, lucide, material, or custom upload)</span>
                     </div>
-                    <input type="range" id="setting-master-bg-opacity" class="transparency-range-input" min="10" max="100" step="1" value="100" />
+                    <select id="setting-icon-theme-select" class="setting-select">
+                      <option value="lucide">Lucide Icons (Pure Vector Line Outlines) [Default]</option>
+                      <option value="badges">Compact Badges (Classic Badges + Vector Folders)</option>
+                      <option value="material">Material Icons (Colored Glyphs)</option>
+                      <option value="custom">Custom Package (JSON / Uploaded Package)</option>
+                    </select>
                   </div>
 
-                  <div class="transparency-slider-group" title="Radiance and underglow intensity diffused across frosted surfaces">
-                    <div class="transparency-slider-header">
-                      <span>Atmosphere Luminance</span>
-                      <span class="transparency-slider-val" id="val-master-atmosphere">65%</span>
-                    </div>
-                    <input type="range" id="setting-master-atmosphere" class="transparency-range-input" min="0" max="100" step="1" value="65" />
+                  <div class="setting-label" style="margin-top: 10px;">
+                    <span class="setting-title">Package Live Preview</span>
                   </div>
+                  <div id="icon-theme-preview-box"></div>
 
-                  <div class="transparency-slider-group">
-                    <div class="transparency-slider-header">
-                      <span>Master Text Contrast</span>
-                      <span class="transparency-slider-val" id="val-master-text">100%</span>
+                  <!-- Custom Package Upload / Editor Section -->
+                  <div id="custom-icon-section" style="display: none; margin-top: 14px;">
+                    <div class="setting-row">
+                      <div class="setting-label">
+                        <span class="setting-title">Custom Icon JSON Package</span>
+                        <span class="setting-desc">Paste JSON or upload a custom icon definition package file</span>
+                      </div>
+                      <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-icon-upload-json">Upload JSON</button>
+                        <input type="file" id="input-icon-upload-json" accept=".json" style="display: none;" />
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-icon-apply-custom">Apply Package</button>
+                      </div>
                     </div>
-                    <input type="range" id="setting-master-text-opacity" class="transparency-range-input" min="30" max="100" step="1" value="100" />
-                  </div>
-
-                  <div class="transparency-slider-group" title="Diffusion blur for ambient underglow and overlay modals (desktop blur is native Windows DWM Acrylic)">
-                    <div class="transparency-slider-header">
-                      <span>Backdrop Blur & Diffusion</span>
-                      <span class="transparency-slider-val" id="val-master-blur">14px</span>
-                    </div>
-                    <input type="range" id="setting-master-blur" class="transparency-range-input" min="0" max="32" step="1" value="14" />
+                    <textarea id="setting-custom-icon-json" class="setting-textarea" rows="6" placeholder='{\n  "extensions": {\n    "ts": { "type": "badge", "text": "TS", "bg": "#3178c6", "fg": "#fff" }\n  }\n}' style="font-family: monospace; font-size: 11px;"></textarea>
                   </div>
                 </div>
-
-                <!-- Category Segmented Filters -->
-                <div class="transparency-tabs-bar" id="transparency-category-tabs">
-                  <button type="button" class="transparency-tab-btn active" data-cat="all">All Sections (8)</button>
-                  <button type="button" class="transparency-tab-btn" data-cat="chrome">Chrome (3)</button>
-                  <button type="button" class="transparency-tab-btn" data-cat="workspace">Workspace (2)</button>
-                  <button type="button" class="transparency-tab-btn" data-cat="editor">Editor & Terminal (2)</button>
-                  <button type="button" class="transparency-tab-btn" data-cat="overlays">Overlays (1)</button>
-                </div>
-
-                <!-- Dynamic Sections Container -->
-                <div class="transparency-sections-grid" id="transparency-sections-grid"></div>
-              </div>
-
-              <!-- Theme Toolbar -->
-              <div class="setting-card theme-studio-card">
-                <div class="theme-studio-header">
-                  <div class="theme-select-container">
-                    <label for="setting-theme-select" class="theme-field-label">Theme Preset:</label>
-                    <select id="setting-theme-select" class="setting-select"></select>
-                  </div>
-                  <div class="theme-studio-actions">
-                    <button class="btn btn-secondary btn-sm" id="btn-theme-new" title="Create new custom theme">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      <span>New Theme</span>
-                    </button>
-                    <button class="btn btn-primary btn-sm" id="btn-theme-save" title="Save customizations to theme">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                      <span>Save Theme</span>
-                    </button>
-                    <button class="btn btn-secondary btn-sm" id="btn-theme-export" title="Export current theme as JSON">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                      <span>Export JSON</span>
-                    </button>
-                    <button class="btn btn-secondary btn-sm" id="btn-theme-import" title="Import theme from JSON">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                      <span>Import JSON</span>
-                    </button>
-                    <button class="btn btn-secondary btn-sm" id="btn-theme-delete" title="Delete custom theme" style="display: none; color: #f85149;">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Live Interactive Code Preview -->
-              <div class="setting-card">
-                <div class="setting-card-title">Live Code & Syntax Preview</div>
-                <div id="theme-live-preview-box" class="theme-live-preview-box"></div>
-              </div>
-
-              <!-- Workspace Colors -->
-              <div class="setting-card">
-                <div class="setting-card-title">Workspace Chrome Colors</div>
-                <div class="color-picker-grid" id="theme-colors-workspace"></div>
-              </div>
-
-              <!-- Editor Surface Colors -->
-              <div class="setting-card">
-                <div class="setting-card-title">Editor Surface & Cursor Colors</div>
-                <div class="color-picker-grid" id="theme-colors-editor"></div>
-              </div>
-
-              <!-- Syntax Highlighting Colors -->
-              <div class="setting-card">
-                <div class="setting-card-title">Syntax Token Highlighting Colors</div>
-                <div class="color-picker-grid" id="theme-colors-syntax"></div>
               </div>
             </div>
 
@@ -672,6 +698,7 @@ export class SettingsModalComponent {
       });
     });
 
+    this.setupAppearanceSubtabs();
     this.setupUpdateListeners();
     this.setupKeybindingsListeners();
     this.setupThemeStudioListeners();
@@ -679,6 +706,45 @@ export class SettingsModalComponent {
     this.setupTerminalSettingsListeners();
     this.setupFileAssociationListeners();
     this.setupTransparencyStudioListeners();
+  }
+
+  private setupAppearanceSubtabs() {
+    const subtabBtns = this.overlay.querySelectorAll<HTMLButtonElement>('#appearance-subtabs-nav .appearance-subtab-btn');
+    const subtabPanes = this.overlay.querySelectorAll<HTMLElement>('.appearance-subtab-pane');
+
+    subtabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-subtab');
+        subtabBtns.forEach(b => b.classList.toggle('active', b === btn));
+        subtabPanes.forEach(pane => {
+          pane.classList.toggle('active', pane.getAttribute('data-subpane') === target);
+        });
+      });
+    });
+
+    this.updateBorderRadiusControlState();
+  }
+
+  private updateBorderRadiusControlState() {
+    const glassEnabled = !!preferencesService.get('transparency.enabled');
+    const radiusInput = this.overlay.querySelector('#setting-window-border-radius') as HTMLInputElement;
+    const radiusVal = this.overlay.querySelector('#val-window-border-radius') as HTMLElement;
+    const radiusNote = this.overlay.querySelector('#note-window-border-radius') as HTMLElement;
+
+    if (radiusInput) {
+      radiusInput.disabled = !glassEnabled;
+      radiusInput.style.opacity = glassEnabled ? '1' : '0.45';
+      radiusInput.style.cursor = glassEnabled ? 'pointer' : 'not-allowed';
+    }
+    if (radiusVal) {
+      radiusVal.style.opacity = glassEnabled ? '1' : '0.45';
+    }
+    if (radiusNote) {
+      radiusNote.style.color = glassEnabled ? 'var(--accent-color, #58a6ff)' : 'var(--fg-muted)';
+      radiusNote.textContent = glassEnabled
+        ? 'Active — applied to window frame when not maximized'
+        : 'Disabled — requires "Enable Glass" in Glass & Transparency tab';
+    }
   }
 
   private setupFileAssociationListeners() {
@@ -1597,9 +1663,14 @@ export class SettingsModalComponent {
     // Load Window Border Radius
     const radiusInput = this.overlay.querySelector('#setting-window-border-radius') as HTMLInputElement;
     const radiusVal = this.overlay.querySelector('#val-window-border-radius');
-    const curRadius = preferencesService.get('workbench.windowBorderRadius') ?? 10;
+    let curRadius = preferencesService.get('workbench.windowBorderRadius') ?? 13;
+    if (curRadius === 10) {
+      curRadius = 13;
+      preferencesService.set('workbench.windowBorderRadius', 13);
+    }
     if (radiusInput) radiusInput.value = String(curRadius);
     if (radiusVal) radiusVal.textContent = `${curRadius}px`;
+    this.updateBorderRadiusControlState();
 
     this.refreshTransparencyStudioUi();
   }
@@ -2070,5 +2141,6 @@ export class SettingsModalComponent {
     });
 
     this.updateAllSectionChips();
+    this.updateBorderRadiusControlState();
   }
 }
