@@ -3,7 +3,7 @@ import { Extension } from '@codemirror/state';
 import { getSearchQuery, SearchQuery } from '@codemirror/search';
 import { forEachDiagnostic, Diagnostic } from '@codemirror/lint';
 
-const MINIMAP_WIDTH = 92;
+const MINIMAP_WIDTH = 96;
 const LINE_PITCH = 3.5; // height per line in minimap (px)
 const CHAR_WIDTH = 1.4; // width per char (px)
 
@@ -49,6 +49,34 @@ class MinimapPlugin {
     this.scheduleRender();
   }
 
+  private jumpToCodeAt(clickY: number) {
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+    const totalMinimapHeight = totalLines * LINE_PITCH;
+    const height = this.container.clientHeight || 1;
+
+    const { scrollHeight, clientHeight, scrollTop } = this.view.scrollDOM;
+    const maxScroll = Math.max(1, scrollHeight - clientHeight);
+    const scrollRatio = Math.max(0, Math.min(1, scrollTop / maxScroll));
+
+    let minimapOffsetY = 0;
+    if (totalMinimapHeight > height) {
+      minimapOffsetY = scrollRatio * (totalMinimapHeight - height);
+    }
+
+    // Calculate exact code line in the document based on the clicked Y coordinate
+    const targetDocY = clickY + minimapOffsetY;
+    const targetLine = Math.max(1, Math.min(totalLines, Math.floor(targetDocY / LINE_PITCH) + 1));
+    const lineObj = doc.line(targetLine);
+
+    // Jump directly to that line of code, center it in the editor, and focus
+    this.view.dispatch({
+      selection: { anchor: lineObj.from, head: lineObj.from },
+      effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' })
+    });
+    this.view.focus();
+  }
+
   private bindEvents() {
     // Slider dragging
     this.slider.addEventListener('mousedown', (e) => {
@@ -62,39 +90,14 @@ class MinimapPlugin {
       window.addEventListener('mouseup', this.onMouseUp);
     });
 
-    // Clicking anywhere on minimap to jump
+    // Clicking anywhere on the minimap jumps directly to that code line
     this.container.addEventListener('mousedown', (e) => {
       if (e.target === this.slider) return;
       e.preventDefault();
 
       const rect = this.container.getBoundingClientRect();
       const clickY = e.clientY - rect.top;
-
-      const { scrollHeight, clientHeight } = this.view.scrollDOM;
-      const totalLines = this.view.state.doc.lines;
-      const totalMinimapHeight = totalLines * LINE_PITCH;
-      const containerHeight = this.container.clientHeight || 1;
-
-      let targetScrollTop = 0;
-      if (totalMinimapHeight <= containerHeight) {
-        const ratio = clickY / containerHeight;
-        targetScrollTop = ratio * (scrollHeight - clientHeight);
-      } else {
-        const currentScrollRatio = this.view.scrollDOM.scrollTop / Math.max(1, scrollHeight - clientHeight);
-        const minimapOffset = currentScrollRatio * (totalMinimapHeight - containerHeight);
-        const targetDocY = clickY + minimapOffset;
-        const line = Math.max(1, Math.min(totalLines, Math.round(targetDocY / LINE_PITCH)));
-        const lineObj = this.view.state.doc.line(line);
-        this.view.dispatch({
-          selection: { anchor: lineObj.from, head: lineObj.from },
-          scrollIntoView: true
-        });
-        this.view.focus();
-        return;
-      }
-
-      this.view.scrollDOM.scrollTop = Math.max(0, Math.min(scrollHeight - clientHeight, targetScrollTop - clientHeight / 2));
-      this.scheduleRender();
+      this.jumpToCodeAt(clickY);
     });
   }
 
@@ -121,12 +124,20 @@ class MinimapPlugin {
     this.view.scrollDOM.scrollTop = Math.max(0, Math.min(scrollHeight - clientHeight, this.dragStartScrollTop + scrollDelta));
   };
 
-  private onMouseUp = () => {
+  private onMouseUp = (e: MouseEvent) => {
     if (this.isDragging) {
+      const moved = Math.abs(e.clientY - this.dragStartY) > 3;
       this.isDragging = false;
       this.slider.classList.remove('is-dragging');
       window.removeEventListener('mousemove', this.onMouseMove);
       window.removeEventListener('mouseup', this.onMouseUp);
+
+      // If user simply clicked on the slider without dragging, jump to the clicked code as well
+      if (!moved) {
+        const rect = this.container.getBoundingClientRect();
+        const clickY = e.clientY - rect.top;
+        this.jumpToCodeAt(clickY);
+      }
     }
   };
 

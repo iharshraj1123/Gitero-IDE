@@ -6643,33 +6643,39 @@ body.transparency-active .settings-body-wrapper {
 
 /* Scroller spacing when minimap is active */
 .cm-editor[data-minimap="true"] .cm-scroller {
-  padding-right: 98px;
+  padding-right: 114px;
 }
 
 .cm-editor[data-minimap="false"] .cm-scroller {
   padding-right: 18px;
 }
 
-/* Right-Side Minimap */
+/* Right-Side Minimap (Kept strictly separate from the scrollbar) */
 .gitero-minimap {
   position: absolute;
   top: 0;
-  right: 0;
+  right: 14px;
   bottom: 0;
-  width: 92px;
+  width: 96px;
   z-index: 12;
   pointer-events: auto;
   overflow: hidden;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(18, 20, 26, 0.45);
   backdrop-filter: blur(8px);
   user-select: none;
   cursor: pointer;
 }
 
+.cm-editor[data-minimap="false"] .gitero-minimap {
+  display: none !important;
+}
+
 .theme-light .gitero-minimap,
 [data-theme*="light"] .gitero-minimap {
   border-left: 1px solid rgba(0, 0, 0, 0.08);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(245, 246, 250, 0.6);
 }
 
@@ -6705,7 +6711,7 @@ body.transparency-active .settings-body-wrapper {
   cursor: grabbing;
 }
 
-/* Scrollbar Overview Ruler */
+/* Separate Scrollbar & Overview Ruler */
 .gitero-overview-ruler {
   position: absolute;
   top: 0;
@@ -6714,9 +6720,16 @@ body.transparency-active .settings-body-wrapper {
   width: 14px;
   z-index: 25;
   pointer-events: auto;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.22);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
   cursor: pointer;
   user-select: none;
+}
+
+.theme-light .gitero-overview-ruler,
+[data-theme*="light"] .gitero-overview-ruler {
+  background: rgba(0, 0, 0, 0.06);
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .gitero-overview-ruler-markers {
