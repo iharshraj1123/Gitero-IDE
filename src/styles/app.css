@@ -98,6 +98,11 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+::-webkit-scrollbar-corner,
+::-webkit-resizer {
+  background: transparent;
+}
+
 
 /* ==========================================================================
    Main Shell Layout
