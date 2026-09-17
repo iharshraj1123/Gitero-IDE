@@ -5935,21 +5935,27 @@ body.transparency-active .settings-body-wrapper {
 /* Diagnostics & Linting Squiggles */
 .cm-lintRange-error {
   background-image: none !important;
-  border-bottom: 2px wavy #f85149 !important;
+  text-decoration: underline wavy #f85149 !important;
+  text-underline-offset: 3px !important;
+  text-decoration-skip-ink: none !important;
 }
 
 .cm-lintRange-warning {
   background-image: none !important;
-  border-bottom: 2px wavy #d29922 !important;
+  text-decoration: underline wavy #e0af68 !important;
+  text-underline-offset: 3px !important;
+  text-decoration-skip-ink: none !important;
 }
 
 .cm-lintRange-info {
   background-image: none !important;
-  border-bottom: 2px wavy #58a6ff !important;
+  text-decoration: underline wavy #58a6ff !important;
+  text-underline-offset: 3px !important;
+  text-decoration-skip-ink: none !important;
 }
 
 .cm-gutter-lint {
-  width: 14px !important;
+  width: 16px !important;
 }
 
 .cm-gutter-lint .cm-gutterElement {
@@ -5957,7 +5963,7 @@ body.transparency-active .settings-body-wrapper {
   align-items: center !important;
   justify-content: center !important;
   padding: 0 !important;
-  min-height: 100%;
+  box-sizing: border-box !important;
 }
 
 .cm-lint-marker {

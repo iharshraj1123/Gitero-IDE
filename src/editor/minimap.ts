@@ -47,26 +47,42 @@ class MinimapPlugin {
     this.scheduleRender();
   }
 
-  private scrollMinimapTo(clickY: number) {
-    const { scrollHeight, clientHeight } = this.view.scrollDOM;
-    const maxScroll = Math.max(0, scrollHeight - clientHeight);
-    if (maxScroll <= 0) return;
+  private jumpToCodeAt(clickY: number, setSelection: boolean = true) {
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+    const totalMinimapHeight = totalLines * LINE_PITCH;
+    const height = this.container.clientHeight || 1;
 
-    const containerHeight = this.container.clientHeight || 1;
-    const ratio = clientHeight / scrollHeight;
-    const sliderHeight = Math.max(20, Math.min(containerHeight, containerHeight * ratio));
-    const maxSliderTop = Math.max(0, containerHeight - sliderHeight);
-    if (maxSliderTop <= 0) return;
+    const { scrollHeight, clientHeight, scrollTop } = this.view.scrollDOM;
+    const maxScroll = Math.max(1, scrollHeight - clientHeight);
+    const scrollRatio = Math.max(0, Math.min(1, scrollTop / maxScroll));
 
-    // Center the clicked point in the highlighter (slider), bounded by boundaries (top 0 and bottom maxSliderTop)
-    const targetSliderTop = Math.max(0, Math.min(maxSliderTop, clickY - sliderHeight / 2));
-    const scrollRatio = targetSliderTop / maxSliderTop;
+    let minimapOffsetY = 0;
+    if (totalMinimapHeight > height) {
+      minimapOffsetY = scrollRatio * (totalMinimapHeight - height);
+    }
 
-    this.view.scrollDOM.scrollTop = scrollRatio * maxScroll;
+    // Calculate exact code line in the document based on the clicked Y coordinate
+    const targetDocY = clickY + minimapOffsetY;
+    const targetLine = Math.max(1, Math.min(totalLines, Math.floor(targetDocY / LINE_PITCH) + 1));
+    const lineObj = doc.line(targetLine);
+
+    if (setSelection) {
+      // Jump directly to that line of code, center it in the editor, and focus
+      this.view.dispatch({
+        selection: { anchor: lineObj.from, head: lineObj.from },
+        effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' })
+      });
+      this.view.focus();
+    } else {
+      // While dragging, scroll smoothly to center that line
+      this.view.dispatch({
+        effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' })
+      });
+    }
   }
 
   private bindEvents() {
-    // Clicking or dragging anywhere on the minimap centers the highlighter directly on the click
     this.container.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -77,7 +93,7 @@ class MinimapPlugin {
       const rect = this.container.getBoundingClientRect();
       const clickY = e.clientY - rect.top;
 
-      this.scrollMinimapTo(clickY);
+      this.jumpToCodeAt(clickY, true);
 
       window.addEventListener('mousemove', this.onMouseMove);
       window.addEventListener('mouseup', this.onMouseUp);
@@ -95,7 +111,7 @@ class MinimapPlugin {
 
     const rect = this.container.getBoundingClientRect();
     const currentY = e.clientY - rect.top;
-    this.scrollMinimapTo(currentY);
+    this.jumpToCodeAt(currentY, false);
   };
 
   private onMouseUp = () => {
@@ -104,6 +120,7 @@ class MinimapPlugin {
       this.slider.classList.remove('is-dragging');
       window.removeEventListener('mousemove', this.onMouseMove);
       window.removeEventListener('mouseup', this.onMouseUp);
+      this.view.focus();
     }
   };
 
@@ -287,23 +304,48 @@ class MinimapPlugin {
     ctx.restore();
 
     // Position viewport slider
-    this.updateSlider(height, totalMinimapHeight);
+    this.updateSlider(height, totalMinimapHeight, minimapOffsetY);
   }
 
-  private updateSlider(containerHeight: number, _totalMinimapHeight: number) {
+  private updateSlider(containerHeight: number, totalMinimapHeight: number, minimapOffsetY: number) {
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
     const { scrollTop, scrollHeight, clientHeight } = this.view.scrollDOM;
-    if (scrollHeight <= clientHeight) {
+
+    if (scrollHeight <= clientHeight && totalMinimapHeight <= containerHeight) {
       this.slider.style.display = 'none';
       return;
     }
     this.slider.style.display = 'block';
 
-    const ratio = clientHeight / scrollHeight;
-    const sliderHeight = Math.max(20, Math.min(containerHeight, containerHeight * ratio));
-    const maxSliderTop = Math.max(0, containerHeight - sliderHeight);
-    const maxScroll = Math.max(1, scrollHeight - clientHeight);
-    const scrollRatio = Math.max(0, Math.min(1, scrollTop / maxScroll));
-    const sliderTop = Math.max(0, Math.min(maxSliderTop, scrollRatio * maxSliderTop));
+    let firstVisibleLine = 1;
+    let lastVisibleLine = totalLines;
+
+    try {
+      const topBlock = this.view.lineBlockAtHeight(scrollTop);
+      firstVisibleLine = doc.lineAt(topBlock.from).number;
+      const bottomBlock = this.view.lineBlockAtHeight(scrollTop + clientHeight);
+      lastVisibleLine = doc.lineAt(bottomBlock.to).number;
+    } catch {
+      const avgLineHeight = Math.max(1, scrollHeight / Math.max(1, totalLines));
+      firstVisibleLine = Math.max(1, Math.min(totalLines, Math.floor(scrollTop / avgLineHeight) + 1));
+      lastVisibleLine = Math.max(firstVisibleLine, Math.min(totalLines, Math.ceil((scrollTop + clientHeight) / avgLineHeight)));
+    }
+
+    const topY = (firstVisibleLine - 1) * LINE_PITCH - minimapOffsetY;
+    const bottomY = lastVisibleLine * LINE_PITCH - minimapOffsetY;
+    const sliderHeight = Math.max(16, bottomY - topY);
+    const centerVisibleY = (topY + bottomY) / 2;
+
+    // Center the slider around the visible code lines
+    let sliderTop = centerVisibleY - sliderHeight / 2;
+
+    // Boundary constraints: slider stays on code and within container
+    const maxTop = totalMinimapHeight <= containerHeight
+      ? Math.max(0, totalMinimapHeight - sliderHeight)
+      : Math.max(0, containerHeight - sliderHeight);
+
+    sliderTop = Math.max(0, Math.min(maxTop, sliderTop));
 
     this.slider.style.top = `${Math.round(sliderTop)}px`;
     this.slider.style.height = `${Math.round(sliderHeight)}px`;
