@@ -94,12 +94,31 @@ namespace GiteroExplorerHotkey
                 StringBuilder cls = new StringBuilder(256);
                 GetClassName(hwnd, cls, cls.Capacity);
                 string clsName = cls.ToString();
+
+                // Never touch Windows Explorer or desktop windows
+                if (IsExplorerClass(clsName)) return false;
+
+                // Match Neutralino webview class
                 if (clsName == "Neutralinojs_webview") return true;
 
-                StringBuilder title = new StringBuilder(256);
-                GetWindowText(hwnd, title, title.Capacity);
-                string titleName = title.ToString();
-                if (titleName.StartsWith("Gitero IDE", StringComparison.OrdinalIgnoreCase)) return true;
+                // Verify process name of the window's owning process
+                uint pid;
+                GetWindowThreadProcessId(hwnd, out pid);
+                if (pid != 0)
+                {
+                    try
+                    {
+                        using (Process p = Process.GetProcessById((int)pid))
+                        {
+                            string pname = p.ProcessName.ToLowerInvariant();
+                            if (pname == "gitero" || pname == "gitero-win_x64")
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    catch {}
+                }
             }
             catch {}
             return false;
@@ -494,6 +513,9 @@ namespace GiteroExplorerHotkey
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
