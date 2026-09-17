@@ -37,7 +37,7 @@ Gitero enforces strict isolation between application code and user state:
 1. Open the Settings modal by pressing `Ctrl+,` (or select `Preferences` > `Settings` from the top menu).
 2. Look at the top section: **Software Updates (GitHub Branch Channel)**.
 3. The metadata card displays:
-   - **Version**: Current semantic version (e.g., `0.3.0-beta`).
+   - **Version**: Current semantic version (e.g., `0.3.1-beta`).
    - **Current Commit**: The short commit SHA of your active build (e.g., `9ed9b1c`).
    - **Active Channel**: The branch you are currently tracking (e.g., `main`).
 4. **Choose a Branch**: Select a branch from the **Target Branch** dropdown. Click **Refresh** to pull any newly pushed branches from GitHub.
