@@ -4,7 +4,7 @@
 #define MyAppName "Gitero IDE"
 #define MyAppVersion "0.2.5-beta"
 #define MyAppPublisher "Gitero Team"
-#define MyAppURL "https://github.com/iharshraj1123/Glitero-IDE"
+#define MyAppURL "https://github.com/iharshraj1123/Gitero-IDE"
 #define MyAppExeName "Gitero.exe"
 
 [Setup]

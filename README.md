@@ -2,11 +2,11 @@
 
 **High-Performance Developer Studio with Native Neutralino Engine & Modal Vim Editing**
 
-[![Version](https://img.shields.io/badge/version-0.1.2--beta-blue.svg?style=flat-square)](https://github.com/iharshraj1123/Glitero-IDE/releases)
+[![Version](https://img.shields.io/badge/version-0.1.2--beta-blue.svg?style=flat-square)](https://github.com/iharshraj1123/Gitero-IDE/releases)
 [![Runtime](https://img.shields.io/badge/runtime-Neutralinojs%20v6.9.0-2563eb.svg?style=flat-square)](https://neutralino.js.org/)
 [![Editor Engine](https://img.shields.io/badge/editor-CodeMirror%206-d97706.svg?style=flat-square)](https://codemirror.net/)
 [![Language](https://img.shields.io/badge/language-TypeScript%205-3178c6.svg?style=flat-square)](https://www.typescriptlang.org/)
-[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4.svg?style=flat-square)](https://github.com/iharshraj1123/Glitero-IDE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4.svg?style=flat-square)](https://github.com/iharshraj1123/Gitero-IDE)
 [![License](https://img.shields.io/badge/license-Custom%20(Non--Commercial)-red.svg?style=flat-square)](LICENSE)
 
 ---
@@ -79,7 +79,7 @@ Built on the **Neutralinojs native runtime** and **CodeMirror 6**, Gitero elimin
 ## Quick Start
 
 ### Option 1: Windows Production Installer
-1. Download the latest installer `Gitero-Setup-0.1.2-beta.exe` from [Releases](https://github.com/iharshraj1123/Glitero-IDE/releases).
+1. Download the latest installer `Gitero-Setup-0.1.2-beta.exe` from [Releases](https://github.com/iharshraj1123/Gitero-IDE/releases).
 2. Run the installer. Gitero installs into `%LOCALAPPDATA%\Programs\Gitero IDE`.
 3. Launch Gitero IDE from the Start Menu, Desktop shortcut, or right-click any folder and select **Open with Gitero**.
 
@@ -91,7 +91,7 @@ Built on the **Neutralinojs native runtime** and **CodeMirror 6**, Gitero elimin
 
 ```powershell
 # Clone the repository
-git clone https://github.com/iharshraj1123/Glitero-IDE.git
+git clone https://github.com/iharshraj1123/Gitero-IDE.git
 cd "Gitero IDE"
 
 # Install dependencies

@@ -30,7 +30,7 @@
 
 ## Repository & Version Info
 
-* **GitHub Repository**: [https://github.com/iharshraj1123/Glitero-IDE](https://github.com/iharshraj1123/Glitero-IDE)
+* **GitHub Repository**: [https://github.com/iharshraj1123/Gitero-IDE](https://github.com/iharshraj1123/Gitero-IDE)
 * **Active Branch**: `main`
 * **Current Version**: `0.2.5-beta`
 
@@ -195,7 +195,7 @@ Update all three built-in icon themes:
    * Always use real vector icons (clean inline SVGs or Lucide icons) or clean text badges.
 
 2. **Git Push on Every Commit**:
-   * Whenever a git commit is made, always immediately `git push` to the respective remote branch on GitHub (`https://github.com/iharshraj1123/Glitero-IDE`).
+   * Whenever a git commit is made, always immediately `git push` to the respective remote branch on GitHub (`https://github.com/iharshraj1123/Gitero-IDE`).
 
 3. **Keybindings in Settings**:
    * Whenever a new keybinding is introduced, it must also be added to the Settings modal where it can be customized and edited. Persist mappings in `PreferencesService`.

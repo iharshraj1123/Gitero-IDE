@@ -29,7 +29,7 @@ Before contributing or building Gitero IDE from source, ensure you have the foll
 
 ### 1. Clone & Install Dependencies
 ```powershell
-git clone https://github.com/iharshraj1123/Glitero-IDE.git
+git clone https://github.com/iharshraj1123/Gitero-IDE.git
 cd "Gitero IDE"
 npm install
 ```

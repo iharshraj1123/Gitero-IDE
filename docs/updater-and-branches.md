@@ -6,7 +6,7 @@ Gitero IDE features an integrated GitHub Branch Updater designed specifically fo
 
 ## How It Works
 
-1. **GitHub API Querying**: Gitero connects to the public GitHub API for [`iharshraj1123/Glitero-IDE`](https://github.com/iharshraj1123/Glitero-IDE).
+1. **GitHub API Querying**: Gitero connects to the public GitHub API for [`iharshraj1123/Gitero-IDE`](https://github.com/iharshraj1123/Gitero-IDE).
 2. **Commit Comparison**: It compares your local commit SHA against the HEAD commit SHA of the selected branch.
 3. **Targeted Bundle Refresh**: When an update is triggered, Gitero updates only the application runtime assets (`dist/`).
 4. **Instant Restart**: After applying changes, Gitero can be restarted with a single click to run the newly updated code.

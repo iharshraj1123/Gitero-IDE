@@ -39,7 +39,7 @@ export interface UpdateHistoryEntry {
 
 import { DISPLAY_VERSION, GIT_COMMIT_SHA, GIT_BRANCH } from '../version';
 
-const GITHUB_REPO = 'iharshraj1123/Glitero-IDE';
+const GITHUB_REPO = 'iharshraj1123/Gitero-IDE';
 const CURRENT_VERSION = DISPLAY_VERSION;
 const HISTORY_STORAGE_KEY = 'gitero_update_history';
 
