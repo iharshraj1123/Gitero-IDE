@@ -59,6 +59,14 @@ async function bootstrap() {
   preferencesService.subscribe('editor.fontFamily', applyTypography);
   preferencesService.subscribe('editor.fontSize', applyTypography);
 
+  // Initialize Window Border Radius from preferences
+  const applyWindowBorderRadius = () => {
+    const radius = preferencesService.get('workbench.windowBorderRadius') ?? 10;
+    document.documentElement.style.setProperty('--window-border-radius', `${radius}px`);
+  };
+  applyWindowBorderRadius();
+  preferencesService.subscribe('workbench.windowBorderRadius', applyWindowBorderRadius);
+
   // 3. UI DOM References
   const titleBarContainer = document.getElementById('app-titlebar') as HTMLElement;
   const sidebarEl = document.getElementById('sidebar') as HTMLElement;

@@ -30,6 +30,7 @@ export interface GiteroPreferences {
   'workbench.activeSidebarPane': 'explorer' | 'search' | 'git';
   'workbench.bottomPanelHeight': number;
   'workbench.recentWorkspaces': string[];
+  'workbench.windowBorderRadius': number;
 
   // Terminal
   'terminal.fontSize': number;
@@ -132,6 +133,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'workbench.activeSidebarPane': 'explorer',
   'workbench.bottomPanelHeight': 220,
   'workbench.recentWorkspaces': [],
+  'workbench.windowBorderRadius': 10,
   'terminal.fontSize': 13,
   'terminal.fontFamily': '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace',
   'search.matchCase': false,

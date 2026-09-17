@@ -332,6 +332,21 @@ export class SettingsModalComponent {
                 </div>
               </div>
 
+              <!-- Window Frame & Geometry -->
+              <div class="setting-card">
+                <div class="setting-card-title">Window Frame & Geometry</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Window Corner Radius (Non-Maximized)</span>
+                    <span class="setting-desc">Corner rounding applied to the Gitero window frame when not maximized (disabled automatically when maximized)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="range" id="setting-window-border-radius" class="transparency-range-input" min="0" max="24" step="1" value="10" style="width: 140px;" />
+                    <span id="val-window-border-radius" style="font-size: 12px; font-weight: 600; color: var(--fg-primary); min-width: 36px;">10px</span>
+                  </div>
+                </div>
+              </div>
+
               <!-- Workspace Transparency & Glassmorphism Studio -->
               <div class="setting-card transparency-studio-card">
                 <div class="transparency-master-header">
@@ -383,7 +398,7 @@ export class SettingsModalComponent {
                     <input type="range" id="setting-master-bg-opacity" class="transparency-range-input" min="10" max="100" step="1" value="100" />
                   </div>
 
-                  <div class="transparency-slider-group">
+                  <div class="transparency-slider-group" title="Radiance and underglow intensity diffused across frosted surfaces">
                     <div class="transparency-slider-header">
                       <span>Atmosphere Luminance</span>
                       <span class="transparency-slider-val" id="val-master-atmosphere">65%</span>
@@ -399,9 +414,9 @@ export class SettingsModalComponent {
                     <input type="range" id="setting-master-text-opacity" class="transparency-range-input" min="30" max="100" step="1" value="100" />
                   </div>
 
-                  <div class="transparency-slider-group">
+                  <div class="transparency-slider-group" title="Diffusion blur for ambient underglow and overlay modals (desktop blur is native Windows DWM Acrylic)">
                     <div class="transparency-slider-header">
-                      <span>Backdrop Blur (Frosted)</span>
+                      <span>Backdrop Blur & Diffusion</span>
                       <span class="transparency-slider-val" id="val-master-blur">14px</span>
                     </div>
                     <input type="range" id="setting-master-blur" class="transparency-range-input" min="0" max="32" step="1" value="14" />
@@ -810,6 +825,14 @@ export class SettingsModalComponent {
       } catch {
         alert('Invalid JSON in custom package field.');
       }
+    });
+
+    const radiusInput = this.overlay.querySelector('#setting-window-border-radius') as HTMLInputElement;
+    const radiusVal = this.overlay.querySelector('#val-window-border-radius');
+    radiusInput?.addEventListener('input', () => {
+      const val = parseInt(radiusInput.value, 10) || 0;
+      if (radiusVal) radiusVal.textContent = `${val}px`;
+      preferencesService.set('workbench.windowBorderRadius', val);
     });
   }
 
@@ -1571,6 +1594,13 @@ export class SettingsModalComponent {
     if (customSection) customSection.style.display = currentIconTheme === 'custom' ? 'block' : 'none';
     if (customTextarea) customTextarea.value = preferencesService.get('workbench.customIconPackage') || '';
 
+    // Load Window Border Radius
+    const radiusInput = this.overlay.querySelector('#setting-window-border-radius') as HTMLInputElement;
+    const radiusVal = this.overlay.querySelector('#val-window-border-radius');
+    const curRadius = preferencesService.get('workbench.windowBorderRadius') ?? 10;
+    if (radiusInput) radiusInput.value = String(curRadius);
+    if (radiusVal) radiusVal.textContent = `${curRadius}px`;
+
     this.refreshTransparencyStudioUi();
   }
 
@@ -1705,6 +1735,12 @@ export class SettingsModalComponent {
       try {
         localStorage.setItem('gitero_github_token', val);
       } catch {}
+    }
+
+    // Save Window Border Radius
+    const radiusInput = this.overlay.querySelector('#setting-window-border-radius') as HTMLInputElement;
+    if (radiusInput) {
+      preferencesService.set('workbench.windowBorderRadius', parseInt(radiusInput.value, 10) || 0);
     }
 
     this.close();

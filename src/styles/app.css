@@ -109,11 +109,14 @@ body {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
+  border-radius: var(--window-border-radius, 10px);
+  overflow: hidden;
 }
 
 body.window-maximized #app {
   padding: 6px 8px 8px 7px;
   box-sizing: border-box;
+  border-radius: 0 !important;
 }
 
 .ide-workspace {
@@ -3968,13 +3971,60 @@ body.transparency-active #app {
   background: transparent !important;
 }
 
+/* Refractive Atmosphere Glow Layer */
+.app-atmosphere-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  opacity: var(--transparency-atmosphere-intensity, 0.65);
+  filter: blur(calc(var(--transparency-blur, 14px) + 24px));
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.app-atmosphere-glow[data-mood="deep-space"] {
+  background: 
+    radial-gradient(ellipse 65% 55% at 15% 15%, rgba(99, 102, 241, 0.45), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 85% 80%, rgba(168, 85, 247, 0.4), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(59, 130, 246, 0.25), transparent 70%);
+}
+
+.app-atmosphere-glow[data-mood="aurora"] {
+  background: 
+    radial-gradient(ellipse 70% 60% at 20% 15%, rgba(16, 185, 129, 0.42), transparent 70%),
+    radial-gradient(ellipse 55% 55% at 80% 70%, rgba(6, 182, 212, 0.38), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 50% 85%, rgba(99, 102, 241, 0.3), transparent 70%);
+}
+
+.app-atmosphere-glow[data-mood="monochrome"] {
+  background: 
+    radial-gradient(ellipse 75% 65% at 50% 25%, rgba(255, 255, 255, 0.2), transparent 70%),
+    radial-gradient(ellipse 55% 55% at 50% 80%, rgba(255, 255, 255, 0.1), transparent 70%);
+}
+
+.app-atmosphere-glow[data-mood="accent"] {
+  background: 
+    radial-gradient(ellipse 70% 55% at 25% 20%, color-mix(in srgb, var(--accent-color, #58a6ff) 45%, transparent), transparent 70%),
+    radial-gradient(ellipse 55% 55% at 75% 80%, color-mix(in srgb, var(--accent-color, #58a6ff) 30%, transparent), transparent 70%);
+}
+
+.app-atmosphere-glow[data-mood="none"] {
+  display: none !important;
+}
+
 body.transparency-active .ide-workspace {
+  position: relative;
+  z-index: 1;
   background-color: transparent !important;
   background: transparent !important;
 }
 
 /* 1. Title Bar */
 body.transparency-active .app-titlebar {
+  position: relative;
+  z-index: 2;
   background-color: color-mix(in srgb, var(--bg-secondary) calc(var(--opacity-titlebar-bg, 1) * 100%), transparent) !important;
   box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.08);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;

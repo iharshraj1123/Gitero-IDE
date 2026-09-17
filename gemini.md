@@ -32,7 +32,20 @@
 
 * **GitHub Repository**: [https://github.com/iharshraj1123/Glitero-IDE](https://github.com/iharshraj1123/Glitero-IDE)
 * **Active Branch**: `main`
-* **Current Version**: `0.2.1-beta`
+* **Current Version**: `0.2.3-beta`
+
+---
+
+## Custom Neutralino Native Engine Fork (`iharshraj1123/neutralinojs`)
+
+* **Repository**: [https://github.com/iharshraj1123/neutralinojs](https://github.com/iharshraj1123/neutralinojs) (branch: `main`)
+* **CI Workflow**: `.github/workflows/build-gitero-binary.yml` compiles patched Windows x64 binary artifact (`gitero-win_x64`).
+* **Binary Targets**: `bin/gitero-win_x64.exe` and `bin/neutralino-win_x64.exe`.
+* **C++ Engine Patches**:
+  1. **Per-Monitor DPI V2**: Enforces `DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2` before `CreateWindow` to prevent fractional scaling dead-zones.
+  2. **Maximized Work-Area Alignment**: Handles `WM_NCCALCSIZE` and `WM_GETMINMAXINFO` using `mi.rcWork` to prevent 7-8px border clipping.
+  3. **Auto-Hide Taskbar Sensor**: Reserves 1px at bottom edge when `rcWork == rcMonitor` so auto-hiding taskbars pop up on cursor hover.
+  4. **Taskbar App Window Registration**: Restores `WS_EX_APPWINDOW` in `__undoFakeHidden()` so app icon appears on the taskbar.
 
 ---
 

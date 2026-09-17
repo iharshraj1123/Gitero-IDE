@@ -142,11 +142,11 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
       titleBar: { bg: 80, text: 100 },
       activityBar: { bg: 75, text: 100 },
       sidebar: { bg: 78, text: 100 },
-      tabBar: { bg: 80, text: 100 },
-      editor: { bg: 92, text: 100 },
+      tabBar: { bg: 60, text: 100 },
+      editor: { bg: 76, text: 100 },
       terminal: { bg: 85, text: 100 },
       statusBar: { bg: 75, text: 100 },
-      overlays: { bg: 90, text: 100 }
+      overlays: { bg: 70, text: 100 }
     }
   },
   {
@@ -162,11 +162,11 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
       titleBar: { bg: 60, text: 100 },
       activityBar: { bg: 55, text: 100 },
       sidebar: { bg: 60, text: 100 },
-      tabBar: { bg: 65, text: 100 },
-      editor: { bg: 85, text: 100 },
+      tabBar: { bg: 45, text: 100 },
+      editor: { bg: 69, text: 100 },
       terminal: { bg: 70, text: 100 },
       statusBar: { bg: 55, text: 100 },
-      overlays: { bg: 88, text: 100 }
+      overlays: { bg: 68, text: 100 }
     }
   },
   {
@@ -182,18 +182,17 @@ export const TRANSPARENCY_PRESETS: TransparencyPreset[] = [
       titleBar: { bg: 65, text: 100 },
       activityBar: { bg: 60, text: 100 },
       sidebar: { bg: 65, text: 100 },
-      tabBar: { bg: 70, text: 100 },
-      editor: { bg: 100, text: 100 },
+      tabBar: { bg: 50, text: 100 },
+      editor: { bg: 84, text: 100 },
       terminal: { bg: 72, text: 100 },
       statusBar: { bg: 60, text: 100 },
-      overlays: { bg: 90, text: 100 }
+      overlays: { bg: 70, text: 100 }
     }
   }
 ];
 
 export class TransparencyService {
   private isInitialized = false;
-
 
   init() {
     if (this.isInitialized) return;
@@ -220,6 +219,27 @@ export class TransparencyService {
       if (Object.keys(updates).length > 0) {
         preferencesService.update(updates);
       }
+    }
+
+    // Migration: Decrease surface opacity for overlays (-20%), editor (-16%), and tabs (-20%)
+    const decMigrated = preferencesService.get('transparency._opacities_v3_dec' as any);
+    if (!decMigrated) {
+      const updates: any = {
+        'transparency._opacities_v3_dec': true
+      };
+      const curEditor = preferencesService.get('transparency.editor.bgOpacity');
+      const curTabBar = preferencesService.get('transparency.tabBar.bgOpacity');
+      const curOverlays = preferencesService.get('transparency.overlays.bgOpacity');
+      if (typeof curEditor === 'number') {
+        updates['transparency.editor.bgOpacity'] = Math.max(10, curEditor === 100 ? 69 : curEditor - 16);
+      }
+      if (typeof curTabBar === 'number') {
+        updates['transparency.tabBar.bgOpacity'] = Math.max(10, curTabBar === 85 ? 45 : curTabBar - 20);
+      }
+      if (typeof curOverlays === 'number') {
+        updates['transparency.overlays.bgOpacity'] = Math.max(10, curOverlays === 100 ? 68 : curOverlays - 20);
+      }
+      preferencesService.update(updates);
     }
 
     this.apply();
@@ -274,6 +294,11 @@ export class TransparencyService {
         root.style.setProperty(`--opacity-${sec.id.toLowerCase()}-bg`, '1');
         root.style.setProperty(`--opacity-${sec.id.toLowerCase()}-fg`, '1');
       });
+
+      const atmosphereEl = document.getElementById('app-atmosphere-glow');
+      if (atmosphereEl) {
+        atmosphereEl.style.display = 'none';
+      }
       return;
     }
 
@@ -287,10 +312,32 @@ export class TransparencyService {
     const blur = preferencesService.get('transparency.blur') ?? 14;
     const masterBg = (preferencesService.get('transparency.master.bgOpacity') ?? 100) / 100;
     const masterText = (preferencesService.get('transparency.master.textOpacity') ?? 100) / 100;
+    const atmosphereMood = preferencesService.get('transparency.atmosphereMood') ?? 'deep-space';
+    const atmosphereIntensity = (preferencesService.get('transparency.atmosphereIntensity') ?? 65) / 100;
 
     root.style.setProperty('--transparency-blur', `${blur}px`);
+    root.style.setProperty('--transparency-atmosphere-intensity', atmosphereIntensity.toFixed(3));
     root.style.setProperty('--opacity-master-bg', masterBg.toFixed(3));
     root.style.setProperty('--opacity-master-fg', Math.max(0.3, masterText).toFixed(3));
+
+    // Manage Atmosphere Underglow Element
+    let atmosphereEl = document.getElementById('app-atmosphere-glow');
+    if (atmosphereMood !== 'none' && atmosphereIntensity > 0) {
+      if (!atmosphereEl) {
+        atmosphereEl = document.createElement('div');
+        atmosphereEl.id = 'app-atmosphere-glow';
+        atmosphereEl.className = 'app-atmosphere-glow';
+        atmosphereEl.setAttribute('aria-hidden', 'true');
+        const app = document.getElementById('app');
+        if (app) {
+          app.insertBefore(atmosphereEl, app.firstChild);
+        }
+      }
+      atmosphereEl.setAttribute('data-mood', atmosphereMood);
+      atmosphereEl.style.display = '';
+    } else if (atmosphereEl) {
+      atmosphereEl.style.display = 'none';
+    }
 
     TRANSPARENCY_SECTIONS.forEach(sec => {
       const sectionBgRaw = (preferencesService.get(sec.bgPrefKey) as number) ?? 100;
