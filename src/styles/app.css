@@ -6827,37 +6827,4 @@ html.init-minimap-collapsed .gitero-minimap {
   z-index: 12;
 }
 
-/* Ensure editor scrollbar is always fully interactive, clearly visible, and never obstructed */
-.cm-editor .cm-scroller::-webkit-scrollbar {
-  width: 14px;
-}
-
-.cm-editor .cm-scroller::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.cm-editor .cm-scroller::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 7px;
-  border: 3px solid transparent;
-  background-clip: padding-box;
-}
-
-.cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.38);
-  background-clip: padding-box;
-}
-
-.theme-light .cm-editor .cm-scroller::-webkit-scrollbar-thumb,
-[data-theme*="light"] .cm-editor .cm-scroller::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.22);
-  background-clip: padding-box;
-}
-
-.theme-light .cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover,
-[data-theme*="light"] .cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.4);
-  background-clip: padding-box;
-}
-
 
