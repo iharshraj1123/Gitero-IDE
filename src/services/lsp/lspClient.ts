@@ -7,6 +7,7 @@ import {
   CompletionItem,
   CompletionList,
   Diagnostic,
+  DiagnosticSeverity,
   Hover,
   Location,
   LspServerStatus,
@@ -112,7 +113,16 @@ export class LspClient {
     }
   }
 
+  private diagnosticsCache = new Map<string, Diagnostic[]>(); // Normalized path -> Diagnostic[]
+
   private emitDiagnostics(params: PublishDiagnosticsParams) {
+    const normPath = uriToPath(params.uri).replace(/\//g, '\\').toLowerCase();
+    if (!params.diagnostics || params.diagnostics.length === 0) {
+      this.diagnosticsCache.delete(normPath);
+    } else {
+      this.diagnosticsCache.set(normPath, params.diagnostics);
+    }
+
     for (const listener of this.diagnosticsListeners) {
       try {
         listener(params);
@@ -120,6 +130,55 @@ export class LspClient {
         console.error('[LSP Client] Diagnostics listener error:', err);
       }
     }
+  }
+
+  /**
+   * Retrieves cached diagnostics for a given file path.
+   */
+  getDiagnostics(filePath: string): Diagnostic[] {
+    const norm = filePath.startsWith('file://')
+      ? uriToPath(filePath).replace(/\//g, '\\').toLowerCase()
+      : filePath.replace(/\//g, '\\').toLowerCase();
+    return this.diagnosticsCache.get(norm) || [];
+  }
+
+  /**
+   * Returns count of errors and warnings for a specific file.
+   */
+  getFileDiagnosticSummary(filePath: string): { errors: number; warnings: number } {
+    const diags = this.getDiagnostics(filePath);
+    let errors = 0;
+    let warnings = 0;
+    for (const d of diags) {
+      if (d.severity === DiagnosticSeverity.Error) errors++;
+      else if (d.severity === DiagnosticSeverity.Warning) warnings++;
+    }
+    return { errors, warnings };
+  }
+
+  /**
+   * Returns aggregate count of errors and warnings for all files within a directory folder path.
+   */
+  getFolderDiagnosticSummary(folderPath: string): { errors: number; warnings: number } {
+    const normFolder = folderPath.replace(/\//g, '\\').toLowerCase().replace(/\\+$/, '');
+    let errors = 0;
+    let warnings = 0;
+    for (const [filePath, diags] of this.diagnosticsCache.entries()) {
+      if (filePath.startsWith(normFolder + '\\') || filePath === normFolder) {
+        for (const d of diags) {
+          if (d.severity === DiagnosticSeverity.Error) errors++;
+          else if (d.severity === DiagnosticSeverity.Warning) warnings++;
+        }
+      }
+    }
+    return { errors, warnings };
+  }
+
+  /**
+   * Returns all cached diagnostics across workspace.
+   */
+  getAllDiagnostics(): Map<string, Diagnostic[]> {
+    return new Map(this.diagnosticsCache);
   }
 
   getSessionForLanguage(languageId: string): ActiveSession | undefined {

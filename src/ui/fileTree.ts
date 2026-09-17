@@ -5,6 +5,7 @@ import { gitService } from '../services/git';
 import { diffModal } from './diffModal';
 import { isImageFile, isBinaryFile } from '../editor/languages';
 import { preferencesService } from '../services/preferences';
+import { lspClient } from '../services/lsp/lspClient';
 
 export interface ContextMenuItem {
   label: string;
@@ -49,6 +50,12 @@ export class FileTreeComponent {
     gitService.onStatusChange(() => {
       if (this.rootNodes.length > 0) {
         this.updateGitDecorations();
+      }
+    });
+
+    lspClient.onDiagnostics(() => {
+      if (this.rootNodes.length > 0) {
+        this.updateLspDecorations();
       }
     });
 
@@ -142,6 +149,7 @@ export class FileTreeComponent {
     }
 
     this.container.appendChild(treeList);
+    this.updateLspDecorations();
   }
 
   public updateGitDecorations() {
@@ -187,6 +195,57 @@ export class FileTreeComponent {
             ? `Git: Staged (${gitStatus.status})` 
             : `Git: ${gitStatus.status === 'U' ? 'Untracked' : 'Modified'} (${gitStatus.status})`;
           row.appendChild(gitBadge);
+        }
+      }
+    });
+  }
+
+  public updateLspDecorations() {
+    const itemContainers = this.container.querySelectorAll('.tree-item-container[data-path]');
+    itemContainers.forEach((container) => {
+      const el = container as HTMLElement;
+      const path = el.getAttribute('data-path');
+      if (!path) return;
+      const isDir = el.getAttribute('data-is-dir') === 'true';
+      const row = el.querySelector(':scope > .tree-row') as HTMLElement;
+      if (!row) return;
+
+      // Clean existing LSP decoration classes & badges
+      row.classList.remove('tree-row-has-error', 'tree-row-has-warning', 'tree-folder-has-error', 'tree-folder-has-warning');
+      row.querySelector(':scope > .tree-folder-diag-dot')?.remove();
+      row.querySelector(':scope > .tree-diag-badge')?.remove();
+
+      if (isDir) {
+        const summary = lspClient.getFolderDiagnosticSummary(path);
+        if (summary.errors > 0) {
+          row.classList.add('tree-folder-has-error');
+          const folderDot = document.createElement('span');
+          folderDot.className = 'tree-folder-diag-dot status-error';
+          folderDot.title = `${summary.errors} error(s) inside`;
+          row.appendChild(folderDot);
+        } else if (summary.warnings > 0) {
+          row.classList.add('tree-folder-has-warning');
+          const folderDot = document.createElement('span');
+          folderDot.className = 'tree-folder-diag-dot status-warning';
+          folderDot.title = `${summary.warnings} warning(s) inside`;
+          row.appendChild(folderDot);
+        }
+      } else {
+        const summary = lspClient.getFileDiagnosticSummary(path);
+        if (summary.errors > 0) {
+          row.classList.add('tree-row-has-error');
+          const badge = document.createElement('span');
+          badge.className = 'tree-diag-badge status-error';
+          badge.textContent = summary.errors > 99 ? '99+' : String(summary.errors);
+          badge.title = `${summary.errors} error(s)`;
+          row.appendChild(badge);
+        } else if (summary.warnings > 0) {
+          row.classList.add('tree-row-has-warning');
+          const badge = document.createElement('span');
+          badge.className = 'tree-diag-badge status-warning';
+          badge.textContent = summary.warnings > 99 ? '99+' : String(summary.warnings);
+          badge.title = `${summary.warnings} warning(s)`;
+          row.appendChild(badge);
         }
       }
     });
@@ -244,6 +303,41 @@ export class FileTreeComponent {
           ? `Git: Staged (${gitStatus.status})` 
           : `Git: ${gitStatus.status === 'U' ? 'Untracked' : 'Modified'} (${gitStatus.status})`;
         row.appendChild(gitBadge);
+      }
+    }
+
+    // LSP diagnostics decorations
+    if (node.isDirectory) {
+      const summary = lspClient.getFolderDiagnosticSummary(node.path);
+      if (summary.errors > 0) {
+        row.classList.add('tree-folder-has-error');
+        const folderDot = document.createElement('span');
+        folderDot.className = 'tree-folder-diag-dot status-error';
+        folderDot.title = `${summary.errors} error(s) inside`;
+        row.appendChild(folderDot);
+      } else if (summary.warnings > 0) {
+        row.classList.add('tree-folder-has-warning');
+        const folderDot = document.createElement('span');
+        folderDot.className = 'tree-folder-diag-dot status-warning';
+        folderDot.title = `${summary.warnings} warning(s) inside`;
+        row.appendChild(folderDot);
+      }
+    } else {
+      const summary = lspClient.getFileDiagnosticSummary(node.path);
+      if (summary.errors > 0) {
+        row.classList.add('tree-row-has-error');
+        const badge = document.createElement('span');
+        badge.className = 'tree-diag-badge status-error';
+        badge.textContent = summary.errors > 99 ? '99+' : String(summary.errors);
+        badge.title = `${summary.errors} error(s)`;
+        row.appendChild(badge);
+      } else if (summary.warnings > 0) {
+        row.classList.add('tree-row-has-warning');
+        const badge = document.createElement('span');
+        badge.className = 'tree-diag-badge status-warning';
+        badge.textContent = summary.warnings > 99 ? '99+' : String(summary.warnings);
+        badge.title = `${summary.warnings} warning(s)`;
+        row.appendChild(badge);
       }
     }
 

@@ -1,6 +1,7 @@
 import { EditorTab, editorState } from '../state/editorState';
 import { getFileIconSvg } from './icons';
 import { preferencesService } from '../services/preferences';
+import { lspClient } from '../services/lsp/lspClient';
 
 export class TabBarComponent {
   private container: HTMLElement;
@@ -11,6 +12,10 @@ export class TabBarComponent {
 
     editorState.onChange((tabs, activeTab) => {
       this.render(tabs, activeTab);
+    });
+
+    lspClient.onDiagnostics(() => {
+      this.render(editorState.getTabs(), editorState.getActiveTab());
     });
 
     preferencesService.subscribe('workbench.iconTheme', () => {
@@ -37,7 +42,9 @@ export class TabBarComponent {
     for (const tab of tabs) {
       const tabEl = document.createElement('div');
       const isActive = activeTab && activeTab.id === tab.id;
-      tabEl.className = `editor-tab ${isActive ? 'active' : ''} ${tab.isDirty ? 'dirty' : ''}`;
+      const diagSummary = lspClient.getFileDiagnosticSummary(tab.path);
+      const diagCls = diagSummary.errors > 0 ? 'tab-has-error' : (diagSummary.warnings > 0 ? 'tab-has-warning' : '');
+      tabEl.className = `editor-tab ${isActive ? 'active' : ''} ${tab.isDirty ? 'dirty' : ''} ${diagCls}`.trim();
       tabEl.title = tab.path;
 
       const icon = document.createElement('span');

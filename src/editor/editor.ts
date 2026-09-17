@@ -225,6 +225,11 @@ export class EditorManager {
     this.applyCursorPreferences();
     vimIntegration.attachView(this.view);
 
+    const cachedDiags = lspClient.getDiagnostics(filePath);
+    if (cachedDiags && cachedDiags.length > 0) {
+      updateViewDiagnostics(this.view, filePath, cachedDiags);
+    }
+
     // React to theme changes
     themeManager.onThemeChange(() => {
       if (this.view) {
@@ -288,6 +293,12 @@ export class EditorManager {
     this.applyCursorPreferences();
     vimIntegration.attachView(this.view);
     this.view.focus();
+
+    // Immediately restore cached LSP diagnostics so squiggles persist with zero lag across file switches
+    const cachedDiags = lspClient.getDiagnostics(filePath);
+    if (cachedDiags && cachedDiags.length > 0) {
+      updateViewDiagnostics(this.view, filePath, cachedDiags);
+    }
 
     lspClient.notifyDidOpen(filePath, this.currentLanguageId, this.documentVersion, content);
   }
