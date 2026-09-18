@@ -53,6 +53,7 @@ export interface GitState {
 }
 
 export type GitStatusChangeListener = (state: GitState) => void;
+export type GitRepositoryChangeListener = () => void;
 export type GitOutputListener = (line: string, level?: 'info' | 'warn' | 'error') => void;
 
 export class GitService {
@@ -67,9 +68,12 @@ export class GitService {
   private fileStatusMap: Map<string, GitFileChange> = new Map();
   private folderChangesMap: Map<string, number> = new Map();
   private listeners: Set<GitStatusChangeListener> = new Set();
+  private repoChangeListeners: Set<GitRepositoryChangeListener> = new Set();
   private outputListeners: Set<GitOutputListener> = new Set();
   private isRefreshing: boolean = false;
   private lastStatusFingerprint: string = '';
+  private lastHeadSha: string = '';
+  private lastBranch: string = '';
 
   constructor() {
     // Initial refresh if workspace is open
@@ -99,6 +103,23 @@ export class GitService {
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  public onRepositoryChange(listener: GitRepositoryChangeListener): () => void {
+    this.repoChangeListeners.add(listener);
+    return () => {
+      this.repoChangeListeners.delete(listener);
+    };
+  }
+
+  public notifyRepositoryChange() {
+    this.repoChangeListeners.forEach((listener) => {
+      try {
+        listener();
+      } catch (err) {
+        console.error('[GitService] Repository change listener error:', err);
+      }
+    });
   }
 
   public onOutput(listener: GitOutputListener): () => void {
@@ -222,21 +243,24 @@ export class GitService {
       return this.state;
     }
 
-    // 2. Query current branch
+    // 2. Query current branch and current HEAD SHA
     const branchRes = await this.runGitCommand('branch --show-current');
     let currentBranch = branchRes.stdout.trim();
+    const headRes = await this.runGitCommand('rev-parse HEAD', true);
+    const currentHeadSha = headRes.exitCode === 0 ? headRes.stdout.trim() : '';
+
     if (!currentBranch) {
       // Check for detached HEAD
-      const headRes = await this.runGitCommand('rev-parse --short HEAD');
-      currentBranch = headRes.stdout.trim() ? `HEAD (${headRes.stdout.trim()})` : 'main';
+      currentBranch = currentHeadSha ? `HEAD (${currentHeadSha.slice(0, 7)})` : 'main';
     }
 
     // 3. Query porcelain status with -uall for granular untracked file paths
     const statusRes = await this.runGitCommand('status --porcelain -uall');
 
-    // Create a fingerprint of the status to detect real changes
-    const currentFingerprint = `${currentBranch}::${statusRes.stdout}`;
+    // Create a fingerprint of the branch, HEAD, and working tree to detect all repository changes
+    const currentFingerprint = `${currentBranch}::${currentHeadSha}::${statusRes.stdout}`;
     const hasChanged = currentFingerprint !== this.lastStatusFingerprint || !this.state.isRepo;
+    const repoStructureChanged = currentHeadSha !== this.lastHeadSha || currentBranch !== this.lastBranch;
 
     if (hasChanged || force) {
       this.lastStatusFingerprint = currentFingerprint;
@@ -247,6 +271,12 @@ export class GitService {
 
       this.isRefreshing = false;
       this.notify();
+
+      if (repoStructureChanged || force) {
+        this.lastHeadSha = currentHeadSha;
+        this.lastBranch = currentBranch;
+        this.notifyRepositoryChange();
+      }
     } else {
       this.isRefreshing = false;
     }
@@ -468,9 +498,10 @@ export class GitService {
 
     const safeMsg = cleanMsg.replace(/"/g, '\\"');
     const commitRes = await this.runGitCommand(`commit -m "${safeMsg}"`);
-    await this.refresh();
+    await this.refresh(true);
 
     if (commitRes.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: commitRes.stderr || commitRes.stdout };
@@ -481,8 +512,9 @@ export class GitService {
    */
   public async push(): Promise<{ success: boolean; error?: string; output?: string }> {
     const pushRes = await this.runGitCommand('push');
-    await this.refresh();
+    await this.refresh(true);
     if (pushRes.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true, output: pushRes.stdout || 'Push successful' };
     }
     return { success: false, error: pushRes.stderr || pushRes.stdout };
@@ -493,8 +525,9 @@ export class GitService {
    */
   public async pull(): Promise<{ success: boolean; error?: string; output?: string }> {
     const pullRes = await this.runGitCommand('pull');
-    await this.refresh();
+    await this.refresh(true);
     if (pullRes.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true, output: pullRes.stdout || 'Pull successful' };
     }
     return { success: false, error: pullRes.stderr || pullRes.stdout };
@@ -524,8 +557,9 @@ export class GitService {
    */
   public async checkoutBranch(branchName: string): Promise<{ success: boolean; error?: string }> {
     const res = await this.runGitCommand(`checkout "${branchName}"`);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -537,8 +571,9 @@ export class GitService {
   public async createAndCheckoutBranch(branchName: string): Promise<{ success: boolean; error?: string }> {
     const cleanName = branchName.trim().replace(/\s+/g, '-');
     const res = await this.runGitCommand(`checkout -b "${cleanName}"`);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -551,6 +586,7 @@ export class GitService {
     const res = await this.runGitCommand(`checkout "${hash}"`, false);
     await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -563,6 +599,7 @@ export class GitService {
     const res = await this.runGitCommand(`reset --hard "${hash}"`, false);
     await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -734,8 +771,9 @@ export class GitService {
   public async restoreCommitToBranch(hash: string, branchName: string): Promise<{ success: boolean; error?: string }> {
     const clean = branchName.trim().replace(/\s+/g, '-');
     const res = await this.runGitCommand(`branch "${clean}" ${hash}`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -883,8 +921,9 @@ export class GitService {
    */
   public async fetch(remote?: string): Promise<{ success: boolean; error?: string; output?: string }> {
     const res = await this.runGitCommand(`fetch ${remote || ''}`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true, output: res.stdout || 'Fetch completed' };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -896,8 +935,9 @@ export class GitService {
   public async commitAmend(message?: string): Promise<{ success: boolean; error?: string }> {
     const msgArg = message ? `-m "${message.replace(/"/g, '\\"')}"` : '--no-edit';
     const res = await this.runGitCommand(`commit --amend ${msgArg}`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -910,8 +950,9 @@ export class GitService {
     const uArg = includeUntracked ? '-u' : '';
     const mArg = message ? `-m "${message.replace(/"/g, '\\"')}"` : '';
     const res = await this.runGitCommand(`stash push ${uArg} ${mArg}`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -922,8 +963,9 @@ export class GitService {
    */
   public async stashPop(): Promise<{ success: boolean; error?: string }> {
     const res = await this.runGitCommand('stash pop', false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -934,8 +976,9 @@ export class GitService {
    */
   public async stashApply(): Promise<{ success: boolean; error?: string }> {
     const res = await this.runGitCommand('stash apply', false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -946,8 +989,9 @@ export class GitService {
    */
   public async stashDrop(index: number = 0): Promise<{ success: boolean; error?: string }> {
     const res = await this.runGitCommand(`stash drop stash@{${index}}`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -969,8 +1013,9 @@ export class GitService {
     const cleanName = branchName.trim().replace(/\s+/g, '-');
     const start = startPoint ? ` "${startPoint}"` : '';
     const res = await this.runGitCommand(`branch "${cleanName}"${start}`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -982,8 +1027,9 @@ export class GitService {
   public async deleteBranch(branchName: string, force: boolean = false): Promise<{ success: boolean; error?: string }> {
     const flag = force ? '-D' : '-d';
     const res = await this.runGitCommand(`branch ${flag} "${branchName}"`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -995,8 +1041,9 @@ export class GitService {
   public async renameBranch(oldName: string, newName: string): Promise<{ success: boolean; error?: string }> {
     const cleanNew = newName.trim().replace(/\s+/g, '-');
     const res = await this.runGitCommand(`branch -m "${oldName}" "${cleanNew}"`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -1007,8 +1054,9 @@ export class GitService {
    */
   public async mergeBranch(branchName: string): Promise<{ success: boolean; error?: string }> {
     const res = await this.runGitCommand(`merge "${branchName}"`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -1021,8 +1069,9 @@ export class GitService {
     const cleanTag = tagName.trim();
     const msgArg = message ? `-a -m "${message.replace(/"/g, '\\"')}"` : '';
     const res = await this.runGitCommand(`tag ${cleanTag} ${msgArg}`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };
@@ -1033,8 +1082,9 @@ export class GitService {
    */
   public async deleteTag(tagName: string): Promise<{ success: boolean; error?: string }> {
     const res = await this.runGitCommand(`tag -d "${tagName}"`, false);
-    await this.refresh();
+    await this.refresh(true);
     if (res.exitCode === 0) {
+      this.notifyRepositoryChange();
       return { success: true };
     }
     return { success: false, error: res.stderr || res.stdout };

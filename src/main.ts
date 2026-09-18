@@ -228,6 +228,16 @@ async function bootstrap() {
     editorState.openCustomTab('gitero://git-graph', 'Git Graph', 'git-graph');
   }
 
+  // Auto-refresh full git graph if the tab is open in the workspace
+  gitService.onRepositoryChange(() => {
+    const isGraphOpen = editorState.getTabs().some(
+      (t) => t.viewMode === 'git-graph' || t.id === 'gitero://git-graph'
+    );
+    if (isGraphOpen) {
+      fullGitGraph.reload();
+    }
+  });
+
   // Hook Git output stream to the terminal/output console
   gitService.onOutput((line, level) => {
     terminalPanel.logOutput(line, level);

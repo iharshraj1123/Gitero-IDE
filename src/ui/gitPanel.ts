@@ -42,6 +42,11 @@ export class GitPanelComponent {
     gitService.onStatusChange((state) => {
       this.updateView(state);
     });
+
+    // Subscribe to repository and graph changes (commits, branches, push, pull, fetch, etc.)
+    gitService.onRepositoryChange(() => {
+      this.sidebarGraph?.reload();
+    });
   }
 
   private build() {
@@ -467,7 +472,7 @@ export class GitPanelComponent {
     if (this.isLoading) return;
     this.isLoading = true;
     try {
-      await gitService.refresh();
+      await gitService.refresh(true);
       this.sidebarGraph?.reload();
     } finally {
       this.isLoading = false;
@@ -950,7 +955,8 @@ export class GitPanelComponent {
     if (!branch?.trim()) return;
     this.statusMessage.textContent = `Pulling from ${remote} ${branch}...`;
     const res = await gitService.runGitCommand(`pull ${remote.trim()} ${branch.trim()}`, false);
-    await gitService.refresh();
+    await gitService.refresh(true);
+    this.sidebarGraph?.reload();
     if (res.exitCode === 0) {
       this.statusMessage.textContent = 'Pull successful.';
     } else {
@@ -967,7 +973,8 @@ export class GitPanelComponent {
     if (!branch?.trim()) return;
     this.statusMessage.textContent = `Pushing to ${remote} ${branch}...`;
     const res = await gitService.runGitCommand(`push -u ${remote.trim()} ${branch.trim()}`, false);
-    await gitService.refresh();
+    await gitService.refresh(true);
+    this.sidebarGraph?.reload();
     if (res.exitCode === 0) {
       this.statusMessage.textContent = 'Push successful.';
     } else {
