@@ -89,6 +89,7 @@ export class EditorManager {
   private currentLanguageId: string = 'plaintext';
   private documentVersion: number = 1;
   private lspChangeDebounceTimer: any = null;
+  private pendingDocChange: { filePath: string; languageId: string; version: number; text: string } | null = null;
   private onNavigateToLocation?: NavigateToLocationHandler;
   
   // Compartments for dynamic reconfiguration
@@ -149,7 +150,8 @@ export class EditorManager {
         override: [
           createCompositeCompletionSource(
             () => this.currentFilePath,
-            () => this.currentLanguageId
+            () => this.currentLanguageId,
+            () => this.flushPendingDocumentChanges()
           )
         ],
         activateOnTyping: true,
@@ -157,7 +159,8 @@ export class EditorManager {
       }),
       createLspHoverExtension(
         () => this.currentFilePath,
-        () => this.currentLanguageId
+        () => this.currentLanguageId,
+        () => this.flushPendingDocumentChanges()
       ),
       createLspDefinitionExtension(
         () => this.currentFilePath,
@@ -168,7 +171,8 @@ export class EditorManager {
           } else {
             this.gotoLine(line, col);
           }
-        }
+        },
+        () => this.flushPendingDocumentChanges()
       ),
       smartHighlightActiveLine,
       highlightSelectionMatches(),
@@ -209,18 +213,20 @@ export class EditorManager {
             this.onContentChange(update.state.doc.toString());
           }
 
-          // Debounced LSP document change notification
-          clearTimeout(this.lspChangeDebounceTimer);
-          this.lspChangeDebounceTimer = setTimeout(() => {
-            if (this.currentFilePath) {
-              lspClient.notifyDidChange(
-                this.currentFilePath,
-                this.currentLanguageId,
-                this.documentVersion,
-                update.state.doc.toString()
-              );
-            }
-          }, 150);
+          if (this.currentFilePath) {
+            this.pendingDocChange = {
+              filePath: this.currentFilePath,
+              languageId: this.currentLanguageId,
+              version: this.documentVersion,
+              text: update.state.doc.toString()
+            };
+
+            // Debounced LSP document change notification for background idle sync
+            clearTimeout(this.lspChangeDebounceTimer);
+            this.lspChangeDebounceTimer = setTimeout(() => {
+              this.flushPendingDocumentChanges();
+            }, 100);
+          }
         }
 
         if (update.selectionSet && this.onCursorChange) {
@@ -330,9 +336,36 @@ export class EditorManager {
       }
     });
   }
+ 
+  /**
+   * Flushes any pending debounced document change notification to LSP immediately.
+   * Call this synchronously before dispatching positional requests (completion, hover, definition).
+   */
+  flushPendingDocumentChanges(): void {
+    if (this.lspChangeDebounceTimer) {
+      clearTimeout(this.lspChangeDebounceTimer);
+      this.lspChangeDebounceTimer = null;
+    }
+    if (this.pendingDocChange && this.pendingDocChange.filePath) {
+      const change = this.pendingDocChange;
+      this.pendingDocChange = null;
+      lspClient.notifyDidChange(
+        change.filePath,
+        change.languageId,
+        change.version,
+        change.text
+      );
+    }
+  }
 
   loadDocument(content: string, filePath: string) {
     if (!this.view) return;
+
+    if (this.lspChangeDebounceTimer) {
+      clearTimeout(this.lspChangeDebounceTimer);
+      this.lspChangeDebounceTimer = null;
+    }
+    this.pendingDocChange = null;
 
     this.currentFilePath = filePath;
     const langInfo = detectLanguage(filePath);

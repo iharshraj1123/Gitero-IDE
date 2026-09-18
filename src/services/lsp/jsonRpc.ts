@@ -194,9 +194,9 @@ export class JsonRpcConnection {
   }
 
   /**
-   * Sends a request to the language server and waits for response.
+   * Sends a request to the language server, returning both the tracking request ID and the Promise.
    */
-  async request<T = any>(method: string, params?: any, timeoutMs = 12000): Promise<T> {
+  requestWithId<T = any>(method: string, params?: any, timeoutMs = 12000): { promise: Promise<T>; id: number } {
     const id = this.nextId++;
     const req: JsonRpcRequest = {
       jsonrpc: '2.0',
@@ -205,7 +205,7 @@ export class JsonRpcConnection {
       params
     };
 
-    return new Promise<T>((resolve, reject) => {
+    const promise = new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
@@ -220,6 +220,28 @@ export class JsonRpcConnection {
         reject(err);
       });
     });
+
+    return { promise, id };
+  }
+
+  /**
+   * Sends a request to the language server and waits for response.
+   */
+  async request<T = any>(method: string, params?: any, timeoutMs = 12000): Promise<T> {
+    return this.requestWithId<T>(method, params, timeoutMs).promise;
+  }
+
+  /**
+   * Cancels an active in-flight request per LSP $/cancelRequest specification.
+   */
+  cancelRequest(id: number | string) {
+    const pending = this.pendingRequests.get(id);
+    if (pending) {
+      clearTimeout(pending.timer);
+      this.pendingRequests.delete(id);
+      pending.reject(new Error(`[LSP Request Cancelled] Request ${id} cancelled by client`));
+    }
+    this.notify('$/cancelRequest', { id }).catch(() => {});
   }
 
   /**

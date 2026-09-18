@@ -53,7 +53,8 @@ function mapCompletionKind(kind?: CompletionItemKind): string {
  */
 export function createCompositeCompletionSource(
   getFilePath: () => string | null,
-  getLanguageId: () => string
+  getLanguageId: () => string,
+  flushDocChanges?: () => void
 ) {
   const localSource = createLocalCompletionSource(getLanguageId);
   const snippetSource = createSnippetCompletionSource(getLanguageId);
@@ -71,12 +72,17 @@ export function createCompositeCompletionSource(
 
     // Try LSP completions if file is active
     if (filePath && languageId) {
+      // Synchronously flush any pending document changes so the LSP server AST is 100% in sync
+      if (flushDocChanges) {
+        flushDocChanges();
+      }
+
       const lineObj = context.state.doc.lineAt(context.pos);
       const line = lineObj.number - 1;
       const character = context.pos - lineObj.from;
 
       try {
-        const lspItems = await lspClient.requestCompletion(filePath, languageId, line, character);
+        const { items: lspItems, isIncomplete } = await lspClient.requestCompletion(filePath, languageId, line, character);
         if (lspItems && lspItems.length > 0) {
           const mapped: Completion[] = lspItems.map((item) => {
             const cmItem: Completion = {
@@ -119,6 +125,7 @@ export function createCompositeCompletionSource(
           return {
             from: word ? word.from : context.pos,
             options: mapped,
+            validFor: isIncomplete ? undefined : /^[\w$]*$/,
             filter: true
           };
         }
@@ -140,6 +147,7 @@ export function createCompositeCompletionSource(
     return {
       from: localRes?.from ?? (word ? word.from : context.pos),
       options: mergedOptions,
+      validFor: /^[\w$]*$/,
       filter: true
     };
   };
@@ -150,12 +158,17 @@ export function createCompositeCompletionSource(
  */
 export function createLspHoverExtension(
   getFilePath: () => string | null,
-  getLanguageId: () => string
+  getLanguageId: () => string,
+  flushDocChanges?: () => void
 ): Extension {
   return hoverTooltip(async (view: EditorView, pos: number) => {
     const filePath = getFilePath();
     const languageId = getLanguageId();
     if (!filePath || !languageId) return null;
+
+    if (flushDocChanges) {
+      flushDocChanges();
+    }
 
     const lineObj = view.state.doc.lineAt(pos);
     const line = lineObj.number - 1;
@@ -258,12 +271,17 @@ export type NavigateToLocationHandler = (filePath: string, line: number, col: nu
 export function createLspDefinitionExtension(
   getFilePath: () => string | null,
   getLanguageId: () => string,
-  onNavigate: NavigateToLocationHandler
+  onNavigate: NavigateToLocationHandler,
+  flushDocChanges?: () => void
 ): Extension {
   const triggerDefinition = async (view: EditorView): Promise<boolean> => {
     const filePath = getFilePath();
     const languageId = getLanguageId();
     if (!filePath || !languageId) return false;
+
+    if (flushDocChanges) {
+      flushDocChanges();
+    }
 
     const head = view.state.selection.main.head;
     const lineObj = view.state.doc.lineAt(head);

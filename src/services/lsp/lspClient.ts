@@ -54,6 +54,11 @@ export function areUrisOrPathsMatching(a: string, b: string): boolean {
   return pathA === pathB;
 }
 
+export interface CompletionResultPayload {
+  items: CompletionItem[];
+  isIncomplete: boolean;
+}
+
 interface ActiveSession {
   config: ServerConfig;
   process: LspProcess;
@@ -61,6 +66,7 @@ interface ActiveSession {
   status: LspServerStatus;
   openFiles: Set<string>;
   fileVersions: Map<string, number>;
+  activeCompletionRequestId?: number;
 }
 
 export class LspClient {
@@ -493,13 +499,19 @@ export class LspClient {
     languageId: string,
     line: number,
     character: number
-  ): Promise<CompletionItem[]> {
+  ): Promise<CompletionResultPayload> {
     const session = this.getSessionForLanguage(languageId);
-    if (!session || session.status !== 'ready') return [];
+    if (!session || session.status !== 'ready') return { items: [], isIncomplete: false };
+
+    // Cancel previous in-flight completion request if still active
+    if (session.activeCompletionRequestId !== undefined) {
+      session.connection.cancelRequest(session.activeCompletionRequestId);
+      session.activeCompletionRequestId = undefined;
+    }
 
     const uri = pathToUri(filePath);
     try {
-      const res = await session.connection.request<CompletionList | CompletionItem[]>(
+      const req = session.connection.requestWithId<CompletionList | CompletionItem[]>(
         'textDocument/completion',
         {
           textDocument: { uri },
@@ -507,14 +519,27 @@ export class LspClient {
         },
         4000
       );
+      session.activeCompletionRequestId = req.id;
 
-      if (!res) return [];
-      if (Array.isArray(res)) return res;
-      if ('items' in res && Array.isArray(res.items)) return res.items;
-      return [];
-    } catch (err) {
+      const res = await req.promise;
+      if (session.activeCompletionRequestId === req.id) {
+        session.activeCompletionRequestId = undefined;
+      }
+
+      if (!res) return { items: [], isIncomplete: false };
+      if (Array.isArray(res)) return { items: res, isIncomplete: false };
+      if ('items' in res && Array.isArray(res.items)) {
+        return { items: res.items, isIncomplete: Boolean(res.isIncomplete) };
+      }
+      return { items: [], isIncomplete: false };
+    } catch (err: any) {
+      session.activeCompletionRequestId = undefined;
+      if (err?.message?.includes('cancelled')) {
+        // Request was superseded by newer keystroke
+        return { items: [], isIncomplete: false };
+      }
       console.debug('[LSP Client] Completion request returned empty or timed out:', err);
-      return [];
+      return { items: [], isIncomplete: false };
     }
   }
 
