@@ -120,7 +120,6 @@ export class TerminalPanelComponent {
 
     const outputEl = document.createElement('div');
     outputEl.className = 'terminal-output-area';
-    this.setupOutputContextMenu(outputEl);
 
     const session: TerminalSession = {
       id,
@@ -350,8 +349,8 @@ export class TerminalPanelComponent {
   // Right-click Context Menu (Copy / Paste)
   // -------------------------------------------------------------------------
 
-  private setupOutputContextMenu(outputEl: HTMLElement) {
-    outputEl.addEventListener('contextmenu', async (e) => {
+  private setupTerminalContextMenu(terminalView: HTMLElement) {
+    terminalView.addEventListener('contextmenu', async (e) => {
       e.preventDefault();
       this.closeActiveContextMenu();
 
@@ -570,6 +569,9 @@ export class TerminalPanelComponent {
         this.closeActiveContextMenu();
       }
     });
+
+    // Right-click copy/paste on the entire terminal view
+    this.setupTerminalContextMenu(this.terminalView);
   }
 
   // -------------------------------------------------------------------------

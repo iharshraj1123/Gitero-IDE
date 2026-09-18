@@ -2907,16 +2907,8 @@ html.init-sidebar-collapsed .sidebar-resizer {
   color: var(--fg-primary);
 }
 
-.terminal-session-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent-color);
-  border-radius: 1px 1px 0 0;
-}
+
+
 
 .terminal-session-tab-name {
   white-space: nowrap;
@@ -3068,6 +3060,13 @@ html.init-sidebar-collapsed .sidebar-resizer {
   overflow: hidden;
   font-family: var(--terminal-font-family, var(--editor-font-family));
   font-size: var(--terminal-font-size, 13px);
+  user-select: text;
+  cursor: text;
+}
+
+/* Every child inside the terminal view inherits text-selectability */
+.terminal-view-container * {
+  user-select: text;
 }
 
 /* Terminal body: swappable output host per session */
@@ -4701,12 +4700,14 @@ body.transparency-active .terminal-panel {
   border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 body.transparency-active .bottom-panel-header,
+body.transparency-active .terminal-session-bar,
 body.transparency-active .terminal-header,
 body.transparency-active .terminal-output,
 body.transparency-active .terminal-input-row,
 body.transparency-active .terminal-input {
   opacity: var(--opacity-terminal-fg, 1);
 }
+
 
 /* 7. Status Bar */
 body.transparency-active .status-bar {
