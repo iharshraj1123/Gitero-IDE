@@ -16,7 +16,7 @@ import { GitPanelComponent } from './ui/gitPanel';
 import { GitGraphFullComponent } from './ui/gitGraph';
 import { TerminalPanelComponent } from './ui/terminalPanel';
 import { ShortcutsModalComponent } from './ui/shortcutsModal';
-import { SUPPORTED_LANGUAGES, isImageFile, isBinaryFile } from './editor/languages';
+import { SUPPORTED_LANGUAGES, isImageFile, isBinaryFile, detectLanguage } from './editor/languages';
 import { MarkdownViewerComponent } from './ui/markdownViewer';
 import { MediaViewerComponent } from './ui/mediaViewer';
 import { gitService } from './services/git';
@@ -1196,6 +1196,33 @@ async function bootstrap() {
         editorManager.loadDocument(fresh, activeTab.path);
       } catch (err) {
         console.warn('Could not refresh active tab from disk:', err);
+      }
+    }
+
+    // Synchronize all open restored tabs with LSP so background tabs also compute diagnostics immediately
+    for (const tab of editorState.getTabs()) {
+      if (
+        tab.path &&
+        !tab.path.startsWith('Untitled-') &&
+        tab.viewMode !== 'image' &&
+        tab.viewMode !== 'binary' &&
+        tab.viewMode !== 'git-graph' &&
+        (!activeTab || tab.id !== activeTab.id)
+      ) {
+        const langInfo = detectLanguage(tab.path);
+        if (langInfo.languageId && langInfo.languageId !== 'plaintext') {
+          if (isNative()) {
+            fsService.readFile(tab.path).then((content) => {
+              lspClient.notifyDidOpen(tab.path, langInfo.languageId || 'plaintext', 1, content);
+            }).catch(() => {
+              if (tab.content) {
+                lspClient.notifyDidOpen(tab.path, langInfo.languageId || 'plaintext', 1, tab.content);
+              }
+            });
+          } else if (tab.content) {
+            lspClient.notifyDidOpen(tab.path, langInfo.languageId || 'plaintext', 1, tab.content);
+          }
+        }
       }
     }
 

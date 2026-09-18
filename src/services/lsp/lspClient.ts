@@ -59,6 +59,13 @@ export interface CompletionResultPayload {
   isIncomplete: boolean;
 }
 
+interface PendingOpenDocument {
+  filePath: string;
+  languageId: string;
+  version: number;
+  text: string;
+}
+
 interface ActiveSession {
   config: ServerConfig;
   process: LspProcess;
@@ -66,6 +73,7 @@ interface ActiveSession {
   status: LspServerStatus;
   openFiles: Set<string>;
   fileVersions: Map<string, number>;
+  pendingOpenDocuments: Map<string, PendingOpenDocument>;
   activeCompletionRequestId?: number;
 }
 
@@ -294,7 +302,8 @@ export class LspClient {
         connection,
         status: 'starting',
         openFiles: new Set<string>(),
-        fileVersions: new Map<string, number>()
+        fileVersions: new Map<string, number>(),
+        pendingOpenDocuments: new Map<string, PendingOpenDocument>()
       };
 
       // Map session for all languages handled by this server
@@ -349,6 +358,17 @@ export class LspClient {
       await connection.notify('initialized', {});
       session.status = 'ready';
       this.emitStatus(normLang, 'ready', config.name);
+
+      // Auto-flush any documents that were opened while the server was starting up
+      if (session.pendingOpenDocuments.size > 0) {
+        const queued = Array.from(session.pendingOpenDocuments.values());
+        session.pendingOpenDocuments.clear();
+        for (const doc of queued) {
+          this.notifyDidOpen(doc.filePath, doc.languageId, doc.version, doc.text).catch((err) => {
+            console.warn('[LSP Client] Failed to flush queued didOpen:', err);
+          });
+        }
+      }
 
       return session;
     } catch (err: any) {
@@ -408,9 +428,15 @@ export class LspClient {
    */
   async notifyDidOpen(filePath: string, languageId: string, version: number, text: string): Promise<void> {
     const session = await this.ensureServerRunning(languageId);
-    if (!session || session.status !== 'ready') return;
+    if (!session) return;
 
     const uri = pathToUri(filePath);
+    if (session.status !== 'ready') {
+      // Buffer document until server handshake is complete
+      session.pendingOpenDocuments.set(uri, { filePath, languageId, version, text });
+      return;
+    }
+
     session.openFiles.add(uri);
     session.fileVersions.set(uri, version);
 
@@ -476,11 +502,14 @@ export class LspClient {
    */
   async notifyDidClose(filePath: string, languageId: string): Promise<void> {
     const session = this.getSessionForLanguage(languageId);
-    if (!session || session.status !== 'ready') return;
+    if (!session) return;
 
     const uri = pathToUri(filePath);
+    session.pendingOpenDocuments.delete(uri);
     session.openFiles.delete(uri);
     session.fileVersions.delete(uri);
+
+    if (session.status !== 'ready') return;
 
     try {
       await session.connection.notify('textDocument/didClose', {
