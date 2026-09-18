@@ -56,7 +56,7 @@ export function createCompositeCompletionSource(
   getLanguageId: () => string
 ) {
   const localSource = createLocalCompletionSource(getLanguageId);
-  const snippetSource = createSnippetCompletionSource();
+  const snippetSource = createSnippetCompletionSource(getLanguageId);
 
   return async (context: CompletionContext): Promise<CompletionResult | null> => {
     const filePath = getFilePath();

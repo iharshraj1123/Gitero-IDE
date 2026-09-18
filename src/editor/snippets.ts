@@ -207,6 +207,17 @@ export default function \${1:ComponentName}() {
     template: "import { \${2:member} } from '\${1:module}';",
     languages: ['JavaScript', 'TypeScript']
   },
+  {
+    trigger: 'class',
+    name: 'class',
+    detail: 'JavaScript / TypeScript Class definition',
+    template: `class \${1:ClassName} {
+  constructor(\${2:params}) {
+    \${0}
+  }
+}`,
+    languages: ['JavaScript', 'TypeScript']
+  },
 
   // Python
   {
@@ -392,25 +403,94 @@ gap: 1rem;`,
   }
 ];
 
-export function createSnippetCompletionSource(currentLanguage?: string) {
-  const completions: Completion[] = SNIPPETS.map(snip => {
-    return snippetCompletion(snip.template, {
-      label: snip.trigger,
-      detail: snip.detail,
-      type: 'keyword',
-      boost: snip.trigger.startsWith('!') || snip.trigger === 'main' || snip.trigger === 'rafce' ? 99 : 50
-    });
-  });
+export function isSnippetApplicable(snippetLanguages: string[] | undefined, targetLanguageIdOrName: string): boolean {
+  if (!snippetLanguages || snippetLanguages.length === 0) {
+    return true; // Global snippet applicable everywhere
+  }
+  if (!targetLanguageIdOrName) {
+    return false;
+  }
 
+  const target = targetLanguageIdOrName.toLowerCase().trim();
+
+  // Normalize target language ID to standard aliases
+  const targetAliases = new Set<string>([target]);
+  if (target === 'javascript' || target === 'js') {
+    targetAliases.add('javascript');
+    targetAliases.add('js');
+  } else if (target === 'typescript' || target === 'ts') {
+    targetAliases.add('typescript');
+    targetAliases.add('ts');
+    targetAliases.add('javascript'); // TypeScript supports standard JavaScript snippets
+    targetAliases.add('js');
+  } else if (target === 'javascriptreact' || target === 'jsx') {
+    targetAliases.add('javascript');
+    targetAliases.add('react');
+    targetAliases.add('jsx');
+  } else if (target === 'typescriptreact' || target === 'tsx') {
+    targetAliases.add('typescript');
+    targetAliases.add('javascript');
+    targetAliases.add('react');
+    targetAliases.add('tsx');
+  } else if (target === 'cpp' || target === 'c++' || target === 'c') {
+    targetAliases.add('cpp');
+    targetAliases.add('c++');
+    targetAliases.add('c');
+  } else if (target === 'python' || target === 'py') {
+    targetAliases.add('python');
+    targetAliases.add('py');
+  } else if (target === 'rust' || target === 'rs') {
+    targetAliases.add('rust');
+    targetAliases.add('rs');
+  } else if (target === 'go' || target === 'golang') {
+    targetAliases.add('go');
+    targetAliases.add('golang');
+  } else if (target === 'html' || target === 'xml') {
+    targetAliases.add('html');
+    targetAliases.add('xml');
+  } else if (target === 'css' || target === 'scss' || target === 'less') {
+    targetAliases.add('css');
+    targetAliases.add('scss');
+    targetAliases.add('less');
+  } else if (target === 'php') {
+    targetAliases.add('php');
+  }
+
+  return snippetLanguages.some((lang) => {
+    const l = lang.toLowerCase().trim();
+    if (targetAliases.has(l)) return true;
+    if (l === 'c / c++' && (target === 'cpp' || target === 'c')) return true;
+    if (l === 'c++' && (target === 'cpp' || target === 'c')) return true;
+    if (l === 'plain text') return target === 'plaintext';
+    return false;
+  });
+}
+
+export function createSnippetCompletionSource(getLanguage?: () => string) {
   return (context: CompletionContext): CompletionResult | null => {
     const word = context.matchBefore(/[a-zA-Z0-9:!_-]+/);
     if (!word && !context.explicit) return null;
 
+    const currentLang = getLanguage ? getLanguage() : '';
     const query = word ? word.text.toLowerCase() : '';
-    const filtered = completions.filter(c => {
-      if (!query) return true;
-      return c.label.toLowerCase().startsWith(query) || c.detail?.toLowerCase().includes(query);
-    });
+
+    const applicableSnippets = currentLang
+      ? SNIPPETS.filter((snip) => isSnippetApplicable(snip.languages, currentLang))
+      : SNIPPETS;
+
+    const filtered = applicableSnippets
+      .filter((snip) => {
+        if (!query) return true;
+        return snip.trigger.toLowerCase().startsWith(query) || snip.detail?.toLowerCase().includes(query);
+      })
+      .map((snip) => {
+        return snippetCompletion(snip.template, {
+          label: snip.trigger,
+          detail: snip.detail,
+          type: 'keyword',
+          boost: snip.trigger.startsWith('!') || snip.trigger === 'main' || snip.trigger === 'rafce' ? 99 : 50
+        });
+      });
 
     if (filtered.length === 0) return null;
 
