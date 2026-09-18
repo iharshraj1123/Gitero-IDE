@@ -15,5 +15,14 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "vite.config.ts"]
+  "include": [
+    "src",
+    "*.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "bin",
+    "installer-output"
+  ]
 }
