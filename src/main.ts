@@ -1322,18 +1322,74 @@ async function bootstrap() {
             arg = arg.slice(0, -1);
           }
 
-          // 1. Check if argument is a directory (e.g. from `gcode .` or `gcode <folder>`)
-          try {
-            if (isNative()) {
-              const stats = await window.Neutralino.filesystem.getStats(arg);
-              if (stats?.entry?.type === 'DIRECTORY' || (stats as any)?.isDirectory || stats?.type === 'DIRECTORY') {
-                await loadWorkspace(arg);
-                openedWorkspace = true;
-                continue;
+          // Fast heuristic: if the base name contains a dot (extension), or is a known
+          // extensionless file name, treat it as a file candidate and skip the two
+          // failing IPC round-trips (getStats + readDirectory) entirely.
+          const noExtFiles = ['dockerfile', 'makefile', 'license', 'procfile', 'gemfile', 'readme', 'rakefile', 'vagrantfile', 'jenkinsfile', 'brewfile'];
+          const baseName = arg.split(/[/\\]/).filter(Boolean).pop()?.toLowerCase() || '';
+          const looksLikeFile = baseName.includes('.') || noExtFiles.includes(baseName);
+
+          if (!looksLikeFile) {
+            // 1. Check if argument is a directory (e.g. from `gcode .` or `gcode <folder>`)
+            try {
+              if (isNative()) {
+                const stats = await window.Neutralino.filesystem.getStats(arg);
+                if (stats?.entry?.type === 'DIRECTORY' || (stats as any)?.isDirectory || stats?.type === 'DIRECTORY') {
+                  await loadWorkspace(arg);
+                  openedWorkspace = true;
+                  continue;
+                }
+              }
+            } catch (e) {
+              // Not a directory or getStats failed, check if readDirectory succeeds
+              try {
+                if (isNative()) {
+                  const entries = await window.Neutralino.filesystem.readDirectory(arg);
+                  if (entries && entries.length >= 0) {
+                    await loadWorkspace(arg);
+                    openedWorkspace = true;
+                    continue;
+                  }
+                }
+              } catch (errDir) {
+                // Not a directory either, fall through to file handling
               }
             }
-          } catch (e) {
-            // Not a directory or getStats failed, check if readDirectory succeeds
+          }
+
+          // --- File handling ---
+          // IMPORTANT: Always load the parent workspace BEFORE opening a file tab.
+          // Calling loadWorkspace() runs editorState.setWorkspace() -> loadPersistedTabs()
+          // which resets tabs[]. If we opened the tab first, it would be wiped for any
+          // directory that has no persisted session yet (e.g. first-ever external open).
+
+          const parent = getParentFolder(arg);
+
+          // 2. Check if argument is an image file
+          if (isImageFile(arg)) {
+            if (!openedWorkspace) {
+              await loadWorkspace(parent);
+              openedWorkspace = true;
+            }
+            editorState.openBinaryFile(arg, 'image');
+            openedFile = true;
+            continue;
+          }
+
+          // 3. Check if argument is a binary file
+          if (isBinaryFile(arg)) {
+            if (!openedWorkspace) {
+              await loadWorkspace(parent);
+              openedWorkspace = true;
+            }
+            editorState.openBinaryFile(arg, 'binary');
+            openedFile = true;
+            continue;
+          }
+
+          // 4. Code / text file -- also try arg as directory first in case a name that
+          //    looks like a file (e.g. a folder called "readme") is actually a directory.
+          if (looksLikeFile) {
             try {
               if (isNative()) {
                 const entries = await window.Neutralino.filesystem.readDirectory(arg);
@@ -1343,48 +1399,26 @@ async function bootstrap() {
                   continue;
                 }
               }
-            } catch (errDir) {
-              // Not a directory
+            } catch {
+              // Not a directory, continue as file
             }
           }
 
-          // 2. Check if argument is an image file
-          if (isImageFile(arg)) {
-            editorState.openBinaryFile(arg, 'image');
-            openedFile = true;
-            if (!openedWorkspace) {
-              const parent = getParentFolder(arg);
-              await loadWorkspace(parent);
-              openedWorkspace = true;
-            }
-            continue;
-          }
-
-          // 3. Check if argument is a binary file
-          if (isBinaryFile(arg)) {
-            editorState.openBinaryFile(arg, 'binary');
-            openedFile = true;
-            if (!openedWorkspace) {
-              const parent = getParentFolder(arg);
-              await loadWorkspace(parent);
-              openedWorkspace = true;
-            }
-            continue;
-          }
-
-          // 4. Code / text file
           try {
             const content = await fsService.readFile(arg);
             const isMd = /\.md$/i.test(arg) || /\.markdown$/i.test(arg);
-            // Opened externally / double-click in Windows -> open in rendered mode if markdown!
-            editorState.openFile(arg, content, { viewMode: isMd ? 'rendered' : 'raw' });
-            openedFile = true;
 
+            // Load workspace FIRST so loadPersistedTabs() runs before the new tab is added.
+            // This is the critical fix: setWorkspace -> loadPersistedTabs resets tabs[], so
+            // the file must only be opened AFTER the workspace is switched.
             if (!openedWorkspace) {
-              const parent = getParentFolder(arg);
               await loadWorkspace(parent);
               openedWorkspace = true;
             }
+
+            // Opened externally / double-click in Windows -> open in rendered mode if markdown!
+            editorState.openFile(arg, content, { viewMode: isMd ? 'rendered' : 'raw' });
+            openedFile = true;
           } catch (e) {
             // Not a readable file path
           }
@@ -1401,6 +1435,15 @@ async function bootstrap() {
     (window as any).Neutralino.events.on('openedFile', async (evt: any) => {
       if (evt?.detail) {
         const path = evt.detail;
+        const parent = getParentFolder(path);
+        const currentWs = fsService.getWorkspace();
+        const normalizeWs = (p: string) => p.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+
+        // Switch workspace if the file is not inside the currently open workspace
+        if (!currentWs || normalizeWs(path).indexOf(normalizeWs(currentWs)) !== 0) {
+          await loadWorkspace(parent);
+        }
+
         if (isImageFile(path)) {
           editorState.openBinaryFile(path, 'image');
         } else if (isBinaryFile(path)) {
