@@ -57,9 +57,10 @@
 
 ## Stability & Fallback Anchors
 
-* **Gitero IDE Stable Anchor**: Tag `v0.2.7-beta` & branch `stable/0.2.7-beta` at `5e03a57` on GitHub.
+* **Gitero IDE Primary Stable Anchor**: Tag `v0.3.3-beta` & branch `stable/0.3.3-beta` on GitHub. Most stable and reliable version of the application.
+* **Gitero IDE Legacy Anchor**: Tag `v0.2.7-beta` & branch `stable/0.2.7-beta` at `5e03a57` on GitHub.
 * **Neutralino Fork Stable Anchor**: Tag `v0.2.7-beta` & branch `stable/0.2.7-beta` at `930dfdc` on GitHub.
-* Both repositories maintain these permanent fallback anchors for zero-loss recovery.
+* Permanent fallback anchors are maintained for zero-loss recovery.
 
 ---
 
