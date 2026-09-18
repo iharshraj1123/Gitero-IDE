@@ -21,7 +21,7 @@
 <img width="1917" height="1077" alt="image" src="https://github.com/user-attachments/assets/d09e5db8-b153-4c09-b036-46fb71b1efde" />
 
 
-Gitero IDE is a lightweight (~4 MB installer, <10MB RAM), ultra-fast native code editor engineered for developers who demand sub-80ms startup times (Update: The lastest Workspace preserving/saving feature has increased startup time to near 500-600ms, it will be fixed later), minimal memory consumption, authentic Vim modal editing, and deep customizability. 
+Gitero IDE is a lightweight (~4 MB installer, <10MB RAM), ultra-fast native code editor engineered for developers who demand low startup times, minimal memory consumption, authentic Vim modal editing, and deep customizability. 
 
 Built on the **Neutralinojs native runtime** and **CodeMirror 6**, Gitero eliminates the heavy RAM footprint and sluggish launch times of traditional Electron applications while providing a modern VS Code-like workspace, integrated terminal, built-in Git source control, workspace-wide search, live theme switching, custom CSS injection, native Windows shell document associations, and an in-app GitHub branch updater.
 
@@ -30,8 +30,7 @@ Built on the **Neutralinojs native runtime** and **CodeMirror 6**, Gitero elimin
 ## Key Features
 
 ### Ultra-Fast Native Performance
-- **Sub-80ms Cold Starts**: Launches almost instantly via native OS webview integration.
-- **Tiny Memory Footprint**: Idles around ~35MB RAM compared to 400MB+ for standard Electron IDEs.
+- **Tiny Memory Footprint**: Idles around ~5MB RAM compared to 400MB+ for standard Electron IDEs.
 - **Lightweight Distribution**: Packaged Windows installer is under 5MB, bundling native x64 binaries with pre-packaged `resources.neu`.
 - **Dynamic Port & Native Storage Bridge**: Automatically avoids port collisions using dynamic ports while persisting all configuration, open tabs, and recent workspaces to `%APPDATA%\com.gitero.ide\.storage`.
 
