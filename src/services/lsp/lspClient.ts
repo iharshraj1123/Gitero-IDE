@@ -352,7 +352,22 @@ export class LspClient {
             }
           }
         },
-        workspaceFolders: rootUri ? [{ uri: rootUri, name: 'Workspace' }] : null
+        workspaceFolders: rootUri ? [{ uri: rootUri, name: 'Workspace' }] : null,
+        initializationOptions: config.id === 'typescript' ? {
+          preferences: {
+            includePackageJsonAutoImports: 'auto',
+            importModuleSpecifierPreference: 'shortest'
+          },
+          inferredProjectCompilerOptions: {
+            target: 'ESNext',
+            module: 'ESNext',
+            moduleResolution: 'bundler',
+            allowJs: true,
+            checkJs: false,
+            skipLibCheck: true,
+            esModuleInterop: true
+          }
+        } : undefined
       });
 
       await connection.notify('initialized', {});
