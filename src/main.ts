@@ -1955,6 +1955,13 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         action: () => terminalPanel.toggle()
       },
       {
+        id: 'terminal.new',
+        title: 'Terminal: New Terminal',
+        detail: 'Open a new terminal session',
+        category: 'Terminal',
+        action: () => terminalPanel.addTerminal()
+      },
+      {
         id: 'view.search',
         title: 'View: Show Global Search in Files',
         detail: 'Ctrl+Shift+F',

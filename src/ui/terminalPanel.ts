@@ -2,44 +2,66 @@ import { isNative } from '../services/neutralino';
 import { fsService } from '../services/fs';
 import { preferencesService } from '../services/preferences';
 
+interface TerminalSession {
+  id: string;
+  name: string;
+  cwd: string;
+  history: string[];
+  historyIndex: number;
+  activeProcess: { id: number; command: string } | null;
+  lastLineEl: HTMLElement | null;
+  lastLineEnded: boolean;
+  outputEl: HTMLElement;
+}
+
 export class TerminalPanelComponent {
   private container: HTMLElement;
-  private currentCwd: string = '';
-  private history: string[] = [];
-  private historyIndex: number = -1;
+
+  // Multi-session state
+  private sessions: TerminalSession[] = [];
+  private activeSessionId: string = '';
+  private sessionCounter: number = 0;
+  private processToSession: Map<number, string> = new Map();
+
+  // Panel state
   private activeTab: 'terminal' | 'output' = 'terminal';
   private isOpen: boolean = false;
   private isMaximized: boolean = false;
   private defaultHeight: number = 220;
 
-  private activeProcess: { id: number; command: string } | null = null;
-  private lastLineEl: HTMLElement | null = null;
-  private lastLineEnded: boolean = true;
-
+  // DOM refs
   private terminalTabBtn!: HTMLElement;
   private outputTabBtn!: HTMLElement;
+  private sessionBar!: HTMLElement;
   private terminalView!: HTMLElement;
   private outputView!: HTMLElement;
-  private terminalOutputArea!: HTMLElement;
+  private terminalBody!: HTMLElement;
   private outputLogsArea!: HTMLElement;
   private promptLabel!: HTMLElement;
   private commandInput!: HTMLInputElement;
   private stopBtn!: HTMLButtonElement;
 
+  // Floating menus
+  private activeDropdown: HTMLElement | null = null;
+  private activeContextMenu: HTMLElement | null = null;
+
   constructor(container: HTMLElement) {
     this.container = container;
-    this.currentCwd = fsService.getWorkspace() || '.';
     this.defaultHeight = preferencesService.get('workbench.bottomPanelHeight') || 220;
-    this.loadHistory();
     this.applyTypography();
     preferencesService.subscribe('terminal.fontSize', () => this.applyTypography());
     preferencesService.subscribe('terminal.fontFamily', () => this.applyTypography());
     this.build();
-    this.setupListeners();
+    this.setupStaticListeners();
     this.setupResizer();
     this.setupNativeProcessEvents();
-    this.printWelcome();
+    // Create the first terminal session
+    this.addSession(true);
   }
+
+  // -------------------------------------------------------------------------
+  // Typography
+  // -------------------------------------------------------------------------
 
   private applyTypography() {
     const size = preferencesService.get('terminal.fontSize') || 13;
@@ -48,28 +70,358 @@ export class TerminalPanelComponent {
     this.container.style.setProperty('--terminal-font-family', font);
   }
 
-  private loadHistory() {
+  // -------------------------------------------------------------------------
+  // History (global, shared across sessions for convenience)
+  // -------------------------------------------------------------------------
+
+  private loadGlobalHistory(): string[] {
     try {
       const raw = localStorage.getItem('gitero_terminal_history');
       if (raw) {
         const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) {
-          this.history = arr;
-          this.historyIndex = this.history.length;
-        }
+        if (Array.isArray(arr)) return arr;
       }
     } catch (e) {
       console.warn('Failed to load terminal history', e);
     }
+    return [];
   }
 
-  private saveHistory() {
+  private saveGlobalHistory(history: string[]) {
     try {
-      localStorage.setItem('gitero_terminal_history', JSON.stringify(this.history.slice(-100)));
+      localStorage.setItem('gitero_terminal_history', JSON.stringify(history.slice(-100)));
     } catch (e) {
       console.warn('Failed to persist terminal history', e);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Session Management
+  // -------------------------------------------------------------------------
+
+  private getWorkspaceRoot(): string {
+    return fsService.getWorkspace() || '.';
+  }
+
+  /** Public: add a new terminal session (called from + button or command palette). */
+  addTerminal() {
+    this.addSession(false);
+    if (!this.isOpen) this.toggle(true);
+    setTimeout(() => this.commandInput.focus(), 50);
+  }
+
+  private addSession(isFirst = false): TerminalSession {
+    this.sessionCounter++;
+    const id = `term-${this.sessionCounter}`;
+    const name = `Terminal ${this.sessionCounter}`;
+    // New terminals always start in workspace root
+    const cwd = this.getWorkspaceRoot();
+    const history = isFirst ? this.loadGlobalHistory() : [];
+
+    const outputEl = document.createElement('div');
+    outputEl.className = 'terminal-output-area';
+    this.setupOutputContextMenu(outputEl);
+
+    const session: TerminalSession = {
+      id,
+      name,
+      cwd,
+      history,
+      historyIndex: history.length,
+      activeProcess: null,
+      lastLineEl: null,
+      lastLineEnded: true,
+      outputEl,
+    };
+
+    this.sessions.push(session);
+    this.renderSessionBar();
+    this.activateSession(id);
+
+    if (isFirst) {
+      this.printWelcome(session);
+    } else {
+      this.appendToSession(session, `Gitero IDE Integrated Terminal — ${cwd}`);
+    }
+
+    return session;
+  }
+
+  private activateSession(id: string) {
+    const session = this.sessions.find(s => s.id === id);
+    if (!session) return;
+    this.activeSessionId = id;
+
+    // Swap the output element
+    this.terminalBody.innerHTML = '';
+    this.terminalBody.appendChild(session.outputEl);
+
+    this.updatePrompt();
+    this.updateActiveProcessUI(!!session.activeProcess);
+    this.renderSessionBar();
+
+    setTimeout(() => {
+      session.outputEl.scrollTop = session.outputEl.scrollHeight;
+    }, 0);
+  }
+
+  private getActiveSession(): TerminalSession | null {
+    return this.sessions.find(s => s.id === this.activeSessionId) || null;
+  }
+
+  private closeSession(id: string) {
+    if (this.sessions.length <= 1) return; // cannot close the last session
+    const idx = this.sessions.findIndex(s => s.id === id);
+    if (idx === -1) return;
+
+    const session = this.sessions[idx];
+    // Clean up process if running
+    if (session.activeProcess) {
+      if (isNative()) {
+        window.Neutralino.os.updateSpawnedProcess(session.activeProcess.id, 'exit').catch(() => {});
+      }
+      this.processToSession.delete(session.activeProcess.id);
+    }
+
+    this.sessions.splice(idx, 1);
+
+    // Activate the adjacent session
+    const newActiveIdx = Math.min(idx, this.sessions.length - 1);
+    this.activateSession(this.sessions[newActiveIdx].id);
+  }
+
+  // -------------------------------------------------------------------------
+  // Session Bar (renders all session chips + + button)
+  // -------------------------------------------------------------------------
+
+  private renderSessionBar() {
+    this.sessionBar.innerHTML = '';
+
+    for (const session of this.sessions) {
+      const isActive = session.id === this.activeSessionId;
+      const chip = document.createElement('div');
+      chip.className = `terminal-session-tab${isActive ? ' active' : ''}`;
+      chip.dataset.sessionId = session.id;
+
+      // Name span — click to activate
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'terminal-session-tab-name';
+      nameSpan.textContent = session.name;
+      nameSpan.addEventListener('click', () => {
+        this.activateSession(session.id);
+        this.commandInput.focus();
+      });
+
+      // 3-dot options button
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'terminal-session-menu-btn';
+      menuBtn.title = 'Terminal Options';
+      menuBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>`;
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.showSessionMenu(menuBtn, session);
+      });
+
+      chip.appendChild(nameSpan);
+      chip.appendChild(menuBtn);
+      this.sessionBar.appendChild(chip);
+    }
+
+    // + New Terminal button
+    const addBtn = document.createElement('button');
+    addBtn.className = 'terminal-session-add';
+    addBtn.title = 'New Terminal';
+    addBtn.textContent = '+';
+    addBtn.addEventListener('click', () => {
+      this.addSession(false);
+      this.commandInput.focus();
+    });
+    this.sessionBar.appendChild(addBtn);
+  }
+
+  // -------------------------------------------------------------------------
+  // 3-dot Session Menu
+  // -------------------------------------------------------------------------
+
+  private showSessionMenu(anchorEl: HTMLElement, session: TerminalSession) {
+    this.closeActiveDropdown();
+
+    const menu = document.createElement('div');
+    menu.className = 'terminal-session-dropdown';
+
+    const items: Array<{ label?: string; action?: () => void; danger?: boolean; divider?: boolean }> = [
+      { label: 'Rename', action: () => this.renameSession(session) },
+      { label: 'Clear', action: () => this.clearSession(session) },
+      { divider: true },
+      { label: 'Close', action: () => this.closeSession(session.id), danger: true },
+    ];
+
+    for (const item of items) {
+      if (item.divider) {
+        const hr = document.createElement('div');
+        hr.className = 'terminal-session-dropdown-divider';
+        menu.appendChild(hr);
+        continue;
+      }
+      const btn = document.createElement('button');
+      btn.className = `terminal-session-dropdown-item${item.danger ? ' danger' : ''}`;
+      btn.textContent = item.label!;
+      btn.addEventListener('click', () => {
+        this.closeActiveDropdown();
+        item.action!();
+      });
+      menu.appendChild(btn);
+    }
+
+    document.body.appendChild(menu);
+    this.activeDropdown = menu;
+
+    // Position below anchor
+    const rect = anchorEl.getBoundingClientRect();
+    menu.style.left = `${rect.left}px`;
+    menu.style.top = `${rect.bottom + 2}px`;
+
+    // Clamp to viewport
+    requestAnimationFrame(() => {
+      const mr = menu.getBoundingClientRect();
+      if (mr.right > window.innerWidth) {
+        menu.style.left = `${rect.right - mr.width}px`;
+      }
+      if (mr.bottom > window.innerHeight) {
+        menu.style.top = `${rect.top - mr.height - 2}px`;
+      }
+    });
+
+    // Dismiss on outside click
+    const dismiss = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node) && e.target !== anchorEl) {
+        this.closeActiveDropdown();
+        document.removeEventListener('mousedown', dismiss, true);
+      }
+    };
+    setTimeout(() => document.addEventListener('mousedown', dismiss, true), 0);
+  }
+
+  private closeActiveDropdown() {
+    if (this.activeDropdown) {
+      this.activeDropdown.remove();
+      this.activeDropdown = null;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Session Actions: Rename, Clear
+  // -------------------------------------------------------------------------
+
+  private renameSession(session: TerminalSession) {
+    // Find the name span for this session chip and replace with an inline input
+    const chip = this.sessionBar.querySelector(`[data-session-id="${session.id}"] .terminal-session-tab-name`);
+    if (!chip) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'terminal-session-rename-input';
+    input.value = session.name;
+    input.spellcheck = false;
+    chip.replaceWith(input);
+    input.select();
+    input.focus();
+
+    const commit = () => {
+      const newName = input.value.trim() || session.name;
+      session.name = newName;
+      this.renderSessionBar();
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { this.renderSessionBar(); }
+    });
+    input.addEventListener('blur', () => commit());
+  }
+
+  private clearSession(session: TerminalSession) {
+    session.outputEl.innerHTML = '';
+    session.lastLineEl = null;
+    session.lastLineEnded = true;
+  }
+
+  // -------------------------------------------------------------------------
+  // Right-click Context Menu (Copy / Paste)
+  // -------------------------------------------------------------------------
+
+  private setupOutputContextMenu(outputEl: HTMLElement) {
+    outputEl.addEventListener('contextmenu', async (e) => {
+      e.preventDefault();
+      this.closeActiveContextMenu();
+
+      const selectedText = window.getSelection()?.toString() || '';
+      const hasSelection = selectedText.trim().length > 0;
+
+      const menu = document.createElement('div');
+      menu.className = 'terminal-context-menu';
+
+      const makeItem = (label: string, action: () => void) => {
+        const btn = document.createElement('button');
+        btn.className = 'terminal-context-menu-item';
+        btn.textContent = label;
+        btn.addEventListener('click', () => {
+          this.closeActiveContextMenu();
+          action();
+        });
+        menu.appendChild(btn);
+      };
+
+      if (hasSelection) {
+        makeItem('Copy', () => {
+          navigator.clipboard.writeText(selectedText).catch(() => {
+            try { document.execCommand('copy'); } catch {}
+          });
+        });
+      } else {
+        makeItem('Paste', async () => {
+          try {
+            const text = await navigator.clipboard.readText();
+            this.commandInput.value += text;
+          } catch {
+            // clipboard access denied — focus input so user can paste manually with Ctrl+V
+          }
+          this.commandInput.focus();
+        });
+      }
+
+      document.body.appendChild(menu);
+      this.activeContextMenu = menu;
+
+      // Position at cursor, clamped to viewport
+      menu.style.left = `${e.clientX}px`;
+      menu.style.top = `${e.clientY}px`;
+      requestAnimationFrame(() => {
+        const mr = menu.getBoundingClientRect();
+        if (mr.right > window.innerWidth) menu.style.left = `${e.clientX - mr.width}px`;
+        if (mr.bottom > window.innerHeight) menu.style.top = `${e.clientY - mr.height}px`;
+      });
+
+      const dismiss = (ev: MouseEvent) => {
+        if (!menu.contains(ev.target as Node)) {
+          this.closeActiveContextMenu();
+          document.removeEventListener('mousedown', dismiss, true);
+        }
+      };
+      setTimeout(() => document.addEventListener('mousedown', dismiss, true), 0);
+    });
+  }
+
+  private closeActiveContextMenu() {
+    if (this.activeContextMenu) {
+      this.activeContextMenu.remove();
+      this.activeContextMenu = null;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // HTML Build
+  // -------------------------------------------------------------------------
 
   private build() {
     this.container.innerHTML = `
@@ -95,11 +447,14 @@ export class TerminalPanelComponent {
         </div>
       </div>
 
+      <!-- Terminal Session Sub-Tab Bar -->
+      <div class="terminal-session-bar" id="terminal-session-bar"></div>
+
       <div class="bottom-panel-content">
         <!-- Terminal View -->
         <div class="terminal-view-container" id="terminal-view">
-          <div class="terminal-output-area" id="terminal-output-area"></div>
-          <div class="terminal-input-row">
+          <div class="terminal-body" id="terminal-body"></div>
+          <div class="terminal-input-row" id="terminal-input-row">
             <span class="terminal-prompt" id="terminal-prompt-label">PS &gt; </span>
             <input type="text" class="terminal-command-input" id="terminal-cmd-input" spellcheck="false" autocomplete="off" />
           </div>
@@ -116,103 +471,57 @@ export class TerminalPanelComponent {
 
     this.terminalTabBtn = this.container.querySelector('#tab-btn-terminal') as HTMLElement;
     this.outputTabBtn = this.container.querySelector('#tab-btn-output') as HTMLElement;
+    this.sessionBar = this.container.querySelector('#terminal-session-bar') as HTMLElement;
     this.terminalView = this.container.querySelector('#terminal-view') as HTMLElement;
     this.outputView = this.container.querySelector('#output-view') as HTMLElement;
-    this.terminalOutputArea = this.container.querySelector('#terminal-output-area') as HTMLElement;
+    this.terminalBody = this.container.querySelector('#terminal-body') as HTMLElement;
     this.outputLogsArea = this.container.querySelector('#output-logs-area') as HTMLElement;
     this.promptLabel = this.container.querySelector('#terminal-prompt-label') as HTMLElement;
     this.commandInput = this.container.querySelector('#terminal-cmd-input') as HTMLInputElement;
     this.stopBtn = this.container.querySelector('#btn-panel-stop') as HTMLButtonElement;
-
-    this.updatePrompt();
   }
 
-  private printWelcome() {
-    this.appendTerminalLine('Gitero IDE Integrated Terminal [Live Streaming Execution]');
-    this.appendTerminalLine('Real-time background tasks supported. Use Ctrl+C or the Stop button to terminate running commands.\n');
-  }
+  // -------------------------------------------------------------------------
+  // Static Listeners (panel-level, not session-specific)
+  // -------------------------------------------------------------------------
 
-  private updatePrompt() {
-    if (this.activeProcess) {
-      this.promptLabel.innerHTML = `Running <span class="terminal-badge-running"></span> &gt; `;
-      return;
-    }
-    const ws = fsService.getWorkspace();
-    if (!this.currentCwd || this.currentCwd === '.') {
-      this.currentCwd = ws || 'C:\\';
-    }
-    const shortPath = this.currentCwd.length > 35 ? '...' + this.currentCwd.slice(-32) : this.currentCwd;
-    this.promptLabel.textContent = `PS ${shortPath}> `;
-  }
-
-  private updateActiveProcessUI(isActive: boolean) {
-    if (isActive) {
-      this.stopBtn.style.display = 'flex';
-      this.stopBtn.classList.add('btn-stop-active');
-      this.commandInput.placeholder = 'Type to send input to running process, or press Ctrl+C to stop...';
-    } else {
-      this.stopBtn.style.display = 'none';
-      this.stopBtn.classList.remove('btn-stop-active');
-      this.commandInput.placeholder = '';
-    }
-    this.updatePrompt();
-  }
-
-  private setupNativeProcessEvents() {
-    if (typeof window !== 'undefined' && window.Neutralino?.events) {
-      window.Neutralino.events.on('spawnedProcess', (evt: any) => {
-        const detail = evt?.detail;
-        if (!detail) return;
-        if (this.activeProcess && detail.id === this.activeProcess.id) {
-          if (detail.action === 'stdOut') {
-            this.appendTerminalChunk(detail.data, false);
-          } else if (detail.action === 'stdErr') {
-            this.appendTerminalChunk(detail.data, true);
-          } else if (detail.action === 'exit') {
-            this.onProcessExit(detail.data);
-          }
-        }
-      });
-    }
-  }
-
-  private setupListeners() {
-    this.terminalTabBtn.addEventListener('click', () => {
-      this.switchTab('terminal');
-    });
-
-    this.outputTabBtn.addEventListener('click', () => {
-      this.switchTab('output');
-    });
+  private setupStaticListeners() {
+    this.terminalTabBtn.addEventListener('click', () => this.switchTab('terminal'));
+    this.outputTabBtn.addEventListener('click', () => this.switchTab('output'));
 
     this.container.querySelector('#btn-panel-clear')?.addEventListener('click', () => {
       if (this.activeTab === 'terminal') {
-        this.terminalOutputArea.innerHTML = '';
-        this.lastLineEl = null;
-        this.lastLineEnded = true;
+        const session = this.getActiveSession();
+        if (session) this.clearSession(session);
       } else {
         this.outputLogsArea.innerHTML = '';
       }
     });
 
-    this.stopBtn.addEventListener('click', () => {
-      this.terminateActiveProcess();
-    });
+    this.stopBtn.addEventListener('click', () => this.terminateActiveProcess());
 
-    this.container.querySelector('#btn-panel-close')?.addEventListener('click', () => {
-      this.toggle(false);
-    });
+    this.container.querySelector('#btn-panel-close')?.addEventListener('click', () => this.toggle(false));
 
     this.container.querySelector('#btn-panel-max')?.addEventListener('click', () => {
       this.isMaximized = !this.isMaximized;
       this.container.style.height = this.isMaximized ? '75%' : `${this.defaultHeight}px`;
     });
 
-    // Command line enter & arrow history
+    // Click on the input row to focus the input (NOT on the whole view — keeps output selectable)
+    const inputRow = this.container.querySelector('#terminal-input-row') as HTMLElement;
+    inputRow?.addEventListener('click', (e) => {
+      // Only focus if the click was directly on the row or prompt, not a child input
+      if ((e.target as HTMLElement) !== this.commandInput) {
+        this.commandInput.focus();
+      }
+    });
+
+    // Command input keydown
     this.commandInput.addEventListener('keydown', async (e) => {
-      // Handle Ctrl+C to cancel running process
+      // Ctrl+C → terminate process
       if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
-        if (this.activeProcess) {
+        const session = this.getActiveSession();
+        if (session?.activeProcess) {
           e.preventDefault();
           this.terminateActiveProcess();
           return;
@@ -220,41 +529,52 @@ export class TerminalPanelComponent {
       }
 
       if (e.key === 'Enter') {
+        const session = this.getActiveSession();
+        if (!session) return;
         const cmd = this.commandInput.value.trim();
         this.commandInput.value = '';
         if (cmd) {
-          if (!this.activeProcess) {
-            this.history.push(cmd);
-            this.saveHistory();
-            this.historyIndex = this.history.length;
+          if (!session.activeProcess) {
+            session.history.push(cmd);
+            this.saveGlobalHistory(session.history);
+            session.historyIndex = session.history.length;
           }
           await this.executeCommand(cmd);
         }
       } else if (e.key === 'ArrowUp') {
-        if (this.activeProcess) return;
+        const session = this.getActiveSession();
+        if (!session || session.activeProcess) return;
         e.preventDefault();
-        if (this.historyIndex > 0) {
-          this.historyIndex--;
-          this.commandInput.value = this.history[this.historyIndex] || '';
+        if (session.historyIndex > 0) {
+          session.historyIndex--;
+          this.commandInput.value = session.history[session.historyIndex] || '';
         }
       } else if (e.key === 'ArrowDown') {
-        if (this.activeProcess) return;
+        const session = this.getActiveSession();
+        if (!session || session.activeProcess) return;
         e.preventDefault();
-        if (this.historyIndex < this.history.length - 1) {
-          this.historyIndex++;
-          this.commandInput.value = this.history[this.historyIndex] || '';
+        if (session.historyIndex < session.history.length - 1) {
+          session.historyIndex++;
+          this.commandInput.value = session.history[session.historyIndex] || '';
         } else {
-          this.historyIndex = this.history.length;
+          session.historyIndex = session.history.length;
           this.commandInput.value = '';
         }
       }
     });
 
-    // Click terminal container to focus input
-    this.terminalView.addEventListener('click', () => {
-      this.commandInput.focus();
+    // Dismiss floating menus on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeActiveDropdown();
+        this.closeActiveContextMenu();
+      }
     });
   }
+
+  // -------------------------------------------------------------------------
+  // Panel Resizer
+  // -------------------------------------------------------------------------
 
   private setupResizer() {
     const resizer = this.container.querySelector('#panel-resizer') as HTMLElement;
@@ -288,16 +608,51 @@ export class TerminalPanelComponent {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // Native Process Events
+  // -------------------------------------------------------------------------
+
+  private setupNativeProcessEvents() {
+    if (typeof window !== 'undefined' && window.Neutralino?.events) {
+      window.Neutralino.events.on('spawnedProcess', (evt: any) => {
+        const detail = evt?.detail;
+        if (!detail) return;
+
+        // Route output to the session that owns this process ID
+        const sessionId = this.processToSession.get(detail.id);
+        const session = sessionId ? this.sessions.find(s => s.id === sessionId) : null;
+        if (!session) return;
+
+        if (detail.action === 'stdOut') {
+          this.appendChunkToSession(session, detail.data, false);
+        } else if (detail.action === 'stdErr') {
+          this.appendChunkToSession(session, detail.data, true);
+        } else if (detail.action === 'exit') {
+          this.onProcessExit(session, detail.data);
+        }
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Tab Switching (TERMINAL / OUTPUT)
+  // -------------------------------------------------------------------------
+
   private switchTab(tab: 'terminal' | 'output') {
     this.activeTab = tab;
     this.terminalTabBtn.classList.toggle('active', tab === 'terminal');
     this.outputTabBtn.classList.toggle('active', tab === 'output');
     this.terminalView.style.display = tab === 'terminal' ? 'flex' : 'none';
     this.outputView.style.display = tab === 'output' ? 'flex' : 'none';
+    this.sessionBar.style.display = tab === 'terminal' ? 'flex' : 'none';
     if (tab === 'terminal') {
       this.commandInput.focus();
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Public API
+  // -------------------------------------------------------------------------
 
   toggle(forceState?: boolean): boolean {
     this.isOpen = forceState !== undefined ? forceState : !this.isOpen;
@@ -311,10 +666,107 @@ export class TerminalPanelComponent {
     return this.isOpen;
   }
 
+  /** Update the active terminal session's working directory (called on workspace switch). */
   setCwd(newCwd: string) {
-    this.currentCwd = newCwd;
+    const session = this.getActiveSession();
+    if (session) {
+      session.cwd = newCwd;
+      this.updatePrompt();
+    }
+  }
+
+  logOutput(msg: string, level: 'info' | 'warn' | 'error' = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.className = `output-log-line ${level}`;
+    line.textContent = `[${timestamp}] ${msg}`;
+    this.outputLogsArea.appendChild(line);
+    this.outputLogsArea.scrollTop = this.outputLogsArea.scrollHeight;
+  }
+
+  // -------------------------------------------------------------------------
+  // Prompt
+  // -------------------------------------------------------------------------
+
+  private updatePrompt() {
+    const session = this.getActiveSession();
+    if (!session) return;
+    if (session.activeProcess) {
+      this.promptLabel.innerHTML = `Running <span class="terminal-badge-running"></span> &gt; `;
+      return;
+    }
+    const cwd = session.cwd || this.getWorkspaceRoot() || 'C:\\';
+    const shortPath = cwd.length > 35 ? '...' + cwd.slice(-32) : cwd;
+    this.promptLabel.textContent = `PS ${shortPath}> `;
+  }
+
+  private updateActiveProcessUI(isActive: boolean) {
+    if (isActive) {
+      this.stopBtn.style.display = 'flex';
+      this.stopBtn.classList.add('btn-stop-active');
+      this.commandInput.placeholder = 'Type to send input to running process, or press Ctrl+C to stop...';
+    } else {
+      this.stopBtn.style.display = 'none';
+      this.stopBtn.classList.remove('btn-stop-active');
+      this.commandInput.placeholder = '';
+    }
     this.updatePrompt();
   }
+
+  // -------------------------------------------------------------------------
+  // Output helpers
+  // -------------------------------------------------------------------------
+
+  private printWelcome(session: TerminalSession) {
+    this.appendToSession(session, 'Gitero IDE Integrated Terminal [Live Streaming Execution]');
+    this.appendToSession(session, 'Real-time background tasks supported. Use Ctrl+C or the Stop button to terminate running commands.\n');
+  }
+
+  private appendToSession(session: TerminalSession, text: string, isError = false, isCommand = false) {
+    const lineEl = document.createElement('div');
+    lineEl.className = `terminal-line${isError ? ' line-error' : ''}${isCommand ? ' line-command' : ''}`;
+    lineEl.textContent = text;
+    session.outputEl.appendChild(lineEl);
+    session.lastLineEl = null;
+    session.lastLineEnded = true;
+    this.trimAndScrollSession(session);
+  }
+
+  private appendChunkToSession(session: TerminalSession, rawText: string, isError = false) {
+    if (!rawText) return;
+    const html = this.parseAnsi(rawText);
+    const lines = html.split(/\r?\n/);
+
+    for (let i = 0; i < lines.length; i++) {
+      const lineContent = lines[i];
+      if (i === 0 && session.lastLineEl && !session.lastLineEnded) {
+        session.lastLineEl.innerHTML += lineContent;
+      } else {
+        const lineEl = document.createElement('div');
+        lineEl.className = `terminal-line${isError ? ' line-error' : ''}`;
+        lineEl.innerHTML = lineContent;
+        session.outputEl.appendChild(lineEl);
+        session.lastLineEl = lineEl;
+      }
+      session.lastLineEnded = (i < lines.length - 1);
+    }
+
+    this.trimAndScrollSession(session);
+  }
+
+  private trimAndScrollSession(session: TerminalSession) {
+    while (session.outputEl.children.length > 5000) {
+      session.outputEl.removeChild(session.outputEl.firstChild!);
+    }
+    // Only auto-scroll if this is the active session (already in view)
+    if (session.id === this.activeSessionId) {
+      session.outputEl.scrollTop = session.outputEl.scrollHeight;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // ANSI Parser
+  // -------------------------------------------------------------------------
 
   private parseAnsi(text: string): string {
     const escapeHtml = (str: string) => str
@@ -322,7 +774,7 @@ export class TerminalPanelComponent {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-    // Filter non-SGR sequences
+    // Strip non-SGR escape sequences
     const cleaned = text.replace(/\x1b\[[0-9;]*[A-HJKSTfimnsu]/g, (match) => {
       if (match.endsWith('m')) return match;
       return '';
@@ -358,70 +810,23 @@ export class TerminalPanelComponent {
         }
       } else {
         const escaped = escapeHtml(part);
-        if (activeClasses.length > 0) {
-          html += `<span class="${activeClasses.join(' ')}">${escaped}</span>`;
-        } else {
-          html += escaped;
-        }
+        html += activeClasses.length > 0
+          ? `<span class="${activeClasses.join(' ')}">${escaped}</span>`
+          : escaped;
       }
     }
 
     return html;
   }
 
-  private appendTerminalLine(text: string, isError: boolean = false, isCommand: boolean = false) {
-    const lineEl = document.createElement('div');
-    lineEl.className = `terminal-line ${isError ? 'line-error' : ''} ${isCommand ? 'line-command' : ''}`;
-    lineEl.textContent = text;
-    this.terminalOutputArea.appendChild(lineEl);
-    this.lastLineEl = null;
-    this.lastLineEnded = true;
-    this.trimBufferAndScroll();
-  }
-
-  private appendTerminalChunk(rawText: string, isError: boolean = false) {
-    if (!rawText) return;
-
-    const html = this.parseAnsi(rawText);
-    const lines = html.split(/\r?\n/);
-
-    for (let i = 0; i < lines.length; i++) {
-      const lineContent = lines[i];
-      if (i === 0 && this.lastLineEl && !this.lastLineEnded) {
-        this.lastLineEl.innerHTML += lineContent;
-      } else {
-        const lineEl = document.createElement('div');
-        lineEl.className = `terminal-line ${isError ? 'line-error' : ''}`;
-        lineEl.innerHTML = lineContent;
-        this.terminalOutputArea.appendChild(lineEl);
-        this.lastLineEl = lineEl;
-      }
-      this.lastLineEnded = (i < lines.length - 1);
-    }
-
-    this.trimBufferAndScroll();
-  }
-
-  private trimBufferAndScroll() {
-    while (this.terminalOutputArea.children.length > 5000) {
-      this.terminalOutputArea.removeChild(this.terminalOutputArea.firstChild!);
-    }
-    this.terminalOutputArea.scrollTop = this.terminalOutputArea.scrollHeight;
-  }
-
-  private onProcessExit(exitCode: number | string) {
-    if (exitCode !== 0 && exitCode !== '0' && exitCode !== undefined) {
-      this.appendTerminalLine(`[Process exited with code ${exitCode}]`, true);
-    }
-    this.activeProcess = null;
-    this.lastLineEl = null;
-    this.lastLineEnded = true;
-    this.updateActiveProcessUI(false);
-  }
+  // -------------------------------------------------------------------------
+  // Process Management
+  // -------------------------------------------------------------------------
 
   async terminateActiveProcess() {
-    if (!this.activeProcess) return;
-    const procId = this.activeProcess.id;
+    const session = this.getActiveSession();
+    if (!session?.activeProcess) return;
+    const procId = session.activeProcess.id;
     try {
       if (isNative()) {
         await window.Neutralino.os.updateSpawnedProcess(procId, 'exit');
@@ -429,91 +834,100 @@ export class TerminalPanelComponent {
     } catch (err) {
       console.warn('Failed to terminate process cleanly:', err);
     }
-    this.appendTerminalLine('^C [Process terminated by user]', true);
-    this.activeProcess = null;
-    this.lastLineEl = null;
-    this.lastLineEnded = true;
+    this.appendToSession(session, '^C [Process terminated by user]', true);
+    this.processToSession.delete(procId);
+    session.activeProcess = null;
+    session.lastLineEl = null;
+    session.lastLineEnded = true;
     this.updateActiveProcessUI(false);
   }
 
+  private onProcessExit(session: TerminalSession, exitCode: number | string) {
+    if (exitCode !== 0 && exitCode !== '0' && exitCode !== undefined) {
+      this.appendToSession(session, `[Process exited with code ${exitCode}]`, true);
+    }
+    if (session.activeProcess) {
+      this.processToSession.delete(session.activeProcess.id);
+    }
+    session.activeProcess = null;
+    session.lastLineEl = null;
+    session.lastLineEnded = true;
+    // Only update UI if this is the currently visible session
+    if (session.id === this.activeSessionId) {
+      this.updateActiveProcessUI(false);
+    }
+  }
+
   async executeCommand(commandStr: string) {
+    const session = this.getActiveSession();
+    if (!session) return;
     const trimmed = commandStr.trim();
     if (!trimmed) return;
 
-    // If an active process is running, pipe input to its stdin
-    if (this.activeProcess) {
-      this.appendTerminalLine(commandStr, false, true);
+    // Pipe stdin to running process
+    if (session.activeProcess) {
+      this.appendToSession(session, commandStr, false, true);
       if (isNative()) {
         try {
-          await window.Neutralino.os.updateSpawnedProcess(this.activeProcess.id, 'stdIn', commandStr + '\n');
+          await window.Neutralino.os.updateSpawnedProcess(session.activeProcess.id, 'stdIn', commandStr + '\n');
         } catch (err: any) {
-          this.appendTerminalLine(`Failed to send input to process: ${err?.message || err}`, true);
+          this.appendToSession(session, `Failed to send input to process: ${err?.message || err}`, true);
         }
       }
       return;
     }
 
-    // Print command invocation
-    this.appendTerminalLine(`PS ${this.currentCwd}> ${commandStr}`, false, true);
-    this.lastLineEnded = true;
+    // Print the command invocation line
+    this.appendToSession(session, `PS ${session.cwd}> ${commandStr}`, false, true);
+    session.lastLineEnded = true;
 
-    // Built-in cls / clear
+    // Built-in: cls / clear
     if (trimmed.toLowerCase() === 'cls' || trimmed.toLowerCase() === 'clear') {
-      this.terminalOutputArea.innerHTML = '';
-      this.lastLineEl = null;
-      this.lastLineEnded = true;
+      this.clearSession(session);
       return;
     }
 
-    // Built-in cd command
+    // Built-in: cd
     if (/^cd\s*/i.test(trimmed)) {
       const targetDir = trimmed.replace(/^cd\s*/i, '').trim().replace(/^"/, '').replace(/"$/, '');
       if (!targetDir || targetDir === '.') return;
-
       if (isNative()) {
         try {
-          const testCmd = `cd /d "${this.currentCwd}" && cd "${targetDir}" && cd`;
+          const testCmd = `cd /d "${session.cwd}" && cd "${targetDir}" && cd`;
           const res = await window.Neutralino.os.execCommand(testCmd);
           if (res.exitCode === 0 && res.stdOut) {
-            this.currentCwd = res.stdOut.trim();
+            session.cwd = res.stdOut.trim();
             this.updatePrompt();
           } else {
-            this.appendTerminalLine(`Cannot find path '${targetDir}' because it does not exist.`, true);
+            this.appendToSession(session, `Cannot find path '${targetDir}' because it does not exist.`, true);
           }
         } catch (e: any) {
-          this.appendTerminalLine(e.message || String(e), true);
+          this.appendToSession(session, e.message || String(e), true);
         }
       } else {
-        this.currentCwd = targetDir;
+        session.cwd = targetDir;
         this.updatePrompt();
       }
       return;
     }
 
-    // Native execution via spawnProcess for true live streaming
+    // Web fallback
     if (!isNative()) {
-      this.appendTerminalLine(`[Web Preview Fallback] Command executed: ${commandStr}`);
+      this.appendToSession(session, `[Web Preview Fallback] Command executed: ${commandStr}`);
       return;
     }
 
+    // Spawn process for live streaming
     try {
-      const fullCmd = `cmd.exe /c "cd /d "${this.currentCwd}" && ${commandStr}"`;
+      const fullCmd = `cmd.exe /c "cd /d "${session.cwd}" && ${commandStr}"`;
       const proc = await window.Neutralino.os.spawnProcess(fullCmd);
-      this.activeProcess = { id: proc.id, command: commandStr };
+      session.activeProcess = { id: proc.id, command: commandStr };
+      this.processToSession.set(proc.id, session.id);
       this.updateActiveProcessUI(true);
     } catch (err: any) {
-      this.appendTerminalLine(`Error launching process: ${err?.message || err}`, true);
-      this.activeProcess = null;
+      this.appendToSession(session, `Error launching process: ${err?.message || err}`, true);
+      session.activeProcess = null;
       this.updateActiveProcessUI(false);
     }
-  }
-
-  logOutput(msg: string, level: 'info' | 'warn' | 'error' = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    const line = document.createElement('div');
-    line.className = `output-log-line ${level}`;
-    line.textContent = `[${timestamp}] ${msg}`;
-    this.outputLogsArea.appendChild(line);
-    this.outputLogsArea.scrollTop = this.outputLogsArea.scrollHeight;
   }
 }
