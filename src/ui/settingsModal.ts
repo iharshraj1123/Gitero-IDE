@@ -2612,6 +2612,17 @@ export class SettingsModalComponent {
               <button class="btn btn-secondary btn-sm server-cmd-save-btn" data-server-id="${server.id}">Save</button>
             </div>
           </div>
+          ${server.id === 'typescript' ? `
+            <div class="lsp-server-field" style="margin-top: 8px;">
+              <label style="font-size: 11px; color: var(--fg-muted); display: block; margin-bottom: 4px;">Custom TypeScript tsserver.js Path (Optional override):</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" class="setting-input server-tsserver-input"
+                  placeholder="Auto-detected from workspace, node_modules, or global packages"
+                  value="${(preferencesService.get('lsp.typescript.tsserverPath') as string) || ''}" style="flex: 1; font-family: var(--font-mono, monospace); font-size: 11px;" />
+                <button class="btn btn-secondary btn-sm server-tsserver-save-btn">Save</button>
+              </div>
+            </div>
+          ` : ''}
 
           <div class="lsp-server-install-row" style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
             <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
@@ -2665,6 +2676,15 @@ export class SettingsModalComponent {
         });
         saveBtn.textContent = 'Saved!';
         setTimeout(() => { saveBtn.textContent = 'Save'; }, 1500);
+      });
+
+      // Wire tsserver path save button (if typescript server)
+      const tsSaveBtn = card.querySelector('.server-tsserver-save-btn') as HTMLButtonElement;
+      const tsInput = card.querySelector('.server-tsserver-input') as HTMLInputElement;
+      tsSaveBtn?.addEventListener('click', () => {
+        preferencesService.set('lsp.typescript.tsserverPath', tsInput.value.trim());
+        tsSaveBtn.textContent = 'Saved!';
+        setTimeout(() => { tsSaveBtn.textContent = 'Save'; }, 1500);
       });
 
       // Wire copy button

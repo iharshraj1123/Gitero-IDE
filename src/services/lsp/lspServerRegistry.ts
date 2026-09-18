@@ -16,8 +16,8 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'typescript-language-server',
     defaultArgs: ['--stdio'],
     commandAliases: ['typescript-language-server.cmd', 'typescript-language-server'],
-    installGuide: 'npm install -g typescript typescript-language-server',
-    installCommand: 'npm install -g typescript typescript-language-server',
+    installGuide: 'npm install -g typescript@^5 typescript-language-server',
+    installCommand: 'npm install -g typescript@^5 typescript-language-server',
     packageManager: 'npm'
   },
   {

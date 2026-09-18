@@ -49,8 +49,12 @@ async function bootstrap() {
   const initialWs = fsService.reloadWorkspaceFromStorage();
   if (initialWs) {
     editorState.setWorkspace(initialWs);
+    lspClient.setWorkspaceRoot(initialWs);
   } else {
     editorState.reloadPersistedTabs();
+    if (typeof window !== 'undefined' && (window as any).NL_PATH) {
+      lspClient.setWorkspaceRoot((window as any).NL_PATH);
+    }
   }
   new WindowResizer();
 

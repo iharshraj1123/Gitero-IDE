@@ -79,6 +79,7 @@ export interface GiteroPreferences {
   'lsp.customServers': Record<string, { command: string; args: string[]; enabled: boolean }>;
   'lsp.userServers': Record<string, { id: string; name: string; languages: string[]; defaultCommand: string; defaultArgs: string[]; installGuide?: string }>;
   'lsp.mutedPrompts': string[];
+  'lsp.typescript.tsserverPath'?: string;
 
   // Keybindings
   'keybindings': Record<string, string>;
@@ -163,6 +164,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'lsp.customServers': {},
   'lsp.userServers': {},
   'lsp.mutedPrompts': [],
+  'lsp.typescript.tsserverPath': '',
   'transparency.enabled': false,
   'transparency.atmosphereMood': 'deep-space',
   'transparency.atmosphereIntensity': 65,

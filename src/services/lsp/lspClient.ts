@@ -93,7 +93,28 @@ export class LspClient {
   }
 
   setWorkspaceRoot(root: string) {
-    this.currentWorkspaceRoot = root;
+    const oldRoot = this.currentWorkspaceRoot;
+    const resolved = (!root || root === '.')
+      ? ((typeof window !== 'undefined' ? (window as any).NL_PATH : '') || '')
+      : root.replace(/\//g, '\\');
+
+    this.currentWorkspaceRoot = resolved;
+
+    if (oldRoot && resolved && oldRoot.toLowerCase() !== resolved.toLowerCase()) {
+      const addedUri = pathToUri(resolved);
+      const removedUri = pathToUri(oldRoot);
+      const uniqueSessions = new Set(this.sessions.values());
+      for (const session of uniqueSessions) {
+        if (session.status === 'ready') {
+          session.connection.notify('workspace/didChangeWorkspaceFolders', {
+            event: {
+              added: [{ uri: addedUri, name: 'Workspace' }],
+              removed: [{ uri: removedUri, name: 'Workspace' }]
+            }
+          }).catch(() => {});
+        }
+      }
+    }
   }
 
   getWorkspaceRoot(): string {
@@ -312,7 +333,37 @@ export class LspClient {
       }
 
       // Initialize LSP handshake
-      const rootUri = this.currentWorkspaceRoot ? pathToUri(this.currentWorkspaceRoot) : null;
+      const rootUri = (this.currentWorkspaceRoot && this.currentWorkspaceRoot !== '.')
+        ? pathToUri(this.currentWorkspaceRoot)
+        : (typeof window !== 'undefined' && (window as any).NL_PATH ? pathToUri((window as any).NL_PATH) : null);
+
+      let initOptions: any = undefined;
+      if (config.id === 'typescript') {
+        const fallbackPath = await this.resolveTypescriptFallbackPath();
+        const customPath = (preferencesService.get('lsp.typescript.tsserverPath') as string) || undefined;
+        initOptions = {
+          preferences: {
+            includePackageJsonAutoImports: 'auto',
+            importModuleSpecifierPreference: 'shortest'
+          },
+          inferredProjectCompilerOptions: {
+            target: 'ESNext',
+            module: 'ESNext',
+            moduleResolution: 'bundler',
+            allowJs: true,
+            checkJs: false,
+            skipLibCheck: true,
+            esModuleInterop: true
+          },
+          ...(customPath || fallbackPath ? {
+            tsserver: {
+              ...(customPath ? { path: customPath } : {}),
+              ...(fallbackPath ? { fallbackPath } : {})
+            }
+          } : {})
+        };
+      }
+
       const initResult = await connection.request('initialize', {
         processId: null,
         rootUri,
@@ -353,21 +404,7 @@ export class LspClient {
           }
         },
         workspaceFolders: rootUri ? [{ uri: rootUri, name: 'Workspace' }] : null,
-        initializationOptions: config.id === 'typescript' ? {
-          preferences: {
-            includePackageJsonAutoImports: 'auto',
-            importModuleSpecifierPreference: 'shortest'
-          },
-          inferredProjectCompilerOptions: {
-            target: 'ESNext',
-            module: 'ESNext',
-            moduleResolution: 'bundler',
-            allowJs: true,
-            checkJs: false,
-            skipLibCheck: true,
-            esModuleInterop: true
-          }
-        } : undefined
+        initializationOptions: initOptions
       });
 
       await connection.notify('initialized', {});
@@ -641,6 +678,80 @@ export class LspClient {
     } catch (err) {
       return null;
     }
+  }
+
+  /**
+   * Resolves a valid path to TypeScript or tsserver.js to prevent typescript-language-server
+   * from failing when opened in a directory without local node_modules or when global TypeScript
+   * does not supply tsserver.js.
+   */
+  private async resolveTypescriptFallbackPath(): Promise<string | undefined> {
+    // 1. Check workspace node_modules first if available
+    if (this.currentWorkspaceRoot && this.currentWorkspaceRoot !== '.') {
+      const wsCandidate = `${this.currentWorkspaceRoot.replace(/\\/g, '/')}/node_modules/typescript/lib/tsserver.js`;
+      if (await this.pathExists(wsCandidate)) {
+        return wsCandidate.replace(/\//g, '\\');
+      }
+    }
+
+    // 2. Check application directory (Neutralino NL_PATH or current working directory)
+    const nlPath = typeof window !== 'undefined' ? (window as any).NL_PATH : undefined;
+    if (nlPath) {
+      const appCandidate = `${nlPath.replace(/\\/g, '/')}/node_modules/typescript/lib/tsserver.js`;
+      if (await this.pathExists(appCandidate)) {
+        return appCandidate.replace(/\//g, '\\');
+      }
+      const binCandidate = `${nlPath.replace(/\\/g, '/')}/bin/typescript/lib/tsserver.js`;
+      if (await this.pathExists(binCandidate)) {
+        return binCandidate.replace(/\//g, '\\');
+      }
+    }
+
+    // 3. Check relative node_modules in dev environment
+    const devCandidate = 'node_modules/typescript/lib/tsserver.js';
+    if (await this.pathExists(devCandidate)) {
+      return devCandidate.replace(/\//g, '\\');
+    }
+
+    // 4. Check environment APPDATA / global npm paths
+    let appData: string | null = null;
+    if (typeof window !== 'undefined' && (window as any).Neutralino?.os?.getEnv) {
+      try {
+        appData = await (window as any).Neutralino.os.getEnv('APPDATA');
+      } catch {}
+    }
+    if (!appData && typeof process !== 'undefined' && (process as any).env?.APPDATA) {
+      appData = (process as any).env.APPDATA;
+    }
+
+    if (appData) {
+      const cleanAppData = appData.replace(/\\/g, '/');
+      const candidates = [
+        `${cleanAppData}/npm/node_modules/typescript/lib/tsserver.js`,
+        `${cleanAppData}/npm/node_modules/vscode-langservers-extracted/node_modules/typescript/lib/tsserver.js`,
+        `${cleanAppData}/npm/node_modules/intelephense/node_modules/typescript/lib/tsserver.js`,
+        `${cleanAppData}/npm/node_modules/@angular/cli/node_modules/typescript/lib/tsserver.js`
+      ];
+      for (const candidate of candidates) {
+        if (await this.pathExists(candidate)) {
+          return candidate.replace(/\//g, '\\');
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private async pathExists(filePath: string): Promise<boolean> {
+    if (typeof window !== 'undefined' && (window as any).Neutralino?.filesystem?.getStats) {
+      try {
+        const stats = await (window as any).Neutralino.filesystem.getStats(filePath);
+        return Boolean(stats);
+      } catch {
+        return false;
+      }
+    }
+    return false;
   }
 
   /**
