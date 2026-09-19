@@ -65,7 +65,7 @@ export class SearchPanelComponent {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
             </button>
             <div class="search-input-wrapper">
-              <textarea class="search-field" id="search-query-input" placeholder="Search (Auto-searches, Shift+Enter for newline)" spellcheck="false" rows="1" autocomplete="off"></textarea>
+              <textarea class="search-field" id="search-query-input" placeholder="Search" spellcheck="false" rows="1" autocomplete="off"></textarea>
               <div class="search-modifiers">
                 <button class="mod-btn" id="btn-mod-case" title="Match Case (Alt+C)">Aa</button>
                 <button class="mod-btn" id="btn-mod-word" title="Match Whole Word (Alt+W)">\\b</button>
@@ -77,7 +77,7 @@ export class SearchPanelComponent {
           <div class="search-input-row replace-row" id="replace-input-row" style="display: none;">
             <div class="replace-indent-spacer"></div>
             <div class="search-input-wrapper">
-              <textarea class="search-field" id="search-replace-input" placeholder="Replace (Enter to replace all, Shift+Enter for newline)" spellcheck="false" rows="1" autocomplete="off"></textarea>
+              <textarea class="search-field" id="search-replace-input" placeholder="Replace" spellcheck="false" rows="1" autocomplete="off"></textarea>
               <div class="search-modifiers">
                 <button class="mod-btn btn-replace-action" id="btn-replace-all" title="Replace All in Workspace">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 7 3 3 3-3"/><path d="M6 10V4a2 2 0 0 1 2-2h8"/><path d="m21 17-3-3-3 3"/><path d="M18 14v6a2 2 0 0 1-2 2H8"/></svg>
