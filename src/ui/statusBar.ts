@@ -6,9 +6,14 @@ import { gitService } from '../services/git';
 import { lspClient } from '../services/lsp/lspClient';
 import { LspServerStatus } from '../services/lsp/lspTypes';
 import { notificationService } from '../services/notification';
+import { detectLanguage } from '../editor/languages';
+import { lspServerRegistry } from '../services/lsp/lspServerRegistry';
 
 export class StatusBarComponent {
   private container: HTMLElement;
+
+  private currentLanguageId: string | null = null;
+  private currentLanguageName: string | null = null;
 
   private vimModeEl!: HTMLElement;
   private gitGroupEl!: HTMLElement;
@@ -161,7 +166,15 @@ export class StatusBarComponent {
 
     // LSP status changes
     lspClient.onStatusChange((evt) => {
-      this.updateLspStatus(evt.status, evt.serverName);
+      if (!this.currentLanguageId) return;
+      const currentConfig = lspServerRegistry.findConfigForLanguage(this.currentLanguageId);
+      const eventConfig = lspServerRegistry.findConfigForLanguage(evt.languageId);
+      const matchesLanguage = evt.languageId.toLowerCase() === this.currentLanguageId.toLowerCase();
+      const matchesServer = Boolean(currentConfig && eventConfig && currentConfig.id === eventConfig.id);
+
+      if (matchesLanguage || matchesServer) {
+        this.updateLspStatus(evt.status, evt.serverName, this.currentLanguageName || undefined);
+      }
     });
 
     // Tab size updates
@@ -229,13 +242,26 @@ export class StatusBarComponent {
   }
 
   updateTabInfo(tab: EditorTab | null) {
-    if (tab) {
-      this.languageEl.textContent = tab.language;
-      this.cursorEl.textContent = `Ln ${tab.cursor.line}, Col ${tab.cursor.col}`;
-    } else {
-      this.languageEl.textContent = 'Ready';
-      this.cursorEl.textContent = '';
+    if (!tab || tab.viewMode === 'image' || tab.viewMode === 'binary' || tab.viewMode === 'git-graph' || tab.viewMode === 'rendered') {
+      this.currentLanguageId = null;
+      this.currentLanguageName = tab?.language || null;
+      this.languageEl.textContent = tab?.language || 'Ready';
+      this.cursorEl.textContent = tab?.cursor ? `Ln ${tab.cursor.line}, Col ${tab.cursor.col}` : '';
+      this.updateLspStatus('stopped', undefined, tab?.language);
+      return;
     }
+
+    const langInfo = detectLanguage(tab.path);
+    const langId = langInfo.languageId || 'plaintext';
+    this.currentLanguageId = langId;
+    this.currentLanguageName = langInfo.name;
+
+    this.languageEl.textContent = tab.language || langInfo.name;
+    this.cursorEl.textContent = `Ln ${tab.cursor.line}, Col ${tab.cursor.col}`;
+
+    // Immediately reflect active tab's real LSP server status
+    const lspInfo = lspClient.getServerStatus(langId);
+    this.updateLspStatus(lspInfo.status, lspInfo.serverName, langInfo.name);
   }
 
   showMessage(msg: string, timeoutMs: number = 3000) {
@@ -249,24 +275,28 @@ export class StatusBarComponent {
     }
   }
 
-  updateLspStatus(status: LspServerStatus, serverName?: string) {
+  updateLspStatus(status: LspServerStatus, serverName?: string, languageName?: string) {
     const dot = this.lspEl?.querySelector('.status-lsp-dot');
     const text = this.lspEl?.querySelector('.status-lsp-text');
     if (!dot || !text) return;
 
     dot.className = `status-lsp-dot ${status}`;
     if (status === 'ready') {
-      text.textContent = serverName ? `LSP: ${serverName.split(' ')[0]}` : 'LSP: Ready';
-      this.lspEl.title = `LSP: ${serverName || 'Ready'} active (Click to configure)`;
+      const displayTag = languageName
+        ? (languageName.includes('TSX') ? 'TypeScript' : languageName.includes('JSX') ? 'JavaScript' : languageName.split(' ')[0])
+        : (serverName ? serverName.split(' ')[0] : 'Ready');
+
+      text.textContent = `LSP: ${displayTag}`;
+      this.lspEl.title = `LSP: ${serverName || displayTag} active for ${languageName || 'current file'} (Click to configure)`;
     } else if (status === 'starting') {
       text.textContent = 'LSP: Starting...';
       this.lspEl.title = `LSP: Starting ${serverName || 'server'}... (Click to configure)`;
     } else if (status === 'error') {
       text.textContent = 'LSP: Error';
-      this.lspEl.title = `LSP: Server error (Click to configure)`;
+      this.lspEl.title = `LSP: Server error (${serverName || 'server'}) (Click to configure)`;
     } else {
       text.textContent = 'LSP: Off';
-      this.lspEl.title = `LSP: Inactive (Click to configure)`;
+      this.lspEl.title = `LSP: Inactive for ${languageName || 'current file'} (Click to configure)`;
     }
   }
 }

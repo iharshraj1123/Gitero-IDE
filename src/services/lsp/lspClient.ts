@@ -221,6 +221,53 @@ export class LspClient {
     return this.sessions.get(norm);
   }
 
+  /**
+   * Retrieves the current server status for a given language ID.
+   */
+  getServerStatus(languageId: string): { status: LspServerStatus; serverName?: string; error?: string } {
+    if (!this.isLspEnabled()) {
+      return { status: 'stopped' };
+    }
+
+    const norm = languageId.toLowerCase();
+    const session = this.sessions.get(norm);
+    if (session) {
+      return { status: session.status, serverName: session.config.name };
+    }
+
+    const config = lspServerRegistry.findConfigForLanguage(norm);
+    if (!config) {
+      return { status: 'stopped' };
+    }
+
+    const customServers = preferencesService.get('lsp.customServers') as Record<string, any> || {};
+    const userPref = customServers[config.id];
+    if (userPref && userPref.enabled === false) {
+      return { status: 'stopped', serverName: config.name };
+    }
+
+    return { status: 'stopped', serverName: config.name };
+  }
+
+  /**
+   * Returns current known document version for an open file.
+   */
+  getDocumentVersion(filePath: string, languageId?: string): number | undefined {
+    const uri = pathToUri(filePath);
+    if (languageId) {
+      const session = this.getSessionForLanguage(languageId);
+      if (session) {
+        return session.fileVersions.get(uri);
+      }
+    }
+    for (const session of new Set(this.sessions.values())) {
+      if (session.fileVersions.has(uri)) {
+        return session.fileVersions.get(uri);
+      }
+    }
+    return undefined;
+  }
+
   isLspEnabled(): boolean {
     return preferencesService.get('lsp.enabled') !== false;
   }
@@ -489,6 +536,11 @@ export class LspClient {
       return;
     }
 
+    if (session.openFiles.has(uri)) {
+      // Document is already open in the LSP server, do not send duplicate didOpen
+      return;
+    }
+
     session.openFiles.add(uri);
     session.fileVersions.set(uri, version);
 
@@ -552,11 +604,20 @@ export class LspClient {
   /**
    * Notifies the server that a document was closed.
    */
-  async notifyDidClose(filePath: string, languageId: string): Promise<void> {
-    const session = this.getSessionForLanguage(languageId);
+  async notifyDidClose(filePath: string, languageId?: string): Promise<void> {
+    const uri = pathToUri(filePath);
+    let session = languageId ? this.getSessionForLanguage(languageId) : undefined;
+    if (!session) {
+      // Fallback: locate which active session has this URI open
+      for (const s of new Set(this.sessions.values())) {
+        if (s.openFiles.has(uri) || s.pendingOpenDocuments.has(uri)) {
+          session = s;
+          break;
+        }
+      }
+    }
     if (!session) return;
 
-    const uri = pathToUri(filePath);
     session.pendingOpenDocuments.delete(uri);
     session.openFiles.delete(uri);
     session.fileVersions.delete(uri);

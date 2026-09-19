@@ -34,6 +34,10 @@ import {
   NavigateToLocationHandler
 } from './lspExtension';
 import { lspClient, pathToUri, areUrisOrPathsMatching } from '../services/lsp/lspClient';
+import { createGitGutterExtension, updateGitGutter, parseUnifiedDiff } from './gitGutter';
+import { createMergeConflictExtension } from './mergeConflict';
+import { createGitBlameExtension } from './gitBlame';
+import { gitService } from '../services/git';
 
 // Smart active line highlighter that automatically yields during selections (e.g. Ctrl+A)
 // so the selection highlight is never occluded or hidden by the active line background.
@@ -107,6 +111,12 @@ export class EditorManager {
   private indentGuidesCompartment = new Compartment();
   private minimapCompartment = new Compartment();
   private overviewRulerCompartment = new Compartment();
+  private gitGutterCompartment = new Compartment();
+  private mergeConflictCompartment = new Compartment();
+  private gitBlameCompartment = new Compartment();
+
+  // Git gutter debounce timer
+  private gitGutterDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   private onCursorChange?: (pos: CursorPosition) => void;
   private onContentChange?: (content: string) => void;
@@ -118,12 +128,17 @@ export class EditorManager {
     const showIndentGuides = preferencesService.get('editor.renderIndentGuides') !== false;
     const showMinimap = preferencesService.get('editor.minimap.enabled') !== false;
     const showOverviewRuler = preferencesService.get('editor.overviewRuler.enabled') !== false;
+    const showGitGutter = preferencesService.get('editor.gitGutter.enabled') !== false;
+    const showGitBlame = preferencesService.get('editor.gitBlame.enabled') !== false;
 
     return [
       this.lineNumbersCompartment.of(showLineNumbers ? lineNumbers() : []),
       this.indentGuidesCompartment.of(createIndentGuidesExtension(showIndentGuides)),
       this.minimapCompartment.of(createMinimapExtension(showMinimap)),
       this.overviewRulerCompartment.of(createOverviewRulerExtension(showOverviewRuler)),
+      this.gitGutterCompartment.of(showGitGutter ? createGitGutterExtension() : []),
+      this.mergeConflictCompartment.of(createMergeConflictExtension()),
+      this.gitBlameCompartment.of(showGitBlame ? createGitBlameExtension(() => this.currentFilePath) : []),
       highlightActiveLineGutter(),
       highlightSpecialChars(),
       history(),
@@ -340,6 +355,30 @@ export class EditorManager {
         updateViewDiagnostics(this.view, this.currentFilePath, params.diagnostics);
       }
     });
+
+    // Refresh git gutter when the repository changes (commit, checkout, reset…)
+    gitService.onRepositoryChange(() => {
+      this.scheduleGitGutterUpdate(this.currentFilePath);
+    });
+
+    // Live toggle: git gutter
+    preferencesService.subscribe('editor.gitGutter.enabled', (enabled) => {
+      if (!this.view) return;
+      this.view.dispatch({
+        effects: this.gitGutterCompartment.reconfigure(enabled ? createGitGutterExtension() : [])
+      });
+      if (enabled) this.scheduleGitGutterUpdate(this.currentFilePath);
+    });
+
+    // Live toggle: git blame
+    preferencesService.subscribe('editor.gitBlame.enabled', (enabled) => {
+      if (!this.view) return;
+      this.view.dispatch({
+        effects: this.gitBlameCompartment.reconfigure(
+          enabled ? createGitBlameExtension(() => this.currentFilePath) : []
+        )
+      });
+    });
   }
  
   /**
@@ -375,7 +414,7 @@ export class EditorManager {
     this.currentFilePath = filePath;
     const langInfo = detectLanguage(filePath);
     this.currentLanguageId = langInfo.languageId || 'plaintext';
-    this.documentVersion = 1;
+    this.documentVersion = lspClient.getDocumentVersion(filePath, this.currentLanguageId) || 1;
 
     const findState = handlePreDocumentSwitch();
 
@@ -402,6 +441,41 @@ export class EditorManager {
     }
 
     lspClient.notifyDidOpen(filePath, this.currentLanguageId, this.documentVersion, content);
+
+    // Schedule git gutter diff update for the newly loaded file
+    this.scheduleGitGutterUpdate(filePath);
+  }
+
+  /**
+   * Fetches git diff for the given file and updates the gutter decorations.
+   * Debounced to avoid hammering git on rapid file switches.
+   */
+  private scheduleGitGutterUpdate(filePath: string | null) {
+    if (this.gitGutterDebounceTimer !== null) {
+      clearTimeout(this.gitGutterDebounceTimer);
+      this.gitGutterDebounceTimer = null;
+    }
+    if (!filePath || preferencesService.get('editor.gitGutter.enabled') === false) return;
+
+    this.gitGutterDebounceTimer = setTimeout(async () => {
+      this.gitGutterDebounceTimer = null;
+      if (!this.view || this.currentFilePath !== filePath) return;
+
+      const ws = (await import('../services/fs')).fsService.getWorkspace();
+      if (!ws) return;
+
+      const normalizedWs = ws.replace(/\\/g, '/').replace(/\/$/, '');
+      let relPath = filePath.replace(/\\/g, '/');
+      if (relPath.toLowerCase().startsWith(normalizedWs.toLowerCase() + '/')) {
+        relPath = relPath.slice(normalizedWs.length + 1);
+      }
+
+      const diff = await gitService.getDiffForFile(relPath);
+      if (!this.view || this.currentFilePath !== filePath) return;
+
+      const diffMap = parseUnifiedDiff(diff);
+      updateGitGutter(this.view, diffMap);
+    }, 200);
   }
 
   notifyDidSave() {
@@ -411,7 +485,9 @@ export class EditorManager {
   }
 
   notifyDidClose(filePath: string, languageId?: string) {
-    const lang = languageId || (this.currentFilePath === filePath ? this.currentLanguageId : detectLanguage(filePath).languageId) || 'plaintext';
+    const lang = (languageId && languageId !== 'plaintext')
+      ? languageId
+      : (detectLanguage(filePath).languageId || 'plaintext');
     lspClient.notifyDidClose(filePath, lang);
   }
 

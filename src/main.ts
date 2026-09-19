@@ -16,7 +16,7 @@ import { GitPanelComponent } from './ui/gitPanel';
 import { GitGraphFullComponent } from './ui/gitGraph';
 import { TerminalPanelComponent } from './ui/terminalPanel';
 import { ShortcutsModalComponent } from './ui/shortcutsModal';
-import { SUPPORTED_LANGUAGES, isImageFile, isBinaryFile, detectLanguage } from './editor/languages';
+import { SUPPORTED_LANGUAGES, isImageFile, isBinaryFile, detectLanguage, getLanguageByName } from './editor/languages';
 import { MarkdownViewerComponent } from './ui/markdownViewer';
 import { MediaViewerComponent } from './ui/mediaViewer';
 import { gitService } from './services/git';
@@ -330,8 +330,15 @@ async function bootstrap() {
       category: 'Languages',
       action: () => {
         if (activeTab) {
+          const oldLangInfo = detectLanguage(activeTab.path);
+          editorManager.notifyDidClose(activeTab.path, oldLangInfo.languageId || 'plaintext');
           editorState.setTabLanguage(activeTab.id, lang.name);
           editorManager.setLanguageByName(lang.name);
+          const newLangInfo = getLanguageByName(lang.name);
+          if (newLangInfo.languageId && newLangInfo.languageId !== 'plaintext') {
+            lspClient.notifyDidOpen(activeTab.path, newLangInfo.languageId, 1, editorManager.getContent());
+          }
+          statusBar.updateTabInfo(activeTab);
           statusBar.showMessage(`Language: ${lang.name}`);
         }
       }
@@ -826,7 +833,8 @@ async function bootstrap() {
 
   // Notify LSP when tabs close
   editorState.onClose((closedTab) => {
-    editorManager.notifyDidClose(closedTab.path, closedTab.language);
+    const langInfo = detectLanguage(closedTab.path);
+    editorManager.notifyDidClose(closedTab.path, langInfo.languageId || 'plaintext');
   });
 
   // 9. Connect Vim Ex-Commands (:w, :q)
@@ -930,7 +938,8 @@ async function bootstrap() {
       if (currentLoadedTabId !== activeTab.id) {
         currentLoadedTabId = activeTab.id;
         editorManager.loadDocument(activeTab.content, activeTab.path);
-        checkMissingLsp(activeTab.path, activeTab.language, (ext, lang) => {
+        const activeLangInfo = detectLanguage(activeTab.path);
+        checkMissingLsp(activeTab.path, activeLangInfo.languageId || activeLangInfo.name, (ext, lang) => {
           settingsModal.openWithAddServer(ext, lang);
         });
       }
