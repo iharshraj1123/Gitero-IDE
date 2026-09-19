@@ -12,7 +12,12 @@ import { foldGutter, foldKeymap, indentOnInput, bracketMatching } from '@codemir
 import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap, snippet } from '@codemirror/autocomplete';
 import { lintGutter } from '@codemirror/lint';
 import { search, searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
-import { FindWidgetPanel, openReplaceWidget } from './findWidget';
+import {
+  FindWidgetPanel,
+  openReplaceWidget,
+  handlePreDocumentSwitch,
+  handlePostDocumentSwitch
+} from './findWidget';
 
 import { themeManager } from '../themes/themeManager';
 import { vimIntegration } from './vim';
@@ -372,6 +377,8 @@ export class EditorManager {
     this.currentLanguageId = langInfo.languageId || 'plaintext';
     this.documentVersion = 1;
 
+    const findState = handlePreDocumentSwitch();
+
     this.view.setState(
       EditorState.create({
         doc: content,
@@ -382,7 +389,11 @@ export class EditorManager {
     this.applyCursorPreferences();
     this.view.dom.setAttribute('data-minimap', String(preferencesService.get('editor.minimap.enabled') !== false));
     vimIntegration.attachView(this.view);
-    this.view.focus();
+
+    handlePostDocumentSwitch(this.view, findState);
+    if (!findState.wasFindFocused) {
+      this.view.focus();
+    }
 
     // Immediately restore cached LSP diagnostics so squiggles persist with zero lag across file switches
     const cachedDiags = lspClient.getDiagnostics(filePath);

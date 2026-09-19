@@ -12,9 +12,54 @@ import {
 } from '@codemirror/search';
 import { preferencesService } from '../services/preferences';
 
+export interface FindWidgetState {
+  isOpen: boolean;
+  search: string;
+  replace: string;
+  isReplaceExpanded: boolean;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  regex: boolean;
+}
+
+export const persistentFindState: FindWidgetState = {
+  isOpen: false,
+  search: '',
+  replace: '',
+  isReplaceExpanded: false,
+  caseSensitive: preferencesService.get('search.matchCase'),
+  wholeWord: preferencesService.get('search.matchWholeWord'),
+  regex: preferencesService.get('search.useRegex')
+};
+
 let activeFindWidget: FindWidgetPanel | null = null;
+let isDocumentSwitching = false;
+let shouldFocusOnMount = true;
+
+export function handlePreDocumentSwitch(): { wasFindFocused: boolean } {
+  isDocumentSwitching = true;
+  const wasFindFocused = activeFindWidget ? (
+    document.activeElement === activeFindWidget.getFindInputElement() ||
+    document.activeElement === activeFindWidget.getReplaceInputElement()
+  ) : false;
+  return { wasFindFocused };
+}
+
+export function handlePostDocumentSwitch(view: EditorView, preState: { wasFindFocused: boolean }): void {
+  try {
+    if (persistentFindState.isOpen) {
+      shouldFocusOnMount = preState.wasFindFocused;
+      openSearchPanel(view);
+      shouldFocusOnMount = true;
+    }
+  } finally {
+    isDocumentSwitching = false;
+  }
+}
 
 export const openReplaceWidget = (view: EditorView): boolean => {
+  persistentFindState.isOpen = true;
+  persistentFindState.isReplaceExpanded = true;
   openSearchPanel(view);
   setTimeout(() => {
     if (activeFindWidget) {
@@ -55,16 +100,56 @@ export class FindWidgetPanel implements Panel {
     const isCase = preferencesService.get('search.matchCase');
     const isWord = preferencesService.get('search.matchWholeWord');
     const isRegex = preferencesService.get('search.useRegex');
-    this.query = new SearchQuery({
-      search: defaultQuery.search,
-      replace: defaultQuery.replace,
-      caseSensitive: isCase,
-      wholeWord: isWord,
-      regexp: isRegex
-    });
+
+    const initialSearch = (persistentFindState.isOpen ? persistentFindState.search : (defaultQuery.search || persistentFindState.search)) || '';
+    const initialReplace = (persistentFindState.isOpen ? persistentFindState.replace : (defaultQuery.replace || persistentFindState.replace)) || '';
+    this.isReplaceExpanded = persistentFindState.isReplaceExpanded;
+
+    this.query = this.createQuery(
+      initialSearch,
+      initialReplace,
+      isCase,
+      isWord,
+      isRegex
+    );
     this.dom = this.buildDom();
     this.bindEvents();
     this.syncFromQuery(this.query);
+  }
+
+  getFindInputElement(): HTMLElement {
+    return this.findInput;
+  }
+
+  getReplaceInputElement(): HTMLElement {
+    return this.replaceInput;
+  }
+
+  private createQuery(
+    rawSearch: string,
+    rawReplace: string,
+    caseSensitive: boolean,
+    wholeWord: boolean,
+    regex: boolean
+  ): SearchQuery {
+    const isMultiLine = rawSearch.includes('\n');
+    let searchStr = rawSearch;
+    let useRegex = regex;
+
+    if (isMultiLine && !regex) {
+      searchStr = rawSearch
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\n/g, '\\n');
+      useRegex = true;
+    }
+
+    return new SearchQuery({
+      search: searchStr,
+      replace: rawReplace,
+      caseSensitive,
+      wholeWord,
+      regexp: useRegex
+    });
   }
 
   private buildDom(): HTMLElement {
@@ -75,7 +160,7 @@ export class FindWidgetPanel implements Panel {
 
     container.innerHTML = `
       <div class="gfw-toggle-col">
-        <button type="button" class="gfw-btn gfw-toggle-replace" title="Toggle Replace (Ctrl+H)" aria-label="Toggle Replace" aria-expanded="false">
+        <button type="button" class="gfw-btn gfw-toggle-replace${this.isReplaceExpanded ? ' is-expanded' : ''}" title="Toggle Replace (Ctrl+H)" aria-label="Toggle Replace" aria-expanded="${this.isReplaceExpanded}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
@@ -118,7 +203,7 @@ export class FindWidgetPanel implements Panel {
         </div>
 
         <!-- Row 2: Replace -->
-        <div class="gfw-row gfw-replace-row" style="display: none;">
+        <div class="gfw-row gfw-replace-row"${this.isReplaceExpanded ? '' : ' style="display: none;"'}>
           <div class="gfw-input-box">
             <textarea
               class="gfw-input gfw-replace-input"
@@ -193,6 +278,7 @@ export class FindWidgetPanel implements Panel {
     });
 
     this.closeBtn.addEventListener('click', () => {
+      persistentFindState.isOpen = false;
       closeSearchPanel(this.view);
       this.view.focus();
     });
@@ -252,6 +338,7 @@ export class FindWidgetPanel implements Panel {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
+        persistentFindState.isOpen = false;
         closeSearchPanel(this.view);
         this.view.focus();
       } else if (e.altKey && (e.key === 'c' || e.key === 'C')) {
@@ -272,6 +359,7 @@ export class FindWidgetPanel implements Panel {
 
   expandReplace() {
     this.isReplaceExpanded = true;
+    persistentFindState.isReplaceExpanded = true;
     this.replaceRow.style.display = 'flex';
     this.toggleReplaceBtn.classList.add('is-expanded');
     this.toggleReplaceBtn.setAttribute('aria-expanded', 'true');
@@ -279,6 +367,7 @@ export class FindWidgetPanel implements Panel {
 
   collapseReplace() {
     this.isReplaceExpanded = false;
+    persistentFindState.isReplaceExpanded = false;
     this.replaceRow.style.display = 'none';
     this.toggleReplaceBtn.classList.remove('is-expanded');
     this.toggleReplaceBtn.setAttribute('aria-expanded', 'false');
@@ -329,34 +418,25 @@ export class FindWidgetPanel implements Panel {
     const isWord = this.wordBtn.classList.contains('active');
     const isRegex = this.regexBtn.classList.contains('active');
 
-    const rawSearch = this.findInput.value;
-    const isMultiLine = rawSearch.includes('\n');
-
-    let searchStr = rawSearch;
-    let useRegex = isRegex;
-
-    if (isMultiLine && !isRegex) {
-      // Automatically treat multi-line literal input as a regex so CodeMirror
-      // can match across line boundaries. Escape the literal text first,
-      // then replace the escaped newlines with \n (which CM's regex understands).
-      searchStr = rawSearch
-        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        .replace(/\n/g, '\\n');
-      useRegex = true;
-    }
-
-    const newQuery = new SearchQuery({
-      search: searchStr,
-      replace: this.replaceInput.value,
-      caseSensitive: isCase,
-      wholeWord: isWord,
-      regexp: useRegex
-    });
+    const newQuery = this.createQuery(
+      this.findInput.value,
+      this.replaceInput.value,
+      isCase,
+      isWord,
+      isRegex
+    );
 
     if (!newQuery.eq(this.query)) {
       this.query = newQuery;
       this.view.dispatch({ effects: setSearchQuery.of(newQuery) });
     }
+
+    persistentFindState.search = this.findInput.value;
+    persistentFindState.replace = this.replaceInput.value;
+    persistentFindState.isReplaceExpanded = this.isReplaceExpanded;
+    persistentFindState.caseSensitive = isCase;
+    persistentFindState.wholeWord = isWord;
+    persistentFindState.regex = isRegex;
 
     this.updateMatchCount();
   }
@@ -365,13 +445,28 @@ export class FindWidgetPanel implements Panel {
     this.query = query;
     if (this.findInput.value !== query.search) {
       this.findInput.value = query.search;
+      if (query.search.includes('\n')) {
+        this.findInput.style.height = 'auto';
+        this.findInput.style.height = `${this.findInput.scrollHeight}px`;
+      }
     }
     if (this.replaceInput.value !== query.replace) {
       this.replaceInput.value = query.replace;
+      if (query.replace.includes('\n')) {
+        this.replaceInput.style.height = 'auto';
+        this.replaceInput.style.height = `${this.replaceInput.scrollHeight}px`;
+      }
     }
     this.caseBtn.classList.toggle('active', query.caseSensitive);
     this.wordBtn.classList.toggle('active', query.wholeWord);
     this.regexBtn.classList.toggle('active', query.regexp);
+
+    persistentFindState.search = this.findInput.value;
+    persistentFindState.replace = this.replaceInput.value;
+    persistentFindState.caseSensitive = query.caseSensitive;
+    persistentFindState.wholeWord = query.wholeWord;
+    persistentFindState.regex = query.regexp;
+
     this.updateMatchCount();
   }
 
@@ -431,12 +526,35 @@ export class FindWidgetPanel implements Panel {
 
   mount() {
     activeFindWidget = this;
+    persistentFindState.isOpen = true;
+
     const initialQuery = getSearchQuery(this.view.state);
     if (initialQuery && initialQuery.search) {
       this.syncFromQuery(initialQuery);
+    } else if (persistentFindState.search || persistentFindState.replace) {
+      this.findInput.value = persistentFindState.search;
+      this.replaceInput.value = persistentFindState.replace;
+      if (persistentFindState.search.includes('\n')) {
+        this.findInput.style.height = 'auto';
+        this.findInput.style.height = `${this.findInput.scrollHeight}px`;
+      }
+      if (persistentFindState.replace.includes('\n')) {
+        this.replaceInput.style.height = 'auto';
+        this.replaceInput.style.height = `${this.replaceInput.scrollHeight}px`;
+      }
+      this.commit();
     }
-    this.findInput.focus();
-    this.findInput.select();
+
+    if (persistentFindState.isReplaceExpanded && !this.isReplaceExpanded) {
+      this.expandReplace();
+    }
+
+    if (shouldFocusOnMount) {
+      this.findInput.focus();
+      this.findInput.select();
+    } else {
+      this.view.focus();
+    }
   }
 
   update(update: ViewUpdate) {
@@ -456,6 +574,9 @@ export class FindWidgetPanel implements Panel {
   destroy() {
     if (activeFindWidget === this) {
       activeFindWidget = null;
+    }
+    if (!isDocumentSwitching) {
+      persistentFindState.isOpen = false;
     }
   }
 }

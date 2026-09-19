@@ -25,6 +25,9 @@ export class SearchPanelComponent {
   private isReplaceOpen: boolean = false;
   private groups: SearchGroup[] = [];
   private isSearching: boolean = false;
+  private searchDebounceTimer: any = null;
+  private lastExecutedKey: string = '';
+  private readonly debounceDelayMs: number = 400;
 
   private searchInput!: HTMLTextAreaElement;
   private replaceInput!: HTMLTextAreaElement;
@@ -62,7 +65,7 @@ export class SearchPanelComponent {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
             </button>
             <div class="search-input-wrapper">
-              <textarea class="search-field" id="search-query-input" placeholder="Search (Enter to search, Shift+Enter for newline)" spellcheck="false" rows="1" autocomplete="off"></textarea>
+              <textarea class="search-field" id="search-query-input" placeholder="Search (Auto-searches, Shift+Enter for newline)" spellcheck="false" rows="1" autocomplete="off"></textarea>
               <div class="search-modifiers">
                 <button class="mod-btn" id="btn-mod-case" title="Match Case (Alt+C)">Aa</button>
                 <button class="mod-btn" id="btn-mod-word" title="Match Whole Word (Alt+W)">\\b</button>
@@ -113,7 +116,11 @@ export class SearchPanelComponent {
       this.isCaseSensitive = !this.isCaseSensitive;
       preferencesService.set('search.matchCase', this.isCaseSensitive);
       caseBtn.classList.toggle('active', this.isCaseSensitive);
-      if (this.searchInput.value) this.executeSearch();
+      if (this.searchDebounceTimer) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = null;
+      }
+      if (this.searchInput.value) this.executeSearch(true);
     });
 
     const wordBtn = this.container.querySelector('#btn-mod-word') as HTMLElement;
@@ -122,7 +129,11 @@ export class SearchPanelComponent {
       this.isWholeWord = !this.isWholeWord;
       preferencesService.set('search.matchWholeWord', this.isWholeWord);
       wordBtn.classList.toggle('active', this.isWholeWord);
-      if (this.searchInput.value) this.executeSearch();
+      if (this.searchDebounceTimer) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = null;
+      }
+      if (this.searchInput.value) this.executeSearch(true);
     });
 
     const regexBtn = this.container.querySelector('#btn-mod-regex') as HTMLElement;
@@ -131,30 +142,66 @@ export class SearchPanelComponent {
       this.isRegex = !this.isRegex;
       preferencesService.set('search.useRegex', this.isRegex);
       regexBtn.classList.toggle('active', this.isRegex);
-      if (this.searchInput.value) this.executeSearch();
+      if (this.searchDebounceTimer) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = null;
+      }
+      if (this.searchInput.value) this.executeSearch(true);
     });
 
-    // Auto-grow textarea height as content grows
-    const autoGrow = () => {
+    // Auto-grow textarea height and debounced auto-search
+    this.searchInput.addEventListener('input', () => {
       this.searchInput.style.height = 'auto';
       this.searchInput.style.height = `${this.searchInput.scrollHeight}px`;
-    };
-    this.searchInput.addEventListener('input', autoGrow);
+
+      if (this.searchDebounceTimer) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = null;
+      }
+
+      const query = this.searchInput.value.trim();
+      if (!query) {
+        this.groups = [];
+        this.resultsContainer.innerHTML = '';
+        this.statusContainer.textContent = 'Type a query to search across workspace files.';
+        this.lastExecutedKey = '';
+        return;
+      }
+
+      // Automatically trigger search after debounce delay
+      this.searchDebounceTimer = setTimeout(() => {
+        this.searchDebounceTimer = null;
+        this.executeSearch(false);
+      }, this.debounceDelayMs);
+    });
 
     this.searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
-        // Plain Enter = run search
+        // Plain Enter = run search immediately
         e.preventDefault();
-        this.executeSearch();
+        if (this.searchDebounceTimer) {
+          clearTimeout(this.searchDebounceTimer);
+          this.searchDebounceTimer = null;
+        }
+        this.executeSearch(true);
       }
-      // Shift+Enter falls through: browser inserts a newline, then input fires autoGrow
+      // Shift+Enter falls through: browser inserts a newline, then input fires autoGrow + debounce
     });
 
     this.container.querySelector('#btn-search-refresh')?.addEventListener('click', () => {
-      this.executeSearch();
+      if (this.searchDebounceTimer) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = null;
+      }
+      this.executeSearch(true);
     });
 
     this.container.querySelector('#btn-search-clear')?.addEventListener('click', () => {
+      if (this.searchDebounceTimer) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = null;
+      }
+      this.lastExecutedKey = '';
       this.searchInput.value = '';
       this.searchInput.style.height = '';
       this.replaceInput.value = '';
@@ -186,12 +233,19 @@ export class SearchPanelComponent {
     this.searchInput?.select();
   }
 
-  async executeSearch() {
+  async executeSearch(force = false) {
     const query = this.searchInput.value.trim();
     if (!query) {
       this.groups = [];
       this.resultsContainer.innerHTML = '';
       this.statusContainer.textContent = 'Please enter a search query.';
+      this.lastExecutedKey = '';
+      return;
+    }
+
+    const queryKey = `${query}::${this.isCaseSensitive}::${this.isWholeWord}::${this.isRegex}`;
+    if (!force && queryKey === this.lastExecutedKey) {
+      // Avoid searching the exact same query and options repeatedly
       return;
     }
 
@@ -201,6 +255,11 @@ export class SearchPanelComponent {
       return;
     }
 
+    if (this.isSearching) {
+      return;
+    }
+
+    this.lastExecutedKey = queryKey;
     const startTime = performance.now();
     this.isSearching = true;
     this.statusContainer.textContent = 'Searching workspace files...';
