@@ -52,6 +52,13 @@ export interface GitState {
   totalChanges: number;
 }
 
+export interface BlameInfo {
+  authorName: string;
+  relativeDate: string;
+  commitMessage: string;
+  isUncommitted: boolean;
+}
+
 export type GitStatusChangeListener = (state: GitState) => void;
 export type GitRepositoryChangeListener = () => void;
 export type GitOutputListener = (line: string, level?: 'info' | 'warn' | 'error') => void;
@@ -67,6 +74,7 @@ export class GitService {
 
   private fileStatusMap: Map<string, GitFileChange> = new Map();
   private folderChangesMap: Map<string, number> = new Map();
+  private ignoredPathsSet: Set<string> = new Set();
   private listeners: Set<GitStatusChangeListener> = new Set();
   private repoChangeListeners: Set<GitRepositoryChangeListener> = new Set();
   private outputListeners: Set<GitOutputListener> = new Set();
@@ -254,8 +262,8 @@ export class GitService {
       currentBranch = currentHeadSha ? `HEAD (${currentHeadSha.slice(0, 7)})` : 'main';
     }
 
-    // 3. Query porcelain status with -uall for granular untracked file paths
-    const statusRes = await this.runGitCommand('status --porcelain -uall');
+    // 3. Query porcelain status with --ignored=matching to detect gitignored files and -uall for untracked
+    const statusRes = await this.runGitCommand('status --porcelain --ignored=matching -uall');
 
     // Create a fingerprint of the branch, HEAD, and working tree to detect all repository changes
     const currentFingerprint = `${currentBranch}::${currentHeadSha}::${statusRes.stdout}`;
@@ -289,6 +297,7 @@ export class GitService {
     const workingList: GitFileChange[] = [];
     const newStatusMap = new Map<string, GitFileChange>();
     const folderChangedFiles = new Map<string, Set<string>>();
+    const newIgnoredPaths = new Set<string>();
 
     const normalizedWs = ws.replace(/\\/g, '/').replace(/\/$/, '');
     const lines = stdout.split(/\r?\n/).filter(Boolean);
@@ -308,6 +317,25 @@ export class GitService {
       // Strip surrounding quotes if path has spaces
       const relPath = rawPath.replace(/^"/, '').replace(/"$/, '').replace(/\\/g, '/');
       const fullPath = `${normalizedWs}/${relPath}`.replace(/\//g, '\\');
+
+      // 0. Ignored by .gitignore (!! prefix)
+      if (indexCode === '!' && workCode === '!') {
+        const normalizedRel = relPath.toLowerCase();
+        newIgnoredPaths.add(normalizedRel);
+        newIgnoredPaths.add(fullPath.replace(/\\/g, '/').toLowerCase());
+        // Also mark the containing folders as having ignored content (for folder-level dimming)
+        const ignoredParts = relPath.split('/');
+        let ignoredDir = '';
+        for (let i = 0; i < ignoredParts.length - 1; i++) {
+          ignoredDir = ignoredDir ? `${ignoredDir}/${ignoredParts[i]}` : ignoredParts[i];
+          newIgnoredPaths.add(`${ignoredDir}/`.toLowerCase());
+        }
+        // If it ends with / it is an ignored directory itself
+        if (relPath.endsWith('/')) {
+          newIgnoredPaths.add(normalizedRel);
+        }
+        continue; // Ignored entries have no staged/working status
+      }
 
       // 1. Check for Staged Change (indexCode !== ' ' and !== '?')
       if (indexCode !== ' ' && indexCode !== '?') {
@@ -367,6 +395,7 @@ export class GitService {
     this.state.stagedChanges = stagedList;
     this.state.workingChanges = workingList;
     this.fileStatusMap = newStatusMap;
+    this.ignoredPathsSet = newIgnoredPaths;
 
     // Convert folder sets to counts
     const newFolderCounts = new Map<string, number>();
@@ -407,6 +436,93 @@ export class GitService {
     }
     if (!normalized) return this.state.totalChanges;
     return this.folderChangesMap.get(normalized.toLowerCase()) || 0;
+  }
+
+  /**
+   * Returns true if the given file or folder path is ignored by .gitignore rules
+   */
+  public isFileIgnored(filePath: string): boolean {
+    const ws = fsService.getWorkspace();
+    let normalized = filePath.replace(/\\/g, '/');
+    if (ws) {
+      const normalizedWs = ws.replace(/\\/g, '/').replace(/\/$/, '');
+      if (normalized.toLowerCase().startsWith(normalizedWs.toLowerCase() + '/')) {
+        normalized = normalized.slice(normalizedWs.length + 1);
+      }
+    }
+    const lower = normalized.toLowerCase();
+    if (this.ignoredPathsSet.has(lower)) return true;
+    // Check if any parent folder prefix was recorded as ignored (for dirs reported as dir/)
+    return this.ignoredPathsSet.has(lower + '/');
+  }
+
+  /**
+   * Fetch the unified diff for a specific file against HEAD.
+   * Accepts either an absolute or relative path.
+   * Returns the raw diff string (empty string if no diff or not in a git repo).
+   */
+  public async getDiffForFile(filePath: string): Promise<string> {
+    const ws = fsService.getWorkspace();
+    let relPath = filePath.replace(/\\/g, '/');
+    if (ws) {
+      const normalizedWs = ws.replace(/\\/g, '/').replace(/\/$/, '');
+      if (relPath.toLowerCase().startsWith(normalizedWs.toLowerCase() + '/')) {
+        relPath = relPath.slice(normalizedWs.length + 1);
+      }
+    }
+    const res = await this.runGitCommand(`diff HEAD -- "${relPath}"`);
+    return res.exitCode === 0 ? res.stdout : '';
+  }
+
+  /**
+   * Fetch git blame for a single line in a file.
+   * Returns a BlameInfo object or null if not tracked / no commits yet.
+   */
+  public async getBlameForLine(filePath: string, lineNumber: number): Promise<BlameInfo | null> {
+    const ws = fsService.getWorkspace();
+    if (!ws || !this.state.isRepo) return null;
+
+    const normalizedWs = ws.replace(/\\/g, '/').replace(/\/$/, '');
+    let relPath = filePath.replace(/\\/g, '/');
+    if (relPath.toLowerCase().startsWith(normalizedWs.toLowerCase() + '/')) {
+      relPath = relPath.slice(normalizedWs.length + 1);
+    }
+
+    const res = await this.runGitCommand(`blame -L ${lineNumber},${lineNumber} --porcelain -- "${relPath}"`);
+    if (res.exitCode !== 0 || !res.stdout.trim()) return null;
+
+    const blameLines = res.stdout.split(/\r?\n/);
+    const commitHash = blameLines[0]?.split(' ')[0] || '';
+
+    // All-zeros hash means uncommitted changes
+    if (/^0+$/.test(commitHash)) {
+      return { authorName: 'You', relativeDate: 'Not yet committed', commitMessage: '', isUncommitted: true };
+    }
+
+    let authorName = '';
+    let authorTime = 0;
+    let summary = '';
+
+    for (const blameLine of blameLines) {
+      if (blameLine.startsWith('author ')) authorName = blameLine.slice(7).trim();
+      else if (blameLine.startsWith('author-time ')) authorTime = parseInt(blameLine.slice(12).trim(), 10);
+      else if (blameLine.startsWith('summary ')) summary = blameLine.slice(8).trim();
+    }
+
+    const relativeDate = this.formatRelativeDate(authorTime);
+    return { authorName, relativeDate, commitMessage: summary, isUncommitted: false };
+  }
+
+  private formatRelativeDate(timestamp: number): string {
+    if (!timestamp) return '';
+    const now = Math.floor(Date.now() / 1000);
+    const diff = now - timestamp;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+    if (diff < 2592000) return `${Math.floor(diff / 86400)} days ago`;
+    if (diff < 31536000) return `${Math.floor(diff / 2592000)} months ago`;
+    return `${Math.floor(diff / 31536000)} years ago`;
   }
 
   /**

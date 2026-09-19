@@ -184,6 +184,10 @@ export class FileTreeComponent {
           folderDot.title = `${changeCount} modified/untracked file(s) inside`;
           row.appendChild(folderDot);
         }
+        // Dim entire folder if it is ignored by .gitignore
+        if (gitService.isFileIgnored(path)) {
+          row.classList.add('tree-row-git-ignored');
+        }
       } else {
         const gitStatus = gitService.getFileStatus(path);
         if (gitStatus) {
@@ -195,6 +199,9 @@ export class FileTreeComponent {
             ? `Git: Staged (${gitStatus.status})` 
             : `Git: ${gitStatus.status === 'U' ? 'Untracked' : 'Modified'} (${gitStatus.status})`;
           row.appendChild(gitBadge);
+        } else if (gitService.isFileIgnored(path)) {
+          // Dim files ignored by .gitignore (no status badge shown for ignored files)
+          row.classList.add('tree-row-git-ignored');
         }
       }
     });
@@ -292,6 +299,10 @@ export class FileTreeComponent {
         folderDot.title = `${changeCount} modified/untracked file(s) inside`;
         row.appendChild(folderDot);
       }
+      // Dim folder if ignored by .gitignore
+      if (gitService.isFileIgnored(node.path)) {
+        row.classList.add('tree-row-git-ignored');
+      }
     } else {
       const gitStatus = gitService.getFileStatus(node.path);
       if (gitStatus) {
@@ -303,6 +314,9 @@ export class FileTreeComponent {
           ? `Git: Staged (${gitStatus.status})` 
           : `Git: ${gitStatus.status === 'U' ? 'Untracked' : 'Modified'} (${gitStatus.status})`;
         row.appendChild(gitBadge);
+      } else if (gitService.isFileIgnored(node.path)) {
+        // Dim file ignored by .gitignore (no status badge shown)
+        row.classList.add('tree-row-git-ignored');
       }
     }
 

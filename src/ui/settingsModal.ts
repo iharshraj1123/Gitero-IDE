@@ -233,7 +233,25 @@ export class SettingsModalComponent {
               </div>
 
               <div class="setting-card">
-                <div class="setting-card-title">Save Actions & Cleanups</div>
+                <div class="setting-card-title">Git Intelligence</div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Git Gutter Diff Indicators</span>
+                    <span class="setting-desc">Show colored bars beside added, modified, and deleted lines in the editor gutter</span>
+                  </div>
+                  <input type="checkbox" id="setting-git-gutter" class="setting-checkbox" checked />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Git Blame Annotation</span>
+                    <span class="setting-desc">Show author, date, and commit message as a ghost annotation on the active line after a brief idle</span>
+                  </div>
+                  <input type="checkbox" id="setting-git-blame" class="setting-checkbox" checked />
+                </div>
+              </div>
+
+              <div class="setting-card">
+                <div class="setting-card-title">Save Actions &amp; Cleanups</div>
                 <div class="setting-row">
                   <div class="setting-label">
                     <span class="setting-title">Trim Trailing Whitespace</span>
@@ -1783,6 +1801,22 @@ export class SettingsModalComponent {
       };
     }
 
+    const gitGutterToggle = this.overlay.querySelector('#setting-git-gutter') as HTMLInputElement;
+    if (gitGutterToggle) {
+      gitGutterToggle.checked = preferencesService.get('editor.gitGutter.enabled') !== false;
+      gitGutterToggle.onchange = () => {
+        preferencesService.set('editor.gitGutter.enabled', gitGutterToggle.checked);
+      };
+    }
+
+    const gitBlameToggle = this.overlay.querySelector('#setting-git-blame') as HTMLInputElement;
+    if (gitBlameToggle) {
+      gitBlameToggle.checked = preferencesService.get('editor.gitBlame.enabled') !== false;
+      gitBlameToggle.onchange = () => {
+        preferencesService.set('editor.gitBlame.enabled', gitBlameToggle.checked);
+      };
+    }
+
     const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;
     if (insertSpacesSelect) {
       insertSpacesSelect.value = String(preferencesService.get('editor.insertSpaces'));
@@ -1895,6 +1929,16 @@ export class SettingsModalComponent {
     const overviewRulerToggle = this.overlay.querySelector('#setting-overview-ruler') as HTMLInputElement;
     if (overviewRulerToggle) {
       preferencesService.set('editor.overviewRuler.enabled', overviewRulerToggle.checked);
+    }
+
+    const gitGutterToggle = this.overlay.querySelector('#setting-git-gutter') as HTMLInputElement;
+    if (gitGutterToggle) {
+      preferencesService.set('editor.gitGutter.enabled', gitGutterToggle.checked);
+    }
+
+    const gitBlameToggle = this.overlay.querySelector('#setting-git-blame') as HTMLInputElement;
+    if (gitBlameToggle) {
+      preferencesService.set('editor.gitBlame.enabled', gitBlameToggle.checked);
     }
 
     const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;

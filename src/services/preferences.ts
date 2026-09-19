@@ -21,6 +21,8 @@ export interface GiteroPreferences {
   'editor.overviewRuler.enabled': boolean;
   'editor.trimTrailingWhitespace': boolean;
   'editor.insertFinalNewline': boolean;
+  'editor.gitGutter.enabled': boolean;
+  'editor.gitBlame.enabled': boolean;
 
   // Files
   'files.autoSave': boolean;
@@ -142,6 +144,8 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.overviewRuler.enabled': true,
   'editor.trimTrailingWhitespace': false,
   'editor.insertFinalNewline': false,
+  'editor.gitGutter.enabled': true,
+  'editor.gitBlame.enabled': true,
   'files.autoSave': false,
   'files.autoSaveDelay': 1000,
   'workbench.iconTheme': 'lucide',

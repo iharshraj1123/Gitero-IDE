@@ -461,16 +461,8 @@ export class EditorManager {
       this.gitGutterDebounceTimer = null;
       if (!this.view || this.currentFilePath !== filePath) return;
 
-      const ws = (await import('../services/fs')).fsService.getWorkspace();
-      if (!ws) return;
-
-      const normalizedWs = ws.replace(/\\/g, '/').replace(/\/$/, '');
-      let relPath = filePath.replace(/\\/g, '/');
-      if (relPath.toLowerCase().startsWith(normalizedWs.toLowerCase() + '/')) {
-        relPath = relPath.slice(normalizedWs.length + 1);
-      }
-
-      const diff = await gitService.getDiffForFile(relPath);
+      // getDiffForFile accepts an absolute path and normalizes it internally
+      const diff = await gitService.getDiffForFile(filePath);
       if (!this.view || this.currentFilePath !== filePath) return;
 
       const diffMap = parseUnifiedDiff(diff);
