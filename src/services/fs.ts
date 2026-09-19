@@ -412,8 +412,10 @@ export class FileSystemService {
     const matches: Array<{ file: string; line: number; text: string }> = [];
     if (!query.trim()) return matches;
 
-    if (isNative()) {
-      // 1. High-performance native search via git grep
+    const isMultiLine = query.includes('\n');
+
+    if (isNative() && !isMultiLine) {
+      // 1. High-performance native search via git grep (single-line queries only)
       try {
         const isGitCmd = `cd /d "${dirPath}" && git rev-parse --is-inside-work-tree`;
         const gitCheck = await window.Neutralino.os.execCommand(isGitCmd);
@@ -461,15 +463,27 @@ export class FileSystemService {
       }
     }
 
-    // 2. Fallback: file scan
+    // 2. Fallback / multi-line: file scan against full content
     const allFiles = await this.scanAllFiles(dirPath, 1000);
     let regex: RegExp;
     try {
-      let pattern = options.isRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let pattern: string;
+      if (options.isRegex) {
+        // User-supplied regex — use as-is, but always add 's' flag equivalent via [\s\S] trick
+        // We use the 's' (dotAll) flag so `.` matches newlines too
+        pattern = query;
+      } else {
+        // Literal: escape, then replace literal \n in the (already newline-containing) pattern
+        // with a regex that matches \r?\n (handles CRLF files too)
+        pattern = query
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\n/g, '\\r?\\n');
+      }
       if (options.wholeWord) {
         pattern = `\\b${pattern}\\b`;
       }
-      regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+      const flags = ['g', 's', options.caseSensitive ? '' : 'i'].filter(Boolean).join('');
+      regex = new RegExp(pattern, flags);
     } catch (e) {
       return matches;
     }
@@ -479,16 +493,35 @@ export class FileSystemService {
 
       try {
         const content = await this.readFile(file);
-        const lines = content.split(/\r?\n/);
-        for (let i = 0; i < lines.length; i++) {
+
+        if (isMultiLine || options.isRegex) {
+          // Search across full content, find starting line for each match
           regex.lastIndex = 0;
-          if (regex.test(lines[i])) {
-            matches.push({
-              file,
-              line: i + 1,
-              text: lines[i].trim()
-            });
+          let m: RegExpExecArray | null;
+          while ((m = regex.exec(content)) !== null) {
+            // Count line number of match start
+            const before = content.slice(0, m.index);
+            const lineNum = (before.match(/\n/g) || []).length + 1;
+            // Show first line of the matched text as snippet
+            const snippet = m[0].split('\n')[0].trim();
+            matches.push({ file, line: lineNum, text: snippet });
             if (matches.length >= 500) return matches;
+            // Avoid infinite loop on zero-length matches
+            if (m[0].length === 0) regex.lastIndex++;
+          }
+        } else {
+          // Single-line: fast line-by-line path
+          const lines = content.split(/\r?\n/);
+          for (let i = 0; i < lines.length; i++) {
+            regex.lastIndex = 0;
+            if (regex.test(lines[i])) {
+              matches.push({
+                file,
+                line: i + 1,
+                text: lines[i].trim()
+              });
+              if (matches.length >= 500) return matches;
+            }
           }
         }
       } catch (e) {

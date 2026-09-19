@@ -2400,6 +2400,12 @@ html.init-sidebar-collapsed .sidebar-resizer {
   color: var(--fg-primary);
   font-size: 12px;
   outline: none;
+  resize: none;
+  overflow: hidden;
+  min-height: 26px;
+  line-height: 1.4;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 
 .search-field:focus {
@@ -4338,12 +4344,12 @@ body.window-maximized .win-resize-handle {
 .gfw-input-box {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   background-color: var(--bg-primary, #1e1e1e);
   border: 1px solid var(--border-color, #3c3c3c);
   border-radius: 3px;
   width: 240px;
-  height: 25px;
+  min-height: 25px;
   box-sizing: border-box;
   transition: border-color 0.12s ease;
 }
@@ -4355,15 +4361,18 @@ body.window-maximized .win-resize-handle {
 
 .gfw-input {
   flex: 1;
-  height: 100%;
+  min-height: 23px;
   background: transparent;
   border: none;
   outline: none;
   color: var(--fg-primary, #cccccc);
   font-family: inherit;
   font-size: 12px;
-  padding: 0 6px;
+  line-height: 1.5;
+  padding: 3px 6px;
   min-width: 0;
+  resize: none;
+  overflow: hidden;
 }
 
 .gfw-input::placeholder {

@@ -30,8 +30,8 @@ export class FindWidgetPanel implements Panel {
   readonly top = true;
 
   private toggleReplaceBtn!: HTMLButtonElement;
-  private findInput!: HTMLInputElement;
-  private replaceInput!: HTMLInputElement;
+  private findInput!: HTMLTextAreaElement;
+  private replaceInput!: HTMLTextAreaElement;
   private replaceRow!: HTMLElement;
   private counterEl!: HTMLElement;
 
@@ -84,14 +84,14 @@ export class FindWidgetPanel implements Panel {
         <!-- Row 1: Find -->
         <div class="gfw-row gfw-find-row">
           <div class="gfw-input-box">
-            <input
-              type="text"
+            <textarea
               class="gfw-input gfw-find-input"
               main-field="true"
               placeholder="Find"
               aria-label="Find"
               spellcheck="false"
-            />
+              rows="1"
+            ></textarea>
             <div class="gfw-input-options">
               <button type="button" class="gfw-opt-btn gfw-opt-case" title="Match Case (Alt+C)" aria-label="Match Case">Aa</button>
               <button type="button" class="gfw-opt-btn gfw-opt-word" title="Match Whole Word (Alt+W)" aria-label="Match Whole Word">ab</button>
@@ -120,13 +120,13 @@ export class FindWidgetPanel implements Panel {
         <!-- Row 2: Replace -->
         <div class="gfw-row gfw-replace-row" style="display: none;">
           <div class="gfw-input-box">
-            <input
-              type="text"
+            <textarea
               class="gfw-input gfw-replace-input"
               placeholder="Replace"
               aria-label="Replace"
               spellcheck="false"
-            />
+              rows="1"
+            ></textarea>
           </div>
 
           <div class="gfw-replace-actions">
@@ -142,8 +142,8 @@ export class FindWidgetPanel implements Panel {
     `;
 
     this.toggleReplaceBtn = container.querySelector('.gfw-toggle-replace') as HTMLButtonElement;
-    this.findInput = container.querySelector('.gfw-find-input') as HTMLInputElement;
-    this.replaceInput = container.querySelector('.gfw-replace-input') as HTMLInputElement;
+    this.findInput = container.querySelector('.gfw-find-input') as HTMLTextAreaElement;
+    this.replaceInput = container.querySelector('.gfw-replace-input') as HTMLTextAreaElement;
     this.replaceRow = container.querySelector('.gfw-replace-row') as HTMLElement;
     this.counterEl = container.querySelector('.gfw-matches-count') as HTMLElement;
 
@@ -164,8 +164,18 @@ export class FindWidgetPanel implements Panel {
   private bindEvents() {
     this.toggleReplaceBtn.addEventListener('click', () => this.toggleReplace());
 
-    this.findInput.addEventListener('input', () => this.commit());
-    this.replaceInput.addEventListener('input', () => this.commit());
+    this.findInput.addEventListener('input', () => {
+      // Auto-grow textarea
+      this.findInput.style.height = 'auto';
+      this.findInput.style.height = `${this.findInput.scrollHeight}px`;
+      this.commit();
+    });
+    this.replaceInput.addEventListener('input', () => {
+      // Auto-grow replace textarea
+      this.replaceInput.style.height = 'auto';
+      this.replaceInput.style.height = `${this.replaceInput.scrollHeight}px`;
+      this.commit();
+    });
 
     this.caseBtn.addEventListener('click', () => this.toggleCase());
     this.wordBtn.addEventListener('click', () => this.toggleWord());
@@ -197,9 +207,10 @@ export class FindWidgetPanel implements Panel {
       this.updateMatchCount();
     });
 
-    // Keyboard handling inside find input
+    // Keyboard handling inside find textarea
     this.findInput.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Plain Enter = navigate to next/prev match
         e.preventDefault();
         if (e.shiftKey) {
           findPrevious(this.view);
@@ -207,16 +218,19 @@ export class FindWidgetPanel implements Panel {
           findNext(this.view);
         }
         this.updateMatchCount();
-      } else if (e.key === 'ArrowDown' && this.isReplaceExpanded) {
+      }
+      // Shift+Enter: browser inserts newline, then 'input' fires auto-grow + commit
+      if (e.key === 'ArrowDown' && this.isReplaceExpanded) {
         e.preventDefault();
         this.replaceInput.focus();
         this.replaceInput.select();
       }
     });
 
-    // Keyboard handling inside replace input
+    // Keyboard handling inside replace textarea
     this.replaceInput.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Plain Enter = replace; Ctrl+Alt+Enter = replace all
         e.preventDefault();
         if (e.ctrlKey && e.altKey) {
           replaceAll(this.view);
@@ -224,7 +238,9 @@ export class FindWidgetPanel implements Panel {
           replaceNext(this.view);
         }
         this.updateMatchCount();
-      } else if (e.key === 'ArrowUp') {
+      }
+      // Shift+Enter: browser inserts newline, then 'input' fires auto-grow + commit
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
         this.findInput.focus();
         this.findInput.select();
@@ -313,12 +329,28 @@ export class FindWidgetPanel implements Panel {
     const isWord = this.wordBtn.classList.contains('active');
     const isRegex = this.regexBtn.classList.contains('active');
 
+    const rawSearch = this.findInput.value;
+    const isMultiLine = rawSearch.includes('\n');
+
+    let searchStr = rawSearch;
+    let useRegex = isRegex;
+
+    if (isMultiLine && !isRegex) {
+      // Automatically treat multi-line literal input as a regex so CodeMirror
+      // can match across line boundaries. Escape the literal text first,
+      // then replace the escaped newlines with \n (which CM's regex understands).
+      searchStr = rawSearch
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\n/g, '\\n');
+      useRegex = true;
+    }
+
     const newQuery = new SearchQuery({
-      search: this.findInput.value,
+      search: searchStr,
       replace: this.replaceInput.value,
       caseSensitive: isCase,
       wholeWord: isWord,
-      regexp: isRegex
+      regexp: useRegex
     });
 
     if (!newQuery.eq(this.query)) {

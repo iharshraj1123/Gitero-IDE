@@ -26,8 +26,8 @@ export class SearchPanelComponent {
   private groups: SearchGroup[] = [];
   private isSearching: boolean = false;
 
-  private searchInput!: HTMLInputElement;
-  private replaceInput!: HTMLInputElement;
+  private searchInput!: HTMLTextAreaElement;
+  private replaceInput!: HTMLTextAreaElement;
   private resultsContainer!: HTMLElement;
   private statusContainer!: HTMLElement;
   private replaceRow!: HTMLElement;
@@ -62,7 +62,7 @@ export class SearchPanelComponent {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
             </button>
             <div class="search-input-wrapper">
-              <input type="text" class="search-field" id="search-query-input" placeholder="Search (Press Enter to search)" spellcheck="false" />
+              <textarea class="search-field" id="search-query-input" placeholder="Search (Enter to search, Shift+Enter for newline)" spellcheck="false" rows="1" autocomplete="off"></textarea>
               <div class="search-modifiers">
                 <button class="mod-btn" id="btn-mod-case" title="Match Case (Alt+C)">Aa</button>
                 <button class="mod-btn" id="btn-mod-word" title="Match Whole Word (Alt+W)">\\b</button>
@@ -74,7 +74,7 @@ export class SearchPanelComponent {
           <div class="search-input-row replace-row" id="replace-input-row" style="display: none;">
             <div class="replace-indent-spacer"></div>
             <div class="search-input-wrapper">
-              <input type="text" class="search-field" id="search-replace-input" placeholder="Replace" spellcheck="false" />
+              <textarea class="search-field" id="search-replace-input" placeholder="Replace (Enter to replace all, Shift+Enter for newline)" spellcheck="false" rows="1" autocomplete="off"></textarea>
               <div class="search-modifiers">
                 <button class="mod-btn btn-replace-action" id="btn-replace-all" title="Replace All in Workspace">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 7 3 3 3-3"/><path d="M6 10V4a2 2 0 0 1 2-2h8"/><path d="m21 17-3-3-3 3"/><path d="M18 14v6a2 2 0 0 1-2 2H8"/></svg>
@@ -90,8 +90,8 @@ export class SearchPanelComponent {
       </div>
     `;
 
-    this.searchInput = this.container.querySelector('#search-query-input') as HTMLInputElement;
-    this.replaceInput = this.container.querySelector('#search-replace-input') as HTMLInputElement;
+    this.searchInput = this.container.querySelector('#search-query-input') as HTMLTextAreaElement;
+    this.replaceInput = this.container.querySelector('#search-replace-input') as HTMLTextAreaElement;
     this.resultsContainer = this.container.querySelector('#search-results-list') as HTMLElement;
     this.statusContainer = this.container.querySelector('#search-status') as HTMLElement;
     this.replaceRow = this.container.querySelector('#replace-input-row') as HTMLElement;
@@ -134,10 +134,20 @@ export class SearchPanelComponent {
       if (this.searchInput.value) this.executeSearch();
     });
 
+    // Auto-grow textarea height as content grows
+    const autoGrow = () => {
+      this.searchInput.style.height = 'auto';
+      this.searchInput.style.height = `${this.searchInput.scrollHeight}px`;
+    };
+    this.searchInput.addEventListener('input', autoGrow);
+
     this.searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Plain Enter = run search
+        e.preventDefault();
         this.executeSearch();
       }
+      // Shift+Enter falls through: browser inserts a newline, then input fires autoGrow
     });
 
     this.container.querySelector('#btn-search-refresh')?.addEventListener('click', () => {
@@ -146,7 +156,9 @@ export class SearchPanelComponent {
 
     this.container.querySelector('#btn-search-clear')?.addEventListener('click', () => {
       this.searchInput.value = '';
+      this.searchInput.style.height = '';
       this.replaceInput.value = '';
+      this.replaceInput.style.height = '';
       this.groups = [];
       this.resultsContainer.innerHTML = '';
       this.statusContainer.textContent = 'Type a query to search across workspace files.';
@@ -160,6 +172,12 @@ export class SearchPanelComponent {
 
     this.container.querySelector('#btn-replace-all')?.addEventListener('click', () => {
       this.executeReplaceAll();
+    });
+
+    // Auto-grow replace textarea
+    this.replaceInput.addEventListener('input', () => {
+      this.replaceInput.style.height = 'auto';
+      this.replaceInput.style.height = `${this.replaceInput.scrollHeight}px`;
     });
   }
 
