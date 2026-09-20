@@ -349,7 +349,20 @@ export class FileSystemService {
       return Object.keys(mockFiles);
     }
 
-    const ignored = new Set(['.git', 'node_modules', 'dist', 'target', '.vscode', '.idea', 'build', 'out']);
+    const ignored = new Set([
+      // Version control
+      '.git', '.svn', '.hg',
+      // Package managers
+      'node_modules', 'vendor', 'bower_components', 'jspm_packages',
+      // Build outputs
+      'dist', 'build', 'out', 'output', 'target', 'bin', 'obj',
+      // IDE / editor metadata
+      '.vscode', '.idea', '__pycache__', '.cache', '.parcel-cache', '.next', '.nuxt',
+      // PHP Composer / Laravel
+      'storage', 'bootstrap/cache',
+      // Logs
+      'logs', 'log',
+    ]);
 
     const traverse = async (currentDir: string) => {
       if (result.length >= maxFiles) return;
@@ -375,6 +388,9 @@ export class FileSystemService {
     return result;
   }
 
+  /** Maximum number of files the workspace index will track. Directories beyond this are too large to scan. */
+  static readonly MAX_WORKSPACE_FILES = 5000;
+
   async getWorkspaceFiles(dirPath: string, forceRefresh: boolean = false): Promise<string[]> {
     if (!forceRefresh && this.workspaceFilesCache && this.workspaceFilesCache.path === dirPath) {
       if (Date.now() - this.workspaceFilesCache.timestamp < 30000) {
@@ -390,7 +406,9 @@ export class FileSystemService {
           const rawLines: string[] = res.stdOut.split(/\r?\n/).filter((l: string) => l.trim().length > 0);
           const sep = dirPath.includes('/') ? '/' : '\\';
           const cleanDir = dirPath.replace(/[/\\]$/, '');
-          const files: string[] = rawLines.map((rel: string) => `${cleanDir}${sep}${rel.replace(/\//g, sep)}`);
+          // Cap at MAX_WORKSPACE_FILES to avoid freezing on massive monorepos
+          const cappedLines = rawLines.slice(0, FileSystemService.MAX_WORKSPACE_FILES);
+          const files: string[] = cappedLines.map((rel: string) => `${cleanDir}${sep}${rel.replace(/\//g, sep)}`);
           this.workspaceFilesCache = { path: dirPath, files, timestamp: Date.now() };
           return files;
         }
@@ -399,7 +417,7 @@ export class FileSystemService {
       }
     }
 
-    const files = await this.scanAllFiles(dirPath, 3000);
+    const files = await this.scanAllFiles(dirPath, Math.min(3000, FileSystemService.MAX_WORKSPACE_FILES));
     this.workspaceFilesCache = { path: dirPath, files, timestamp: Date.now() };
     return files;
   }

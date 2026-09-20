@@ -747,11 +747,18 @@ export class LspClient {
    * does not supply tsserver.js.
    */
   private async resolveTypescriptFallbackPath(): Promise<string | undefined> {
-    // 1. Check workspace node_modules first if available
+    // 1. Check workspace node_modules, then parent directories (up to 4 levels up)
     if (this.currentWorkspaceRoot && this.currentWorkspaceRoot !== '.') {
-      const wsCandidate = `${this.currentWorkspaceRoot.replace(/\\/g, '/')}/node_modules/typescript/lib/tsserver.js`;
-      if (await this.pathExists(wsCandidate)) {
-        return wsCandidate.replace(/\//g, '\\');
+      let searchDir = this.currentWorkspaceRoot.replace(/\\/g, '/').replace(/\/+$/, '');
+      for (let depth = 0; depth < 4; depth++) {
+        const candidate = `${searchDir}/node_modules/typescript/lib/tsserver.js`;
+        if (await this.pathExists(candidate)) {
+          return candidate.replace(/\//g, '\\');
+        }
+        // Walk up one directory
+        const parentSlash = searchDir.lastIndexOf('/');
+        if (parentSlash < 3) break; // Stop at drive root (e.g. C:/)
+        searchDir = searchDir.slice(0, parentSlash);
       }
     }
 
@@ -791,9 +798,34 @@ export class LspClient {
         `${cleanAppData}/npm/node_modules/typescript/lib/tsserver.js`,
         `${cleanAppData}/npm/node_modules/vscode-langservers-extracted/node_modules/typescript/lib/tsserver.js`,
         `${cleanAppData}/npm/node_modules/intelephense/node_modules/typescript/lib/tsserver.js`,
-        `${cleanAppData}/npm/node_modules/@angular/cli/node_modules/typescript/lib/tsserver.js`
+        `${cleanAppData}/npm/node_modules/@angular/cli/node_modules/typescript/lib/tsserver.js`,
+        `${cleanAppData}/npm/node_modules/typescript-language-server/node_modules/typescript/lib/tsserver.js`,
       ];
       for (const candidate of candidates) {
+        if (await this.pathExists(candidate)) {
+          return candidate.replace(/\//g, '\\');
+        }
+      }
+    }
+
+    // 5. Try LOCALAPPDATA (for nvm-windows and Volta installations)
+    let localAppData: string | null = null;
+    if (typeof window !== 'undefined' && (window as any).Neutralino?.os?.getEnv) {
+      try {
+        localAppData = await (window as any).Neutralino.os.getEnv('LOCALAPPDATA');
+      } catch {}
+    }
+    if (localAppData) {
+      const cleanLAD = localAppData.replace(/\\/g, '/');
+      const nvmCandidates = [
+        // nvm-windows (NVM_SYMLINK style)
+        `${cleanLAD}/nvm/node_modules/typescript/lib/tsserver.js`,
+        // Volta
+        `${cleanLAD}/Volta/tools/shared/typescript/lib/tsserver.js`,
+        // Scoop
+        `${cleanLAD}/scoop/persist/nvm/node_modules/typescript/lib/tsserver.js`,
+      ];
+      for (const candidate of nvmCandidates) {
         if (await this.pathExists(candidate)) {
           return candidate.replace(/\//g, '\\');
         }

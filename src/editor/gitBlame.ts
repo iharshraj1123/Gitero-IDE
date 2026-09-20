@@ -117,6 +117,7 @@ function buildBlameDecoration(state: BlameState): DecorationSet {
 class BlamePlugin {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private currentLine: number = -1;
+  private pendingClearBlame: boolean = false;
   decorations: DecorationSet = Decoration.none;
 
   constructor(private view: EditorView, private getFilePath: () => string | null) {}
@@ -124,7 +125,7 @@ class BlamePlugin {
   update(update: ViewUpdate) {
     // Clear decorations immediately if doc changed
     if (update.docChanged) {
-      this.clearBlame();
+      this.deferredClearBlame();
       return;
     }
 
@@ -137,7 +138,7 @@ class BlamePlugin {
       if (newLineNumber !== this.currentLine) {
         this.currentLine = newLineNumber;
         // Clear current annotation immediately on line change
-        this.clearBlame();
+        this.deferredClearBlame();
         // Schedule new blame fetch after 600ms idle
         this.scheduleBlameFetch(newLineNumber);
       }
@@ -150,6 +151,36 @@ class BlamePlugin {
     } else {
       this.decorations = Decoration.none;
     }
+  }
+
+  /**
+   * Deferred dispatch outside the current update cycle.
+   * CodeMirror forbids calling view.dispatch() from inside a ViewPlugin.update() call
+   * (it throws "Calls to EditorView.update are not allowed while an update is in progress").
+   * Using Promise.resolve().then() pushes the dispatch to a microtask that runs after the
+   * current update cycle fully completes.
+   */
+  private deferredClearBlame() {
+    if (this.debounceTimer !== null) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    if (this.pendingClearBlame) return; // already scheduled
+    this.pendingClearBlame = true;
+    Promise.resolve().then(() => {
+      this.pendingClearBlame = false;
+      if (!this.view || this.view.state.doc.length === 0) return;
+      // Only dispatch if there's actually a blame annotation to clear
+      const blameState = this.view.state.field(blameStateField, false);
+      if (blameState && blameState.lineNumber !== -1) {
+        this.decorations = Decoration.none;
+        this.view.dispatch({
+          effects: setBlameAnnotation.of({ lineNumber: -1, blame: null })
+        });
+      } else {
+        this.decorations = Decoration.none;
+      }
+    });
   }
 
   private scheduleBlameFetch(lineNumber: number) {
@@ -182,6 +213,7 @@ class BlamePlugin {
     }, 600);
   }
 
+  /** Direct synchronous clear — safe to call from outside an update cycle (e.g. destroy). */
   private clearBlame() {
     if (this.debounceTimer !== null) {
       clearTimeout(this.debounceTimer);

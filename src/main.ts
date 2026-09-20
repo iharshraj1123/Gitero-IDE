@@ -1,5 +1,5 @@
 import { initNeutralino, isNative } from './services/neutralino';
-import { fsService } from './services/fs';
+import { fsService, FileSystemService } from './services/fs';
 import { themeManager } from './themes/themeManager';
 import { editorManager } from './editor/editor';
 import { editorState, EditorTab } from './state/editorState';
@@ -1041,6 +1041,7 @@ async function bootstrap() {
 
     try {
       const files = await fsService.getWorkspaceFiles(ws);
+      const isTruncated = files.length >= FileSystemService.MAX_WORKSPACE_FILES;
       const isExt = q.startsWith('.');
       const matches: Array<{ path: string; name: string; rel: string; score: number }> = [];
 
@@ -1062,16 +1063,19 @@ async function bootstrap() {
         }
       }
 
-      // Sort by score desc, then alphabetical
+      // Sort by score desc, then alphabetical, cap displayed results at 50
       matches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-      currentSearchMatches = matches.map(m => ({ path: m.path, name: m.name, rel: m.rel }));
+      const displayMatches = matches.slice(0, 50);
+      currentSearchMatches = displayMatches.map(m => ({ path: m.path, name: m.name, rel: m.rel }));
       selectedSearchIndex = -1;
 
       sidebarSearchSuggestions.innerHTML = '';
       if (currentSearchMatches.length === 0) {
         const noRes = document.createElement('div');
         noRes.className = 'sidebar-search-no-results';
-        noRes.textContent = `No files found matching "${q}"`;
+        noRes.textContent = isTruncated
+          ? `No files found in first ${FileSystemService.MAX_WORKSPACE_FILES.toLocaleString()} files. Workspace is too large to fully index.`
+          : `No files found matching "${q}"`;
         sidebarSearchSuggestions.appendChild(noRes);
       } else {
         currentSearchMatches.forEach((item, idx) => {
@@ -1106,6 +1110,19 @@ async function bootstrap() {
 
           sidebarSearchSuggestions.appendChild(row);
         });
+
+        // Show note if results were capped or workspace was truncated
+        if (matches.length > 50 || isTruncated) {
+          const noteEl = document.createElement('div');
+          noteEl.className = 'sidebar-search-no-results';
+          noteEl.style.cssText = 'opacity:0.6;padding:4px 8px;font-size:11px;';
+          if (isTruncated) {
+            noteEl.textContent = `Showing ${displayMatches.length} of ${matches.length}+ results (workspace too large to fully index — open a subfolder for full search)`;
+          } else {
+            noteEl.textContent = `Showing ${displayMatches.length} of ${matches.length} results`;
+          }
+          sidebarSearchSuggestions.appendChild(noteEl);
+        }
       }
 
       sidebarSearchSuggestions.style.display = 'block';
