@@ -275,7 +275,7 @@ export class LspClient {
   /**
    * Starts a language server process for the given language if supported, installed, and enabled.
    */
-  async ensureServerRunning(languageId: string): Promise<ActiveSession | null> {
+  async ensureServerRunning(languageId: string, filePath?: string): Promise<ActiveSession | null> {
     if (!this.isLspEnabled()) return null;
 
     const normLang = languageId.toLowerCase();
@@ -296,6 +296,22 @@ export class LspClient {
     const userPref = customServers[config.id];
     if (userPref && userPref.enabled === false) {
       return null;
+    }
+
+    // Option B: For TypeScript/JavaScript language server, check if workspace or file belongs
+    // to a configured project (package.json, tsconfig.json, jsconfig.json) or if a valid tsserver.js
+    // is available. If opening a loose JS/TS file in a non-project directory and no tsserver is found,
+    // skip starting the server gracefully to avoid annoying error toasts.
+    if (config.id === 'typescript') {
+      const customPath = (preferencesService.get('lsp.typescript.tsserverPath') as string) || undefined;
+      const fallbackPath = await this.resolveTypescriptFallbackPath(filePath);
+      const isProject = await this.isJsTsProject(filePath);
+
+      if (!customPath && !isProject && !fallbackPath) {
+        console.debug('[LSP Client] Skipping TypeScript language server for non-project folder/file:', filePath || this.currentWorkspaceRoot);
+        this.emitStatus(normLang, 'stopped', config.name);
+        return null;
+      }
     }
 
     const command = userPref?.command || config.defaultCommand;
@@ -386,7 +402,7 @@ export class LspClient {
 
       let initOptions: any = undefined;
       if (config.id === 'typescript') {
-        const fallbackPath = await this.resolveTypescriptFallbackPath();
+        const fallbackPath = await this.resolveTypescriptFallbackPath(filePath);
         const customPath = (preferencesService.get('lsp.typescript.tsserverPath') as string) || undefined;
         initOptions = {
           preferences: {
@@ -472,20 +488,29 @@ export class LspClient {
       return session;
     } catch (err: any) {
       console.warn(`[LSP Client] Failed to launch server for ${config.name}:`, err);
-      this.emitStatus(normLang, 'error', config.name, err?.message || String(err));
-      notificationService.error(
-        `LSP Error: ${config.name}`,
-        `Failed to launch language server: ${err?.message || err}`,
-        [
-          {
-            label: 'Configure LSP',
-            primary: true,
-            onClick: () => {
-              window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
+      const errMsg = err?.message || String(err);
+      this.emitStatus(normLang, 'error', config.name, errMsg);
+
+      const isMissingTs = errMsg.includes('TypeScript installation') || errMsg.includes('tsserver');
+      if (isMissingTs) {
+        // Silently mark as stopped/unavailable instead of popping up an intrusive red error toast
+        console.info('[LSP Client] TypeScript dependency or tsserver.js not found for workspace. Operating without LSP.');
+        this.emitStatus(normLang, 'stopped', config.name);
+      } else {
+        notificationService.error(
+          `LSP Error: ${config.name}`,
+          `Failed to launch language server: ${errMsg}`,
+          [
+            {
+              label: 'Configure LSP',
+              primary: true,
+              onClick: () => {
+                window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      }
       return null;
     }
   }
@@ -526,7 +551,7 @@ export class LspClient {
    * Notifies the server that a document was opened.
    */
   async notifyDidOpen(filePath: string, languageId: string, version: number, text: string): Promise<void> {
-    const session = await this.ensureServerRunning(languageId);
+    const session = await this.ensureServerRunning(languageId, filePath);
     if (!session) return;
 
     const uri = pathToUri(filePath);
@@ -742,11 +767,50 @@ export class LspClient {
   }
 
   /**
+   * Determines if the current workspace or file belongs to a configured JavaScript/TypeScript project.
+   * Checks for tsconfig.json, jsconfig.json, or package.json in the workspace root or file directory/ancestors.
+   */
+  async isJsTsProject(filePath?: string): Promise<boolean> {
+    const projectFiles = ['tsconfig.json', 'jsconfig.json', 'package.json'];
+
+    // 1. Check workspace root
+    if (this.currentWorkspaceRoot && this.currentWorkspaceRoot !== '.') {
+      const cleanWs = this.currentWorkspaceRoot.replace(/\\/g, '/').replace(/\/+$/, '');
+      for (const pFile of projectFiles) {
+        if (await this.pathExists(`${cleanWs}/${pFile}`)) {
+          return true;
+        }
+      }
+    }
+
+    // 2. Check directory of filePath and up to 4 parent directories
+    if (filePath && !filePath.startsWith('Untitled-') && !filePath.startsWith('gitero://')) {
+      let currentDir = filePath.replace(/\\/g, '/');
+      const lastSlash = currentDir.lastIndexOf('/');
+      if (lastSlash > 0) {
+        currentDir = currentDir.slice(0, lastSlash);
+      }
+      for (let depth = 0; depth < 5; depth++) {
+        for (const pFile of projectFiles) {
+          if (await this.pathExists(`${currentDir}/${pFile}`)) {
+            return true;
+          }
+        }
+        const parentSlash = currentDir.lastIndexOf('/');
+        if (parentSlash < 3) break; // Stop at drive root
+        currentDir = currentDir.slice(0, parentSlash);
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Resolves a valid path to TypeScript or tsserver.js to prevent typescript-language-server
    * from failing when opened in a directory without local node_modules or when global TypeScript
    * does not supply tsserver.js.
    */
-  private async resolveTypescriptFallbackPath(): Promise<string | undefined> {
+  private async resolveTypescriptFallbackPath(filePath?: string): Promise<string | undefined> {
     // 1. Check workspace node_modules, then parent directories (up to 4 levels up)
     if (this.currentWorkspaceRoot && this.currentWorkspaceRoot !== '.') {
       let searchDir = this.currentWorkspaceRoot.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -759,6 +823,22 @@ export class LspClient {
         const parentSlash = searchDir.lastIndexOf('/');
         if (parentSlash < 3) break; // Stop at drive root (e.g. C:/)
         searchDir = searchDir.slice(0, parentSlash);
+      }
+    }
+
+    // 2. Check directory of filePath and parent directories (up to 4 levels up)
+    if (filePath && !filePath.startsWith('Untitled-') && !filePath.startsWith('gitero://')) {
+      let fileDir = filePath.replace(/\\/g, '/');
+      const lastSlash = fileDir.lastIndexOf('/');
+      if (lastSlash > 0) fileDir = fileDir.slice(0, lastSlash);
+      for (let depth = 0; depth < 4; depth++) {
+        const candidate = `${fileDir}/node_modules/typescript/lib/tsserver.js`;
+        if (await this.pathExists(candidate)) {
+          return candidate.replace(/\//g, '\\');
+        }
+        const parentSlash = fileDir.lastIndexOf('/');
+        if (parentSlash < 3) break;
+        fileDir = fileDir.slice(0, parentSlash);
       }
     }
 
