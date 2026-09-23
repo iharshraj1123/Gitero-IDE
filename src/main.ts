@@ -542,6 +542,9 @@ async function bootstrap() {
     }
 
     try {
+      if (preferencesService.get('editor.formatOnSave')) {
+        await editorManager.formatDocument();
+      }
       let currentContent = editorManager.getContent();
       const formatted = formatContentForSave(currentContent);
       if (formatted !== currentContent) {
@@ -2060,6 +2063,45 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         category: 'Developer',
         action: () => {
           statusBar.showMessage('Developer Tools: Press F12 or Ctrl+Shift+I (or right-click -> Inspect)');
+        }
+      },
+      {
+        id: 'editor.action.formatDocument',
+        title: 'Format: Format Document',
+        detail: 'Shift+Alt+F',
+        category: 'Editor',
+        action: async () => {
+          const success = await editorManager.formatDocument();
+          if (success) {
+            statusBar.showMessage('Document formatted');
+          }
+        }
+      },
+      {
+        id: 'editor.action.rename',
+        title: 'Refactor: Rename Symbol across Files',
+        detail: 'F2',
+        category: 'Editor',
+        action: () => {
+          statusBar.showMessage('Press F2 on any symbol to trigger inline rename');
+        }
+      },
+      {
+        id: 'editor.action.findReferences',
+        title: 'Find: Find All References',
+        detail: 'Shift+F12',
+        category: 'Editor',
+        action: () => {
+          statusBar.showMessage('Press Shift+F12 on any symbol to find all references');
+        }
+      },
+      {
+        id: 'editor.action.quickFix',
+        title: 'Quick Fix: Show Code Actions & Fixes',
+        detail: 'Alt+Enter',
+        category: 'Editor',
+        action: () => {
+          statusBar.showMessage('Press Alt+Enter on any diagnostic/warning line to show Quick Fixes');
         }
       }
     ];

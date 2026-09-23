@@ -5,12 +5,13 @@
 
 import { Extension } from '@codemirror/state';
 import { EditorView, hoverTooltip, keymap } from '@codemirror/view';
-import { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import { Completion, CompletionContext, CompletionResult, snippet } from '@codemirror/autocomplete';
 import { setDiagnostics, Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { lspClient, pathToUri, uriToPath } from '../services/lsp/lspClient';
 import { CompletionItem, CompletionItemKind, Diagnostic, DiagnosticSeverity, Location } from '../services/lsp/lspTypes';
 import { createLocalCompletionSource } from './localCompletion';
 import { createSnippetCompletionSource } from './snippets';
+import { preferencesService } from '../services/preferences';
 import { marked } from 'marked';
 
 // Map LSP CompletionItemKind to CodeMirror completion type strings
@@ -64,7 +65,13 @@ export function createCompositeCompletionSource(
     const languageId = getLanguageId();
 
     const word = context.matchBefore(/[a-zA-Z_$][a-zA-Z0-9_$]*/);
-    const triggerChar = context.matchBefore(/[.:>]/);
+
+    // Retrieve server-registered trigger characters or fallback
+    const serverCaps = languageId ? lspClient.getServerCapabilities(languageId) : undefined;
+    const triggerChars = serverCaps?.completionProvider?.triggerCharacters || ['.', ':', '>', '/', '@', '"', "'", '<'];
+    const escapedTriggers = triggerChars.map((c) => (/[.*+?^${}()|[\]\\]/.test(c) ? '\\' + c : c)).join('');
+    const triggerCharRegex = new RegExp(`[${escapedTriggers}]`);
+    const triggerChar = context.matchBefore(triggerCharRegex);
 
     if (!word && !triggerChar && !context.explicit) {
       return null;
@@ -84,33 +91,93 @@ export function createCompositeCompletionSource(
       try {
         const { items: lspItems, isIncomplete } = await lspClient.requestCompletion(filePath, languageId, line, character);
         if (lspItems && lspItems.length > 0) {
+          const autoParens = preferencesService.get('editor.suggest.completeFunctionCalls') !== false;
+          // Check if followed by open parenthesis
+          const nextChar = context.state.doc.sliceString(context.pos, context.pos + 1);
+          const hasFollowingParen = nextChar === '(';
+
           const mapped: Completion[] = lspItems.map((item) => {
+            const isCallable = item.kind === CompletionItemKind.Method ||
+              item.kind === CompletionItemKind.Function ||
+              item.kind === CompletionItemKind.Constructor;
+
             const cmItem: Completion = {
               label: item.label,
               type: mapCompletionKind(item.kind),
               detail: item.detail,
-              boost: item.kind === CompletionItemKind.Method || item.kind === CompletionItemKind.Function ? 40 : 20
+              boost: isCallable ? 40 : 20
             };
 
-            // Format documentation preview
-            if (item.documentation) {
-              const docText = typeof item.documentation === 'string'
-                ? item.documentation
-                : item.documentation.value;
-              cmItem.info = () => {
-                const dom = document.createElement('div');
-                dom.className = 'cm-completion-doc';
+            // Format documentation preview with lazy resolution support
+            cmItem.info = async () => {
+              let docText = '';
+              if (item.documentation) {
+                docText = typeof item.documentation === 'string'
+                  ? item.documentation
+                  : item.documentation.value;
+              } else if (serverCaps?.completionProvider?.resolveProvider) {
                 try {
-                  dom.innerHTML = marked.parse(docText) as string;
-                } catch {
-                  dom.textContent = docText;
-                }
-                return dom;
-              };
+                  const resolved = await lspClient.resolveCompletionItem(languageId, item);
+                  if (resolved.documentation) {
+                    docText = typeof resolved.documentation === 'string'
+                      ? resolved.documentation
+                      : resolved.documentation.value;
+                  }
+                  if (resolved.detail && !cmItem.detail) {
+                    cmItem.detail = resolved.detail;
+                  }
+                } catch {}
+              }
+
+              if (!docText) return null;
+
+              const dom = document.createElement('div');
+              dom.className = 'cm-completion-doc';
+              try {
+                dom.innerHTML = marked.parse(docText) as string;
+              } catch {
+                dom.textContent = docText;
+              }
+              return dom;
+            };
+
+            // Determine insert text or template
+            let template = item.insertText || (item.textEdit ? ('newText' in item.textEdit ? item.textEdit.newText : '') : item.label);
+            const isSnippet = item.insertTextFormat === 2 || template.includes('${');
+
+            // If it's a method/function and autoParens is on, append arguments if not already present
+            if (isCallable && autoParens && !hasFollowingParen && !template.includes('(')) {
+              template = `${template}(\${1})\${0}`;
             }
 
-            if (item.insertText) {
-              cmItem.apply = item.insertText;
+            if (isSnippet || (isCallable && autoParens && !hasFollowingParen)) {
+              const snippetApply = snippet(template);
+              cmItem.apply = async (view: EditorView, completion: Completion, from: number, to: number) => {
+                snippetApply(view, completion, from, to);
+
+                // Handle additionalTextEdits (e.g. auto imports)
+                let resolvedItem = item;
+                if (!resolvedItem.additionalTextEdits && serverCaps?.completionProvider?.resolveProvider) {
+                  try {
+                    resolvedItem = await lspClient.resolveCompletionItem(languageId, item);
+                  } catch {}
+                }
+                if (resolvedItem.additionalTextEdits && resolvedItem.additionalTextEdits.length > 0) {
+                  const currentDoc = view.state.doc;
+                  const changes = resolvedItem.additionalTextEdits.map((te) => {
+                    const startLineNum = Math.min(currentDoc.lines, te.range.start.line + 1);
+                    const endLineNum = Math.min(currentDoc.lines, te.range.end.line + 1);
+                    const startLine = currentDoc.line(startLineNum);
+                    const endLine = currentDoc.line(endLineNum);
+                    const editFrom = Math.min(currentDoc.length, startLine.from + te.range.start.character);
+                    const editTo = Math.min(currentDoc.length, endLine.from + te.range.end.character);
+                    return { from: editFrom, to: editTo, insert: te.newText };
+                  });
+                  view.dispatch({ changes });
+                }
+              };
+            } else if (item.insertText || item.textEdit) {
+              cmItem.apply = template;
             }
 
             return cmItem;

@@ -6562,6 +6562,309 @@ body.transparency-active .settings-body-wrapper {
   font-size: 11px;
 }
 
+/* Signature Help / Parameter Hints Tooltip */
+.cm-signature-help-tooltip {
+  background: var(--bg-secondary, #1c2128);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+  padding: 8px 12px;
+  max-width: 520px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg-primary, #e6edf3);
+  z-index: 10000 !important;
+  backdrop-filter: blur(12px);
+}
+
+.cm-sig-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cm-sig-counter {
+  font-size: 10px;
+  color: var(--fg-muted, #8b949e);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.cm-sig-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--fg-secondary, #c9d1d9);
+}
+
+.cm-sig-param-active {
+  font-weight: 700;
+  color: var(--accent-color, #58a6ff);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cm-sig-param-doc,
+.cm-sig-doc {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: var(--fg-secondary, #c9d1d9);
+}
+
+.cm-sig-param-doc p,
+.cm-sig-doc p {
+  margin: 0;
+}
+
+/* Code Actions & Quick Fix Popover */
+.cm-code-actions-popover {
+  background: var(--bg-secondary, #1c2128);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+  min-width: 260px;
+  max-width: 440px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.75);
+  font-size: 12px;
+  color: var(--fg-primary, #e6edf3);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.cm-code-actions-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-muted, #8b949e);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cm-code-actions-list {
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.cm-code-action-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.cm-code-action-item:hover,
+.cm-code-action-item.active {
+  background: var(--accent-color, #1f6feb);
+  color: #fff;
+}
+
+.cm-code-action-icon {
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+}
+
+.cm-code-action-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm-code-action-preferred {
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1px 4px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+/* Symbol Rename Popover */
+.cm-rename-popover {
+  background: var(--bg-secondary, #1c2128);
+  border: 1px solid var(--accent-color, #58a6ff);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+}
+
+.cm-rename-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cm-rename-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--fg-muted, #8b949e);
+}
+
+.cm-rename-input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: #fff;
+  outline: none;
+  min-width: 200px;
+}
+
+.cm-rename-input:focus {
+  border-color: var(--accent-color, #58a6ff);
+}
+
+/* References Peek Panel */
+.cm-references-panel {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 500px;
+  max-height: 380px;
+  background: var(--bg-secondary, #1c2128);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+}
+
+.cm-ref-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cm-ref-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--fg-primary, #e6edf3);
+}
+
+.cm-ref-count {
+  font-size: 10px;
+  color: var(--fg-muted, #8b949e);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.cm-ref-close {
+  background: transparent;
+  border: none;
+  color: var(--fg-muted, #8b949e);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.cm-ref-close:hover {
+  color: #fff;
+}
+
+.cm-ref-body {
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cm-ref-file-group {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cm-ref-file-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+}
+
+.cm-ref-file-name {
+  font-weight: 600;
+  color: var(--fg-primary, #e6edf3);
+}
+
+.cm-ref-file-path {
+  color: var(--fg-muted, #8b949e);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.cm-ref-file-badge {
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--fg-muted, #8b949e);
+}
+
+.cm-ref-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.cm-ref-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.cm-ref-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--accent-color, #58a6ff);
+}
+
+.cm-ref-line-num {
+  color: var(--fg-muted, #8b949e);
+  min-width: 28px;
+}
+
+.cm-ref-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
 /* Settings LSP Server Cards */
 .lsp-servers-list {
   display: flex;

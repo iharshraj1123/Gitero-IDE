@@ -20,6 +20,11 @@ export interface KeybindingDefinition {
 
 export const KEYBINDING_DEFINITIONS: KeybindingDefinition[] = [
   { id: 'editor.action.goToDefinition', name: 'Go to Definition (F12 / Ctrl+Click)', category: 'Editor' },
+  { id: 'editor.action.formatDocument', name: 'Format Document (Shift+Alt+F)', category: 'Editor' },
+  { id: 'editor.action.rename', name: 'Rename Symbol across Files (F2)', category: 'Editor' },
+  { id: 'editor.action.findReferences', name: 'Find All References (Shift+F12)', category: 'Editor' },
+  { id: 'editor.action.quickFix', name: 'Quick Fix & Code Actions (Alt+Enter)', category: 'Editor' },
+  { id: 'editor.action.triggerParameterHints', name: 'Trigger Parameter Hints / Signature Help (Ctrl+Shift+Space)', category: 'Editor' },
   { id: 'workbench.action.quickOpen', name: 'Quick Open File', category: 'File' },
   { id: 'workbench.action.showCommands', name: 'Command Palette', category: 'View' },
   { id: 'workbench.action.files.save', name: 'Save File', category: 'File' },
@@ -229,6 +234,20 @@ export class SettingsModalComponent {
                     <span class="setting-desc">Show interactive error, warning, and search match dots along the scrollbar</span>
                   </div>
                   <input type="checkbox" id="setting-overview-ruler" class="setting-checkbox" checked />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Complete Function & Method Calls</span>
+                    <span class="setting-desc">Automatically insert parentheses and parameter arguments when accepting function/method autocomplete suggestions</span>
+                  </div>
+                  <input type="checkbox" id="setting-complete-function-calls" class="setting-checkbox" checked />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Format on Save</span>
+                    <span class="setting-desc">Automatically format the file using the active language server when saving</span>
+                  </div>
+                  <input type="checkbox" id="setting-format-on-save" class="setting-checkbox" />
                 </div>
               </div>
 
@@ -751,6 +770,16 @@ export class SettingsModalComponent {
                   </div>
                   <label class="setting-toggle">
                     <input type="checkbox" id="setting-lsp-hover" checked />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Signature Help (Parameter Hints)</span>
+                    <span class="setting-desc">Display active parameter signatures and documentation tooltips when typing inside argument lists</span>
+                  </div>
+                  <label class="setting-toggle">
+                    <input type="checkbox" id="setting-lsp-signature-help" checked />
                     <span class="toggle-slider"></span>
                   </label>
                 </div>
@@ -1817,6 +1846,22 @@ export class SettingsModalComponent {
       };
     }
 
+    const completeFunctionCallsToggle = this.overlay.querySelector('#setting-complete-function-calls') as HTMLInputElement;
+    if (completeFunctionCallsToggle) {
+      completeFunctionCallsToggle.checked = preferencesService.get('editor.suggest.completeFunctionCalls') !== false;
+      completeFunctionCallsToggle.onchange = () => {
+        preferencesService.set('editor.suggest.completeFunctionCalls', completeFunctionCallsToggle.checked);
+      };
+    }
+
+    const formatOnSaveToggle = this.overlay.querySelector('#setting-format-on-save') as HTMLInputElement;
+    if (formatOnSaveToggle) {
+      formatOnSaveToggle.checked = preferencesService.get('editor.formatOnSave') === true;
+      formatOnSaveToggle.onchange = () => {
+        preferencesService.set('editor.formatOnSave', formatOnSaveToggle.checked);
+      };
+    }
+
     const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;
     if (insertSpacesSelect) {
       insertSpacesSelect.value = String(preferencesService.get('editor.insertSpaces'));
@@ -1939,6 +1984,16 @@ export class SettingsModalComponent {
     const gitBlameToggle = this.overlay.querySelector('#setting-git-blame') as HTMLInputElement;
     if (gitBlameToggle) {
       preferencesService.set('editor.gitBlame.enabled', gitBlameToggle.checked);
+    }
+
+    const completeFunctionCallsToggle = this.overlay.querySelector('#setting-complete-function-calls') as HTMLInputElement;
+    if (completeFunctionCallsToggle) {
+      preferencesService.set('editor.suggest.completeFunctionCalls', completeFunctionCallsToggle.checked);
+    }
+
+    const formatOnSaveToggle = this.overlay.querySelector('#setting-format-on-save') as HTMLInputElement;
+    if (formatOnSaveToggle) {
+      preferencesService.set('editor.formatOnSave', formatOnSaveToggle.checked);
     }
 
     const insertSpacesSelect = this.overlay.querySelector('#setting-insert-spaces') as HTMLSelectElement;
@@ -2449,6 +2504,14 @@ export class SettingsModalComponent {
       lspHoverInput.checked = preferencesService.get('lsp.hover') !== false;
       lspHoverInput.addEventListener('change', () => {
         preferencesService.set('lsp.hover', lspHoverInput.checked);
+      });
+    }
+
+    const lspSignatureHelpInput = this.overlay.querySelector('#setting-lsp-signature-help') as HTMLInputElement;
+    if (lspSignatureHelpInput) {
+      lspSignatureHelpInput.checked = preferencesService.get('lsp.signatureHelp.enabled') !== false;
+      lspSignatureHelpInput.addEventListener('change', () => {
+        preferencesService.set('lsp.signatureHelp.enabled', lspSignatureHelpInput.checked);
       });
     }
 

@@ -33,6 +33,10 @@ import {
   updateViewDiagnostics,
   NavigateToLocationHandler
 } from './lspExtension';
+import { createSignatureHelpExtension } from './signatureHelp';
+import { createCodeActionsExtension } from './codeActions';
+import { createRenameExtension } from './renameWidget';
+import { createReferencesExtension } from './referencesWidget';
 import { lspClient, pathToUri, areUrisOrPathsMatching } from '../services/lsp/lspClient';
 import { createGitGutterExtension, updateGitGutter, parseUnifiedDiff } from './gitGutter';
 import { createMergeConflictExtension } from './mergeConflict';
@@ -194,6 +198,33 @@ export class EditorManager {
         },
         () => this.flushPendingDocumentChanges()
       ),
+      createSignatureHelpExtension(
+        () => this.currentFilePath,
+        () => this.currentLanguageId,
+        () => this.flushPendingDocumentChanges()
+      ),
+      createCodeActionsExtension(
+        () => this.currentFilePath,
+        () => this.currentLanguageId,
+        () => this.flushPendingDocumentChanges()
+      ),
+      createRenameExtension(
+        () => this.currentFilePath,
+        () => this.currentLanguageId,
+        () => this.flushPendingDocumentChanges()
+      ),
+      createReferencesExtension(
+        () => this.currentFilePath,
+        () => this.currentLanguageId,
+        (targetPath, line, col) => {
+          if (this.onNavigateToLocation) {
+            this.onNavigateToLocation(targetPath, line, col);
+          } else {
+            this.gotoLine(line, col);
+          }
+        },
+        () => this.flushPendingDocumentChanges()
+      ),
       smartHighlightActiveLine,
       highlightSelectionMatches(),
       search({
@@ -208,6 +239,7 @@ export class EditorManager {
       keymap.of([
         { key: 'Mod-/', run: toggleComment },
         { key: 'Mod-Shift-/', run: toggleBlockComment },
+        { key: 'Shift-Alt-f', run: () => { this.formatDocument(); return true; } },
         { key: 'Shift-Alt-ArrowDown', run: copyLineDown },
         { key: 'Shift-Alt-ArrowUp', run: copyLineUp },
         { key: 'Alt-ArrowDown', run: moveLineDown },
@@ -353,6 +385,34 @@ export class EditorManager {
     lspClient.onDiagnostics((params) => {
       if (this.view && this.currentFilePath && areUrisOrPathsMatching(params.uri, this.currentFilePath)) {
         updateViewDiagnostics(this.view, this.currentFilePath, params.diagnostics);
+      }
+    });
+
+    // Apply workspace edits in active view with undo support
+    window.addEventListener('gitero:apply-workspace-edit', (evt: any) => {
+      const changesMap = evt?.detail?.changes as Map<string, any[]> | undefined;
+      if (!changesMap || !this.view || !this.currentFilePath) return;
+
+      for (const [p, edits] of changesMap.entries()) {
+        if (areUrisOrPathsMatching(p, this.currentFilePath)) {
+          const doc = this.view.state.doc;
+          const sortedEdits = [...edits].sort((a, b) => {
+            if (b.range.start.line !== a.range.start.line) {
+              return b.range.start.line - a.range.start.line;
+            }
+            return b.range.start.character - a.range.start.character;
+          });
+          const changes = sortedEdits.map((te) => {
+            const startLineNum = Math.min(doc.lines, te.range.start.line + 1);
+            const endLineNum = Math.min(doc.lines, te.range.end.line + 1);
+            const startLine = doc.line(startLineNum);
+            const endLine = doc.line(endLineNum);
+            const f = Math.min(doc.length, startLine.from + te.range.start.character);
+            const t = Math.min(doc.length, endLine.from + te.range.end.character);
+            return { from: f, to: t, insert: te.newText };
+          });
+          this.view.dispatch({ changes });
+        }
       }
     });
 
@@ -504,6 +564,47 @@ export class EditorManager {
         insert: content
       }
     });
+  }
+
+  async formatDocument(): Promise<boolean> {
+    if (!this.view || !this.currentFilePath || !this.currentLanguageId) return false;
+    this.flushPendingDocumentChanges();
+    const tabSize = preferencesService.get('editor.tabSize') || 2;
+    const insertSpaces = preferencesService.get('editor.insertSpaces') !== false;
+
+    try {
+      const edits = await lspClient.requestFormatting(this.currentFilePath, this.currentLanguageId, {
+        tabSize,
+        insertSpaces
+      });
+      if (!edits || edits.length === 0) {
+        return false;
+      }
+
+      const doc = this.view.state.doc;
+      const sortedEdits = [...edits].sort((a, b) => {
+        if (b.range.start.line !== a.range.start.line) {
+          return b.range.start.line - a.range.start.line;
+        }
+        return b.range.start.character - a.range.start.character;
+      });
+
+      const changes = sortedEdits.map((te) => {
+        const startLineNum = Math.min(doc.lines, te.range.start.line + 1);
+        const endLineNum = Math.min(doc.lines, te.range.end.line + 1);
+        const startLine = doc.line(startLineNum);
+        const endLine = doc.line(endLineNum);
+        const f = Math.min(doc.length, startLine.from + te.range.start.character);
+        const t = Math.min(doc.length, endLine.from + te.range.end.character);
+        return { from: f, to: t, insert: te.newText };
+      });
+
+      this.view.dispatch({ changes });
+      return true;
+    } catch (err) {
+      console.warn('[Format Document Error]', err);
+      return false;
+    }
   }
 
   setLanguage(filePath: string) {

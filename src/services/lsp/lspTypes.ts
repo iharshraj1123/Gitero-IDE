@@ -98,6 +98,21 @@ export interface MarkupContent {
   value: string;
 }
 
+export interface TextEdit {
+  range: Range;
+  newText: string;
+}
+
+export interface TextDocumentEdit {
+  textDocument: VersionedTextDocumentIdentifier;
+  edits: TextEdit[];
+}
+
+export interface WorkspaceEdit {
+  changes?: Record<string, TextEdit[]>;
+  documentChanges?: (TextDocumentEdit | any)[];
+}
+
 export interface CompletionItem {
   label: string;
   kind?: CompletionItemKind;
@@ -107,10 +122,11 @@ export interface CompletionItem {
   filterText?: string;
   insertText?: string;
   insertTextFormat?: number; // 1 = PlainText, 2 = Snippet
-  textEdit?: {
-    range: Range;
-    newText: string;
-  };
+  textEdit?: TextEdit | { range: Range; newText: string };
+  additionalTextEdits?: TextEdit[];
+  commitCharacters?: string[];
+  command?: any;
+  data?: any;
 }
 
 export interface CompletionList {
@@ -142,6 +158,65 @@ export interface PublishDiagnosticsParams {
 export interface Hover {
   contents: string | MarkupContent | Array<string | MarkupContent>;
   range?: Range;
+}
+
+export interface ParameterInformation {
+  label: string | [number, number];
+  documentation?: string | MarkupContent;
+}
+
+export interface SignatureInformation {
+  label: string;
+  documentation?: string | MarkupContent;
+  parameters?: ParameterInformation[];
+  activeParameter?: number;
+}
+
+export interface SignatureHelp {
+  signatures: SignatureInformation[];
+  activeSignature?: number;
+  activeParameter?: number;
+}
+
+export interface CodeActionContext {
+  diagnostics: Diagnostic[];
+  only?: string[];
+}
+
+export interface CodeAction {
+  title: string;
+  kind?: string;
+  diagnostics?: Diagnostic[];
+  isPreferred?: boolean;
+  edit?: WorkspaceEdit;
+  command?: any;
+}
+
+export interface FormattingOptions {
+  tabSize: number;
+  insertSpaces: boolean;
+  trimTrailingWhitespace?: boolean;
+  insertFinalNewline?: boolean;
+  trimFinalNewlines?: boolean;
+  [key: string]: any;
+}
+
+export interface ServerCapabilities {
+  completionProvider?: {
+    triggerCharacters?: string[];
+    resolveProvider?: boolean;
+  };
+  signatureHelpProvider?: {
+    triggerCharacters?: string[];
+    retriggerCharacters?: string[];
+  };
+  hoverProvider?: boolean;
+  definitionProvider?: boolean;
+  referencesProvider?: boolean;
+  renameProvider?: boolean | { prepareProvider?: boolean };
+  documentFormattingProvider?: boolean;
+  codeActionProvider?: boolean | { codeActionKinds?: string[] };
+  [key: string]: any;
 }
 
 export interface ServerConfig {

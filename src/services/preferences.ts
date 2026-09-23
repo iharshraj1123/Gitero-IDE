@@ -23,6 +23,8 @@ export interface GiteroPreferences {
   'editor.insertFinalNewline': boolean;
   'editor.gitGutter.enabled': boolean;
   'editor.gitBlame.enabled': boolean;
+  'editor.suggest.completeFunctionCalls': boolean;
+  'editor.formatOnSave': boolean;
 
   // Files
   'files.autoSave': boolean;
@@ -78,6 +80,7 @@ export interface GiteroPreferences {
   'lsp.enabled': boolean;
   'lsp.diagnostics': boolean;
   'lsp.hover': boolean;
+  'lsp.signatureHelp.enabled': boolean;
   'lsp.customServers': Record<string, { command: string; args: string[]; enabled: boolean }>;
   'lsp.userServers': Record<string, { id: string; name: string; languages: string[]; defaultCommand: string; defaultArgs: string[]; installGuide?: string }>;
   'lsp.mutedPrompts': string[];
@@ -123,7 +126,12 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   'workbench.action.toggleDevTools': 'Ctrl+Shift+I',
   'workbench.action.explorerHotkey': 'Ctrl+.',
   'editor.action.cycleCursorStyle': 'Alt+0',
-  'editor.action.goToDefinition': 'F12'
+  'editor.action.goToDefinition': 'F12',
+  'editor.action.formatDocument': 'Shift+Alt+F',
+  'editor.action.rename': 'F2',
+  'editor.action.findReferences': 'Shift+F12',
+  'editor.action.quickFix': 'Alt+Enter',
+  'editor.action.triggerParameterHints': 'Ctrl+Shift+Space'
 };
 
 export const DEFAULT_PREFERENCES: GiteroPreferences = {
@@ -146,6 +154,8 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'editor.insertFinalNewline': false,
   'editor.gitGutter.enabled': true,
   'editor.gitBlame.enabled': true,
+  'editor.suggest.completeFunctionCalls': true,
+  'editor.formatOnSave': false,
   'files.autoSave': false,
   'files.autoSaveDelay': 1000,
   'workbench.iconTheme': 'lucide',
@@ -165,6 +175,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'lsp.enabled': true,
   'lsp.diagnostics': true,
   'lsp.hover': true,
+  'lsp.signatureHelp.enabled': true,
   'lsp.customServers': {},
   'lsp.userServers': {},
   'lsp.mutedPrompts': [],

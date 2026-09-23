@@ -4,22 +4,30 @@
  */
 
 import {
+  CodeAction,
   CompletionItem,
   CompletionList,
   Diagnostic,
   DiagnosticSeverity,
+  FormattingOptions,
   Hover,
   Location,
   LspServerStatus,
   LspStatusEvent,
   PublishDiagnosticsParams,
-  ServerConfig
+  Range,
+  ServerCapabilities,
+  ServerConfig,
+  SignatureHelp,
+  TextEdit,
+  WorkspaceEdit
 } from './lspTypes';
 import { JsonRpcConnection } from './jsonRpc';
 import { LspProcess } from './lspProcess';
 import { lspServerRegistry } from './lspServerRegistry';
 import { preferencesService } from '../preferences';
 import { notificationService } from '../notification';
+import { fsService } from '../fs';
 
 export function pathToUri(filePath: string): string {
   let normalized = filePath.replace(/\\/g, '/');
@@ -75,6 +83,7 @@ interface ActiveSession {
   fileVersions: Map<string, number>;
   pendingOpenDocuments: Map<string, PendingOpenDocument>;
   activeCompletionRequestId?: number;
+  capabilities?: ServerCapabilities;
 }
 
 export class LspClient {
@@ -445,12 +454,26 @@ export class LspClient {
                 commitCharactersSupport: true,
                 documentationFormat: ['markdown', 'plaintext'],
                 deprecatedSupport: true,
-                preselectSupport: true
+                preselectSupport: true,
+                insertReplaceSupport: true,
+                resolveSupport: {
+                  properties: ['documentation', 'detail', 'additionalTextEdits']
+                }
               },
               completionItemKind: {
                 valueSet: Array.from({ length: 25 }, (_, i) => i + 1)
               },
               contextSupport: true
+            },
+            signatureHelp: {
+              dynamicRegistration: false,
+              signatureInformation: {
+                documentationFormat: ['markdown', 'plaintext'],
+                parameterInformation: {
+                  labelOffsetSupport: true
+                },
+                activeParameterSupport: true
+              }
             },
             hover: {
               dynamicRegistration: false,
@@ -460,9 +483,43 @@ export class LspClient {
               dynamicRegistration: false,
               linkSupport: true
             },
+            references: {
+              dynamicRegistration: false
+            },
+            rename: {
+              dynamicRegistration: false,
+              prepareSupport: true
+            },
+            formatting: {
+              dynamicRegistration: false
+            },
+            codeAction: {
+              dynamicRegistration: false,
+              codeActionLiteralSupport: {
+                codeActionKind: {
+                  valueSet: [
+                    '',
+                    'quickfix',
+                    'refactor',
+                    'refactor.extract',
+                    'refactor.inline',
+                    'refactor.rewrite',
+                    'source',
+                    'source.organizeImports'
+                  ]
+                }
+              },
+              isPreferredSupport: true
+            },
             publishDiagnostics: {
               relatedInformation: true,
               versionSupport: true
+            }
+          },
+          workspace: {
+            applyEdit: true,
+            workspaceEdit: {
+              documentChanges: true
             }
           }
         },
@@ -471,6 +528,7 @@ export class LspClient {
       });
 
       await connection.notify('initialized', {});
+      session.capabilities = initResult?.capabilities;
       session.status = 'ready';
       this.emitStatus(normLang, 'ready', config.name);
 
@@ -764,6 +822,271 @@ export class LspClient {
     } catch (err) {
       return null;
     }
+  }
+
+  /**
+   * Retrieves server capabilities for a given language ID if initialized.
+   */
+  getServerCapabilities(languageId: string): ServerCapabilities | undefined {
+    const session = this.getSessionForLanguage(languageId);
+    return session?.capabilities;
+  }
+
+  /**
+   * Resolves additional documentation and edits for a highlighted completion item.
+   */
+  async resolveCompletionItem(
+    languageId: string,
+    item: CompletionItem
+  ): Promise<CompletionItem> {
+    const session = this.getSessionForLanguage(languageId);
+    if (!session || session.status !== 'ready') return item;
+    if (!session.capabilities?.completionProvider?.resolveProvider) {
+      return item;
+    }
+
+    try {
+      const resolved = await session.connection.request<CompletionItem>(
+        'completionItem/resolve',
+        item,
+        2500
+      );
+      return resolved || item;
+    } catch {
+      return item;
+    }
+  }
+
+  /**
+   * Requests signature help (parameter hints) at the current cursor position.
+   */
+  async requestSignatureHelp(
+    filePath: string,
+    languageId: string,
+    line: number,
+    character: number,
+    triggerCharacter?: string
+  ): Promise<SignatureHelp | null> {
+    const session = this.getSessionForLanguage(languageId);
+    if (!session || session.status !== 'ready') return null;
+
+    const uri = pathToUri(filePath);
+    try {
+      const res = await session.connection.request<SignatureHelp>(
+        'textDocument/signatureHelp',
+        {
+          textDocument: { uri },
+          position: { line, character },
+          context: {
+            triggerKind: triggerCharacter ? 2 : 1, // 1 = Invoked, 2 = TriggerCharacter
+            triggerCharacter,
+            isRetrigger: false
+          }
+        },
+        3000
+      );
+      return res || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Requests code actions (quick fixes, refactorings) for a given range and diagnostics.
+   */
+  async requestCodeActions(
+    filePath: string,
+    languageId: string,
+    range: Range,
+    diagnostics: Diagnostic[]
+  ): Promise<CodeAction[]> {
+    const session = this.getSessionForLanguage(languageId);
+    if (!session || session.status !== 'ready') return [];
+
+    const uri = pathToUri(filePath);
+    try {
+      const res = await session.connection.request<(CodeAction | any)[]>(
+        'textDocument/codeAction',
+        {
+          textDocument: { uri },
+          range,
+          context: {
+            diagnostics
+          }
+        },
+        4000
+      );
+      if (!Array.isArray(res)) return [];
+      return res.map((act) => {
+        if ('title' in act) return act;
+        return {
+          title: act.command?.title || 'Apply action',
+          command: act
+        };
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Requests document formatting edits.
+   */
+  async requestFormatting(
+    filePath: string,
+    languageId: string,
+    options: FormattingOptions
+  ): Promise<TextEdit[]> {
+    const session = this.getSessionForLanguage(languageId);
+    if (!session || session.status !== 'ready') return [];
+
+    const uri = pathToUri(filePath);
+    try {
+      const res = await session.connection.request<TextEdit[]>(
+        'textDocument/formatting',
+        {
+          textDocument: { uri },
+          options
+        },
+        6000
+      );
+      return Array.isArray(res) ? res : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Requests symbol rename across workspace.
+   */
+  async requestRename(
+    filePath: string,
+    languageId: string,
+    line: number,
+    character: number,
+    newName: string
+  ): Promise<WorkspaceEdit | null> {
+    const session = this.getSessionForLanguage(languageId);
+    if (!session || session.status !== 'ready') return null;
+
+    const uri = pathToUri(filePath);
+    try {
+      const res = await session.connection.request<WorkspaceEdit>(
+        'textDocument/rename',
+        {
+          textDocument: { uri },
+          position: { line, character },
+          newName
+        },
+        6000
+      );
+      return res || null;
+    } catch (err: any) {
+      notificationService.warn('Rename Failed', err?.message || 'Symbol could not be renamed.');
+      return null;
+    }
+  }
+
+  /**
+   * Requests all references of the symbol at the cursor.
+   */
+  async requestReferences(
+    filePath: string,
+    languageId: string,
+    line: number,
+    character: number
+  ): Promise<Location[]> {
+    const session = this.getSessionForLanguage(languageId);
+    if (!session || session.status !== 'ready') return [];
+
+    const uri = pathToUri(filePath);
+    try {
+      const res = await session.connection.request<Location[]>(
+        'textDocument/references',
+        {
+          textDocument: { uri },
+          position: { line, character },
+          context: { includeDeclaration: true }
+        },
+        6000
+      );
+      return Array.isArray(res) ? res : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Applies a WorkspaceEdit across open editors or files on disk.
+   */
+  async applyWorkspaceEdit(edit: WorkspaceEdit): Promise<boolean> {
+    if (!edit) return false;
+
+    const changesMap = new Map<string, TextEdit[]>();
+
+    if (edit.changes) {
+      for (const [uri, edits] of Object.entries(edit.changes)) {
+        const filePath = uriToPath(uri);
+        changesMap.set(filePath, edits);
+      }
+    }
+
+    if (edit.documentChanges && Array.isArray(edit.documentChanges)) {
+      for (const docChange of edit.documentChanges) {
+        if ('textDocument' in docChange && 'edits' in docChange) {
+          const filePath = uriToPath(docChange.textDocument.uri);
+          const existing = changesMap.get(filePath) || [];
+          changesMap.set(filePath, [...existing, ...docChange.edits]);
+        }
+      }
+    }
+
+    if (changesMap.size === 0) return false;
+
+    // Dispatch event so active editor view can apply changes in-memory with undo support
+    window.dispatchEvent(new CustomEvent('gitero:apply-workspace-edit', { detail: { changes: changesMap } }));
+
+    // Apply edits to any files on disk
+    for (const [filePath, edits] of changesMap.entries()) {
+      try {
+        const content = await fsService.readFile(filePath);
+        const sortedEdits = [...edits].sort((a, b) => {
+          if (b.range.start.line !== a.range.start.line) {
+            return b.range.start.line - a.range.start.line;
+          }
+          return b.range.start.character - a.range.start.character;
+        });
+
+        const lines = content.split('\n');
+        for (const te of sortedEdits) {
+          const startLine = te.range.start.line;
+          const startChar = te.range.start.character;
+          const endLine = te.range.end.line;
+          const endChar = te.range.end.character;
+
+          if (startLine < lines.length && endLine < lines.length) {
+            const before = lines[startLine].slice(0, startChar);
+            const after = lines[endLine].slice(endChar);
+            const replacementLines = te.newText.split('\n');
+            if (replacementLines.length === 1) {
+              lines.splice(startLine, endLine - startLine + 1, before + replacementLines[0] + after);
+            } else {
+              const newBlock = [
+                before + replacementLines[0],
+                ...replacementLines.slice(1, -1),
+                replacementLines[replacementLines.length - 1] + after
+              ];
+              lines.splice(startLine, endLine - startLine + 1, ...newBlock);
+            }
+          }
+        }
+        await fsService.writeFile(filePath, lines.join('\n'));
+      } catch (err) {
+        console.warn(`[LSP Client] Failed to write edit to ${filePath}:`, err);
+      }
+    }
+
+    return true;
   }
 
   /**
