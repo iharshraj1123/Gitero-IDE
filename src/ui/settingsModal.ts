@@ -1133,7 +1133,7 @@ export class SettingsModalComponent {
             <div class="update-avail-box">
               <span class="status-badge badge-avail">Update Available</span>
               <div class="commit-details">
-                <div><strong>Commit:</strong> <code>${result.latestSha}</code></div>
+                <div><strong>Commit:</strong> <code>${result.latestSha}</code> <a href="https://github.com/iharshraj1123/Gitero-IDE/commit/${result.latestSha}" target="_blank" rel="noopener noreferrer" style="margin-left: 8px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View on GitHub</a></div>
                 <div><strong>Message:</strong> ${result.latestCommit?.message}</div>
                 <div><strong>Author:</strong> ${result.latestCommit?.author} (${new Date(result.latestCommit?.date || '').toLocaleDateString()})</div>
               </div>
@@ -1145,7 +1145,7 @@ export class SettingsModalComponent {
           statusMsg.innerHTML = `
             <div class="update-uptodate-box">
               <span class="status-badge badge-latest">Up to Date</span>
-              <span>You are already running the latest commit (<code>${result.currentSha}</code>) on branch <strong>${branch}</strong>.</span>
+              <span>You are already running the latest commit (<code>${result.currentSha}</code>) on branch <strong>${branch}</strong>. <a href="https://github.com/iharshraj1123/Gitero-IDE/commits/${branch}" target="_blank" rel="noopener noreferrer" style="margin-left: 6px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View commits</a></span>
             </div>
           `;
           applyBtn.disabled = false;

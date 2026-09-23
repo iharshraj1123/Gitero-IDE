@@ -32,10 +32,14 @@ import { NotificationCenterComponent } from './ui/notificationCenter';
 import { notificationService } from './services/notification';
 import { checkMissingLsp } from './services/lsp/lspDetector';
 import { DISPLAY_VERSION } from './version';
+import { initExternalLinkHandler, openExternal } from './services/externalLinkService';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
   const startTime = performance.now();
+
+  // 0. Initialize global external link handler to route all external URLs to the OS default browser
+  initExternalLinkHandler();
 
   // 1. Initialize native platform (if running in Neutralino binary)
   await initNeutralino();
@@ -113,7 +117,10 @@ async function bootstrap() {
   const mediaViewport = document.getElementById('media-viewport') as HTMLElement;
   const btnMdToggle = document.getElementById('btn-md-toggle') as HTMLElement;
   const mdToggleText = document.getElementById('md-toggle-text') as HTMLElement;
-  const markdownViewer = new MarkdownViewerComponent(markdownViewport);
+  let fileOpenHandler: (filePath: string) => void = () => {};
+  const markdownViewer = new MarkdownViewerComponent(markdownViewport, {
+    onOpenFile: (filePath) => fileOpenHandler(filePath)
+  });
   const mediaViewer = new MediaViewerComponent(mediaViewport);
 
   const sidebarResizerEl = document.getElementById('sidebar-resizer') as HTMLElement;
@@ -782,6 +789,12 @@ async function bootstrap() {
     onCheckUpdates: () => {
       settingsModal.open('updates');
     },
+    onOpenDocumentation: () => {
+      openExternal('https://github.com/iharshraj1123/Gitero-IDE#readme');
+    },
+    onReportIssue: () => {
+      openExternal('https://github.com/iharshraj1123/Gitero-IDE/issues');
+    },
     onAbout: () => {
       alert(`Gitero IDE ${DISPLAY_VERSION}\nHigh-Performance Developer Studio with Native Neutralino Engine.\nZero emojis. Pure speed.`);
     }
@@ -1025,6 +1038,8 @@ async function bootstrap() {
       alert(`Could not open file: ${err}`);
     }
   }
+
+  fileOpenHandler = (p) => openWorkspaceFileFromSearch(p);
 
   async function performSidebarFileSearch() {
     if (!sidebarSearchInput || !sidebarSearchSuggestions) return;
@@ -2048,6 +2063,20 @@ Tokyo Night, One Dark Pro, Dracula, Catppuccin Mocha, Monokai, and GitHub Dark.
         detail: 'Ctrl+K Ctrl+S',
         category: 'Help',
         action: () => shortcutsModal.open()
+      },
+      {
+        id: 'help.documentation',
+        title: 'Help: Documentation & Website',
+        detail: 'Open documentation in default browser',
+        category: 'Help',
+        action: () => openExternal('https://github.com/iharshraj1123/Gitero-IDE#readme')
+      },
+      {
+        id: 'help.reportIssue',
+        title: 'Help: Report Issue / Feedback',
+        detail: 'Open issue tracker in default browser',
+        category: 'Help',
+        action: () => openExternal('https://github.com/iharshraj1123/Gitero-IDE/issues')
       },
       {
         id: 'workbench.action.toggleFullScreen',
