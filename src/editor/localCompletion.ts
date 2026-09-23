@@ -91,8 +91,8 @@ const RUNTIME_MEMBERS: Record<string, Record<string, MemberDef[]>> = {
       { label: 'querySelector', type: 'method', detail: '(selectors: string): Element | null', template: "querySelector('${1:selector}')" },
       { label: 'querySelectorAll', type: 'method', detail: '(selectors: string): NodeListOf<Element>', template: "querySelectorAll('${1:selector}')" },
       { label: 'createElement', type: 'method', detail: '(tagName: string): HTMLElement', template: "createElement('${1:div}')" },
-      { label: 'addEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "addEventListener('${1:DOMContentLoaded}', (${2:e}) => {\n\t${0}\n})" },
-      { label: 'removeEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "removeEventListener('${1:DOMContentLoaded}', ${2:listener})" },
+      { label: 'addEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "addEventListener('${1:click}', (${2:event}) => {\n\t${0}\n})" },
+      { label: 'removeEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "removeEventListener('${1:click}', ${2:listener})" },
       { label: 'body', type: 'property', detail: 'HTMLBodyElement' },
       { label: 'head', type: 'property', detail: 'HTMLHeadElement' },
       { label: 'title', type: 'property', detail: 'string' },
@@ -100,7 +100,7 @@ const RUNTIME_MEMBERS: Record<string, Record<string, MemberDef[]>> = {
       { label: 'location', type: 'property', detail: 'Location' }
     ],
     element: [
-      { label: 'addEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "addEventListener('${1:click}', (${2:e}) => {\n\t${0}\n})" },
+      { label: 'addEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "addEventListener('${1:click}', (${2:event}) => {\n\t${0}\n})" },
       { label: 'removeEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "removeEventListener('${1:click}', ${2:listener})" },
       { label: 'querySelector', type: 'method', detail: '(selectors: string): Element | null', template: "querySelector('${1:selector}')" },
       { label: 'querySelectorAll', type: 'method', detail: '(selectors: string): NodeListOf<Element>', template: "querySelectorAll('${1:selector}')" },
@@ -129,8 +129,8 @@ const RUNTIME_MEMBERS: Record<string, Record<string, MemberDef[]>> = {
       { label: 'disabled', type: 'property', detail: 'boolean' }
     ],
     window: [
-      { label: 'addEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "addEventListener('${1:resize}', (${2:e}) => {\n\t${0}\n})" },
-      { label: 'removeEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "removeEventListener('${1:resize}', ${2:listener})" },
+      { label: 'addEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "addEventListener('${1:click}', (${2:event}) => {\n\t${0}\n})" },
+      { label: 'removeEventListener', type: 'method', detail: '(type: string, listener: EventListener): void', template: "removeEventListener('${1:click}', ${2:listener})" },
       { label: 'fetch', type: 'method', detail: '(input: RequestInfo, init?: RequestInit): Promise<Response>', template: "fetch('${1:url}')" },
       { label: 'setTimeout', type: 'method', detail: '(handler: Function, timeout?: number): number', template: "setTimeout(() => {\n\t${0}\n}, ${1:1000});" },
       { label: 'clearTimeout', type: 'method', detail: '(id: number): void', template: 'clearTimeout(${1:id})' },
@@ -179,6 +179,110 @@ const RUNTIME_MEMBERS: Record<string, Record<string, MemberDef[]>> = {
       { label: 'isArray', type: 'method', detail: '(arg: any): boolean', template: 'isArray(${1:arg})' },
       { label: 'from', type: 'method', detail: '(arrayLike: any): any[]', template: 'from(${1:arrayLike})' },
       { label: 'of', type: 'method', detail: '(...items: any[]): any[]', template: 'of(${1:items})' }
+    ],
+    array_instance: [
+      { label: 'map', type: 'method', detail: '(callback: (item: T) => U): U[]', template: 'map((${1:item}) => ${0})' },
+      { label: 'filter', type: 'method', detail: '(predicate: (item: T) => boolean): T[]', template: 'filter((${1:item}) => ${0})' },
+      { label: 'forEach', type: 'method', detail: '(callback: (item: T) => void): void', template: 'forEach((${1:item}) => {\n\t${0}\n})' },
+      { label: 'reduce', type: 'method', detail: '(callback: (acc: U, curr: T) => U, initial: U): U', template: 'reduce((${1:acc}, ${2:curr}) => {\n\t${0}\n}, ${3:initialValue})' },
+      { label: 'find', type: 'method', detail: '(predicate: (item: T) => boolean): T | undefined', template: 'find((${1:item}) => ${0})' },
+      { label: 'findIndex', type: 'method', detail: '(predicate: (item: T) => boolean): number', template: 'findIndex((${1:item}) => ${0})' },
+      { label: 'some', type: 'method', detail: '(predicate: (item: T) => boolean): boolean', template: 'some((${1:item}) => ${0})' },
+      { label: 'every', type: 'method', detail: '(predicate: (item: T) => boolean): boolean', template: 'every((${1:item}) => ${0})' },
+      { label: 'flatMap', type: 'method', detail: '(callback: (item: T) => U[]): U[]', template: 'flatMap((${1:item}) => ${0})' },
+      { label: 'includes', type: 'method', detail: '(searchElement: T): boolean', template: 'includes(${1:searchElement})' },
+      { label: 'indexOf', type: 'method', detail: '(searchElement: T): number', template: 'indexOf(${1:searchElement})' },
+      { label: 'slice', type: 'method', detail: '(start?: number, end?: number): T[]', template: 'slice(${1:start}, ${2:end})' },
+      { label: 'splice', type: 'method', detail: '(start: number, deleteCount?: number): T[]', template: 'splice(${1:start}, ${2:deleteCount})' },
+      { label: 'push', type: 'method', detail: '(...items: T[]): number', template: 'push(${1:item})' },
+      { label: 'pop', type: 'method', detail: '(): T | undefined', template: 'pop()' },
+      { label: 'shift', type: 'method', detail: '(): T | undefined', template: 'shift()' },
+      { label: 'unshift', type: 'method', detail: '(...items: T[]): number', template: 'unshift(${1:item})' },
+      { label: 'join', type: 'method', detail: '(separator?: string): string', template: "join('${1:,}')" },
+      { label: 'sort', type: 'method', detail: '(compareFn?: (a: T, b: T) => number): this', template: 'sort((${1:a}, ${2:b}) => ${0})' },
+      { label: 'length', type: 'property', detail: 'number' }
+    ],
+    string_instance: [
+      { label: 'split', type: 'method', detail: '(separator: string | RegExp): string[]', template: "split('${1:,}')" },
+      { label: 'replace', type: 'method', detail: '(searchValue: string | RegExp, replaceValue: string): string', template: "replace('${1:search}', '${2:replace}')" },
+      { label: 'replaceAll', type: 'method', detail: '(searchValue: string | RegExp, replaceValue: string): string', template: "replaceAll('${1:search}', '${2:replace}')" },
+      { label: 'trim', type: 'method', detail: '(): string', template: 'trim()' },
+      { label: 'toLowerCase', type: 'method', detail: '(): string', template: 'toLowerCase()' },
+      { label: 'toUpperCase', type: 'method', detail: '(): string', template: 'toUpperCase()' },
+      { label: 'includes', type: 'method', detail: '(searchString: string): boolean', template: "includes('${1:search}')" },
+      { label: 'startsWith', type: 'method', detail: '(searchString: string): boolean', template: "startsWith('${1:search}')" },
+      { label: 'endsWith', type: 'method', detail: '(searchString: string): boolean', template: "endsWith('${1:search}')" },
+      { label: 'substring', type: 'method', detail: '(start: number, end?: number): string', template: 'substring(${1:start}, ${2:end})' },
+      { label: 'charAt', type: 'method', detail: '(pos: number): string', template: 'charAt(${1:index})' },
+      { label: 'length', type: 'property', detail: 'number' }
+    ]
+  },
+  python: {
+    os: [
+      { label: 'path', type: 'property', detail: 'os.path module' },
+      { label: 'listdir', type: 'method', detail: '(path=".") -> list[str]', template: "listdir('${1:.}')" },
+      { label: 'getcwd', type: 'method', detail: '() -> str', template: 'getcwd()' },
+      { label: 'mkdir', type: 'method', detail: '(path, mode=0o777) -> None', template: "mkdir('${1:path}')" },
+      { label: 'remove', type: 'method', detail: '(path) -> None', template: "remove('${1:path}')" },
+      { label: 'environ', type: 'property', detail: 'os._Environ[str, str]' }
+    ],
+    sys: [
+      { label: 'argv', type: 'property', detail: 'list[str]' },
+      { label: 'exit', type: 'method', detail: '(status=None) -> None', template: 'exit(${1:0})' },
+      { label: 'path', type: 'property', detail: 'list[str]' },
+      { label: 'stdout', type: 'property', detail: 'TextIO' },
+      { label: 'stderr', type: 'property', detail: 'TextIO' }
+    ],
+    json: [
+      { label: 'loads', type: 'method', detail: '(s, ...) -> Any', template: 'loads(${1:s})' },
+      { label: 'dumps', type: 'method', detail: '(obj, indent=None, ...) -> str', template: 'dumps(${1:obj}, indent=2)' },
+      { label: 'load', type: 'method', detail: '(fp, ...) -> Any', template: 'load(${1:fp})' },
+      { label: 'dump', type: 'method', detail: '(obj, fp, ...) -> None', template: 'dump(${1:obj}, ${2:fp}, indent=2)' }
+    ],
+    math: [
+      { label: 'floor', type: 'method', detail: '(x) -> int', template: 'floor(${1:x})' },
+      { label: 'ceil', type: 'method', detail: '(x) -> int', template: 'ceil(${1:x})' },
+      { label: 'sqrt', type: 'method', detail: '(x) -> float', template: 'sqrt(${1:x})' },
+      { label: 'pi', type: 'property', detail: 'float' }
+    ]
+  },
+  go: {
+    fmt: [
+      { label: 'Println', type: 'method', detail: '(a ...any) (n int, err error)', template: 'Println(${1:a})' },
+      { label: 'Printf', type: 'method', detail: '(format string, a ...any) (n int, err error)', template: 'Printf("${1:%v\\n}", ${2:a})' },
+      { label: 'Sprintf', type: 'method', detail: '(format string, a ...any) string', template: 'Sprintf("${1:%v}", ${2:a})' },
+      { label: 'Errorf', type: 'method', detail: '(format string, a ...any) error', template: 'Errorf("${1:failed: %w}", ${2:err})' }
+    ],
+    strings: [
+      { label: 'Contains', type: 'method', detail: '(s, substr string) bool', template: 'Contains(${1:s}, "${2:substr}")' },
+      { label: 'Split', type: 'method', detail: '(s, sep string) []string', template: 'Split(${1:s}, "${2:,}")' },
+      { label: 'Join', type: 'method', detail: '(elems []string, sep string) string', template: 'Join(${1:elems}, "${2:,}")' },
+      { label: 'ReplaceAll', type: 'method', detail: '(s, old, new string) string', template: 'ReplaceAll(${1:s}, "${2:old}", "${3:new}")' },
+      { label: 'ToLower', type: 'method', detail: '(s string) string', template: 'ToLower(${1:s})' },
+      { label: 'ToUpper', type: 'method', detail: '(s string) string', template: 'ToUpper(${1:s})' }
+    ],
+    os: [
+      { label: 'Open', type: 'method', detail: '(name string) (*File, error)', template: 'Open("${1:path}")' },
+      { label: 'Create', type: 'method', detail: '(name string) (*File, error)', template: 'Create("${1:path}")' },
+      { label: 'ReadFile', type: 'method', detail: '(name string) ([]byte, error)', template: 'ReadFile("${1:path}")' },
+      { label: 'WriteFile', type: 'method', detail: '(name string, data []byte, perm FileMode) error', template: 'WriteFile("${1:path}", ${2:data}, 0644)' },
+      { label: 'Exit', type: 'method', detail: '(code int)', template: 'Exit(${1:0})' }
+    ],
+    http: [
+      { label: 'Get', type: 'method', detail: '(url string) (resp *Response, err error)', template: 'Get("${1:url}")' },
+      { label: 'Post', type: 'method', detail: '(url, contentType string, body io.Reader) (resp *Response, err error)', template: 'Post("${1:url}", "${2:application/json}", ${3:body})' },
+      { label: 'HandleFunc', type: 'method', detail: '(pattern string, handler func(ResponseWriter, *Request))', template: 'HandleFunc("${1:/path}", func(w http.ResponseWriter, r *http.Request) {\n\t${0}\n})' },
+      { label: 'ListenAndServe', type: 'method', detail: '(addr string, handler Handler) error', template: 'ListenAndServe("${1::8080}", ${2:nil})' }
+    ]
+  },
+  rust: {
+    vec: [
+      { label: 'new', type: 'method', detail: '() -> Vec<T>', template: 'new()' },
+      { label: 'with_capacity', type: 'method', detail: '(capacity: usize) -> Vec<T>', template: 'with_capacity(${1:capacity})' }
+    ],
+    String: [
+      { label: 'from', type: 'method', detail: '(s: &str) -> String', template: 'from("${1:text}")' },
+      { label: 'new', type: 'method', detail: '() -> String', template: 'new()' }
     ]
   }
 };
@@ -237,9 +341,178 @@ RUNTIME_GLOBALS.typescript = RUNTIME_GLOBALS.javascript;
 RUNTIME_GLOBALS.javascriptreact = RUNTIME_GLOBALS.javascript;
 RUNTIME_GLOBALS.typescriptreact = RUNTIME_GLOBALS.javascript;
 
+const DOM_EVENT_COMPLETIONS = [
+  // Mouse & Pointer
+  { label: 'click', detail: 'MouseEvent', info: 'Fires when a pointing device button is pressed and released on a single element.' },
+  { label: 'dblclick', detail: 'MouseEvent', info: 'Fires when a pointing device button is clicked twice on a single element.' },
+  { label: 'mousedown', detail: 'MouseEvent', info: 'Fires when a pointing device button is pressed on an element.' },
+  { label: 'mouseup', detail: 'MouseEvent', info: 'Fires when a pointing device button is released over an element.' },
+  { label: 'mousemove', detail: 'MouseEvent', info: 'Fires when a pointing device is moved while over an element.' },
+  { label: 'mouseenter', detail: 'MouseEvent', info: 'Fires when a pointing device is moved onto the element that has the listener.' },
+  { label: 'mouseleave', detail: 'MouseEvent', info: 'Fires when a pointing device is moved off the element that has the listener.' },
+  { label: 'mouseover', detail: 'MouseEvent', info: 'Fires when a pointing device is moved onto an element or one of its children.' },
+  { label: 'mouseout', detail: 'MouseEvent', info: 'Fires when a pointing device is moved off an element or one of its children.' },
+  { label: 'contextmenu', detail: 'MouseEvent', info: 'Fires when the user attempts to open a context menu (usually right-click).' },
+  { label: 'wheel', detail: 'WheelEvent', info: 'Fires when the user rotates a wheel button on a pointing device.' },
+  { label: 'pointerdown', detail: 'PointerEvent', info: 'Fires when a pointer becomes active.' },
+  { label: 'pointerup', detail: 'PointerEvent', info: 'Fires when a pointer is no longer active.' },
+  { label: 'pointermove', detail: 'PointerEvent', info: 'Fires when a pointer changes coordinates.' },
+  { label: 'pointerenter', detail: 'PointerEvent', info: 'Fires when a pointer enters an element.' },
+  { label: 'pointerleave', detail: 'PointerEvent', info: 'Fires when a pointer leaves an element.' },
+
+  // Keyboard
+  { label: 'keydown', detail: 'KeyboardEvent', info: 'Fires when a key is pressed down.' },
+  { label: 'keyup', detail: 'KeyboardEvent', info: 'Fires when a key is released.' },
+  { label: 'keypress', detail: 'KeyboardEvent', info: 'Fires when a key that produces a character value is pressed.' },
+
+  // Form
+  { label: 'submit', detail: 'SubmitEvent', info: 'Fires when a form is submitted.' },
+  { label: 'input', detail: 'InputEvent', info: 'Fires synchronously when the value of an input element changes.' },
+  { label: 'change', detail: 'Event', info: 'Fires when an alteration to the element value is committed by the user.' },
+  { label: 'focus', detail: 'FocusEvent', info: 'Fires when an element has received focus (does not bubble).' },
+  { label: 'blur', detail: 'FocusEvent', info: 'Fires when an element has lost focus (does not bubble).' },
+  { label: 'focusin', detail: 'FocusEvent', info: 'Fires when an element is about to receive focus (bubbles).' },
+  { label: 'focusout', detail: 'FocusEvent', info: 'Fires when an element is about to lose focus (bubbles).' },
+  { label: 'reset', detail: 'Event', info: 'Fires when a form is reset.' },
+  { label: 'invalid', detail: 'Event', info: 'Fires when a submittable element does not satisfy its constraints.' },
+
+  // Document & Window Lifecycle
+  { label: 'DOMContentLoaded', detail: 'Event', info: 'Fires when initial HTML is completely parsed, without waiting for stylesheets/images.' },
+  { label: 'load', detail: 'Event', info: 'Fires when the whole page and all dependent resources have loaded.' },
+  { label: 'unload', detail: 'Event', info: 'Fires when the document is being unloaded.' },
+  { label: 'beforeunload', detail: 'BeforeUnloadEvent', info: 'Fires when window/document is about to be unloaded.' },
+  { label: 'resize', detail: 'UIEvent', info: 'Fires when document view has been resized.' },
+  { label: 'scroll', detail: 'Event', info: 'Fires when document view or element has been scrolled.' },
+  { label: 'error', detail: 'ErrorEvent', info: 'Fires when a resource failed to load or an error occurred.' },
+  { label: 'hashchange', detail: 'HashChangeEvent', info: 'Fires when fragment identifier of URL has changed.' },
+  { label: 'popstate', detail: 'PopStateEvent', info: 'Fires when active history entry changes.' },
+
+  // Drag & Drop
+  { label: 'drag', detail: 'DragEvent', info: 'Fires periodically as an element is dragged.' },
+  { label: 'dragstart', detail: 'DragEvent', info: 'Fires when dragging starts.' },
+  { label: 'dragend', detail: 'DragEvent', info: 'Fires when dragging ends.' },
+  { label: 'dragover', detail: 'DragEvent', info: 'Fires when element is dragged over a drop target.' },
+  { label: 'dragenter', detail: 'DragEvent', info: 'Fires when dragged element enters a drop target.' },
+  { label: 'dragleave', detail: 'DragEvent', info: 'Fires when dragged element leaves a drop target.' },
+  { label: 'drop', detail: 'DragEvent', info: 'Fires when element is dropped on a valid drop target.' },
+
+  // Clipboard
+  { label: 'copy', detail: 'ClipboardEvent', info: 'Fires when user initiates a copy action.' },
+  { label: 'cut', detail: 'ClipboardEvent', info: 'Fires when user initiates a cut action.' },
+  { label: 'paste', detail: 'ClipboardEvent', info: 'Fires when user initiates a paste action.' },
+
+  // Animation & Transition
+  { label: 'animationstart', detail: 'AnimationEvent', info: 'Fires when CSS animation starts.' },
+  { label: 'animationend', detail: 'AnimationEvent', info: 'Fires when CSS animation completes.' },
+  { label: 'animationiteration', detail: 'AnimationEvent', info: 'Fires when CSS animation iteration ends.' },
+  { label: 'transitionstart', detail: 'TransitionEvent', info: 'Fires when CSS transition starts.' },
+  { label: 'transitionend', detail: 'TransitionEvent', info: 'Fires when CSS transition ends.' },
+
+  // Media
+  { label: 'play', detail: 'Event', info: 'Fires when media playback is initiated.' },
+  { label: 'pause', detail: 'Event', info: 'Fires when media playback is paused.' },
+  { label: 'ended', detail: 'Event', info: 'Fires when media playback has finished.' },
+  { label: 'timeupdate', detail: 'Event', info: 'Fires when currentTime attribute has updated.' },
+  { label: 'volumechange', detail: 'Event', info: 'Fires when volume changes.' },
+  { label: 'canplay', detail: 'Event', info: 'Fires when media can play.' },
+
+  // Network & Storage
+  { label: 'online', detail: 'Event', info: 'Fires when browser gains network connectivity.' },
+  { label: 'offline', detail: 'Event', info: 'Fires when browser loses network connectivity.' },
+  { label: 'storage', detail: 'StorageEvent', info: 'Fires when storage is modified from another window.' }
+];
+
+const HTML_TAG_COMPLETIONS = [
+  'div', 'span', 'p', 'a', 'button', 'input', 'form', 'textarea', 'select', 'option',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'thead', 'tbody',
+  'tr', 'th', 'td', 'img', 'svg', 'canvas', 'video', 'audio', 'iframe', 'label',
+  'header', 'nav', 'main', 'section', 'article', 'aside', 'footer', 'dialog', 'template'
+];
+
+const HTML_ATTR_COMPLETIONS = [
+  'id', 'class', 'style', 'type', 'name', 'value', 'placeholder', 'src', 'href',
+  'alt', 'title', 'disabled', 'checked', 'readonly', 'required', 'hidden',
+  'target', 'rel', 'role', 'aria-label', 'aria-hidden', 'tabindex', 'autocomplete'
+];
+
 export function createLocalCompletionSource(getLanguageId?: () => string) {
   return (context: CompletionContext): CompletionResult | null => {
     const languageId = getLanguageId ? getLanguageId().toLowerCase() : '';
+
+    // 0. Context-aware Argument Completions inside function calls
+    if (['javascript', 'typescript', 'javascriptreact', 'typescriptreact'].includes(languageId)) {
+      // Inside addEventListener / removeEventListener
+      const eventArgMatch = context.matchBefore(/(?:addEventListener|removeEventListener|attachEvent)\s*\(\s*['"]([a-zA-Z0-9_-]*)$/);
+      if (eventArgMatch) {
+        const parts = eventArgMatch.text.split(/['"]/);
+        const query = (parts[parts.length - 1] || '').toLowerCase();
+        const from = context.pos - query.length;
+        const options: Completion[] = DOM_EVENT_COMPLETIONS
+          .filter((ev) => !query || ev.label.toLowerCase().startsWith(query))
+          .map((ev) => ({
+            label: ev.label,
+            type: 'constant',
+            detail: ev.detail,
+            info: ev.info,
+            boost: 95
+          }));
+        if (options.length > 0) {
+          return { from, options, filter: true };
+        }
+      }
+
+      // Inside addEventListener( without quotes yet
+      const eventOpenMatch = context.matchBefore(/(?:addEventListener|removeEventListener|attachEvent)\s*\(\s*$/);
+      if (eventOpenMatch) {
+        const options: Completion[] = DOM_EVENT_COMPLETIONS.map((ev) => ({
+          label: `'${ev.label}'`,
+          apply: `'${ev.label}'`,
+          type: 'constant',
+          detail: ev.detail,
+          info: ev.info,
+          boost: 95
+        }));
+        return { from: context.pos, options, filter: true };
+      }
+
+      // Inside document.createElement('...')
+      const createElementMatch = context.matchBefore(/createElement\s*\(\s*['"]([a-zA-Z0-9_-]*)$/);
+      if (createElementMatch) {
+        const parts = createElementMatch.text.split(/['"]/);
+        const query = (parts[parts.length - 1] || '').toLowerCase();
+        const from = context.pos - query.length;
+        const options: Completion[] = HTML_TAG_COMPLETIONS
+          .filter((tag) => !query || tag.toLowerCase().startsWith(query))
+          .map((tag) => ({
+            label: tag,
+            type: 'type',
+            detail: 'HTML Element',
+            boost: 90
+          }));
+        if (options.length > 0) {
+          return { from, options, filter: true };
+        }
+      }
+
+      // Inside setAttribute / getAttribute
+      const attrMatch = context.matchBefore(/(?:setAttribute|getAttribute|removeAttribute|hasAttribute)\s*\(\s*['"]([a-zA-Z0-9_-]*)$/);
+      if (attrMatch) {
+        const parts = attrMatch.text.split(/['"]/);
+        const query = (parts[parts.length - 1] || '').toLowerCase();
+        const from = context.pos - query.length;
+        const options: Completion[] = HTML_ATTR_COMPLETIONS
+          .filter((attr) => !query || attr.toLowerCase().startsWith(query))
+          .map((attr) => ({
+            label: attr,
+            type: 'property',
+            detail: 'HTML Attribute',
+            boost: 90
+          }));
+        if (options.length > 0) {
+          return { from, options, filter: true };
+        }
+      }
+    }
 
     // 1. Check for member expression: e.g. "console." or "console.lo" or "document.get" or "element."
     const memberMatch = context.matchBefore(/([a-zA-Z_$][a-zA-Z0-9_$]*)\.([a-zA-Z_$][a-zA-Z0-9_$]*)?$/);
@@ -252,22 +525,38 @@ export function createLocalCompletionSource(getLanguageId?: () => string) {
       const DOM_ELEMENT_ALIASES = new Set([
         'element', 'el', 'btn', 'button', 'node', 'target', 'item', 'container', 'card', 'box', 'div', 'input', 'form'
       ]);
-      const resolvedObjName = DOM_ELEMENT_ALIASES.has(rawObjName) ? 'element' : rawObjName;
+      const ARRAY_ALIASES = new Set([
+        'items', 'list', 'elements', 'data', 'arr', 'array', 'rows', 'lines', 'users', 'posts', 'results', 'values'
+      ]);
+      const STRING_ALIASES = new Set([
+        'str', 'text', 'name', 'msg', 'message', 'line', 'title', 'key', 'val', 'query', 'url', 'path'
+      ]);
+
+      let resolvedObjName = rawObjName;
+      if (DOM_ELEMENT_ALIASES.has(rawObjName)) {
+        resolvedObjName = 'element';
+      } else if (ARRAY_ALIASES.has(rawObjName)) {
+        resolvedObjName = 'array_instance';
+      } else if (STRING_ALIASES.has(rawObjName)) {
+        resolvedObjName = 'string_instance';
+      }
 
       if (langMembers && langMembers[resolvedObjName]) {
         const memberOptions: Completion[] = [];
         for (const m of langMembers[resolvedObjName]) {
           if (!propPrefix || m.label.toLowerCase().startsWith(propPrefix)) {
+            const cleanLabel = m.label.replace(/^\.+/, '');
             const cmItem: Completion = {
-              label: m.label,
+              label: cleanLabel,
               type: m.type,
               detail: m.detail,
               boost: 60
             };
             if (m.template) {
-              cmItem.apply = snippet(m.template);
+              const cleanTemplate = m.template.replace(/^\.+/, '');
+              cmItem.apply = snippet(cleanTemplate);
             } else if (m.type === 'method') {
-              cmItem.apply = snippet(`${m.label}(\${1})\${0}`);
+              cmItem.apply = snippet(`${cleanLabel}(\${1})\${0}`);
             }
             memberOptions.push(cmItem);
           }

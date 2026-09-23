@@ -179,7 +179,52 @@ export class EditorManager {
           )
         ],
         activateOnTyping: true,
-        icons: true
+        icons: true,
+        positionInfo: (_view, list, _option, info, space) => {
+          const spaceLeft = list.left - space.left;
+          const spaceRight = space.right - list.right;
+          const infoWidth = info.right - info.left;
+          const infoHeight = info.bottom - info.top;
+
+          // Determine preferred side: right first, then left
+          let placeLeft = false;
+          if (spaceRight >= 220 || spaceRight >= infoWidth) {
+            placeLeft = false;
+          } else if (spaceLeft >= 220 || spaceLeft >= infoWidth) {
+            placeLeft = true;
+          }
+
+          const availableHoriz = placeLeft ? spaceLeft : spaceRight;
+          if (availableHoriz >= 180) {
+            // There is sufficient horizontal space beside the completion popup.
+            // Align top with the list, clamped within viewport bounds.
+            const offset = Math.max(space.top, Math.min(list.top, space.bottom - infoHeight)) - list.top;
+            const maxWidth = Math.min(380, availableHoriz - 10);
+            return {
+              style: `top: ${Math.max(0, offset)}px; max-width: ${maxWidth}px; max-height: 280px; overflow-y: auto;`,
+              class: placeLeft ? 'cm-completionInfo-left' : 'cm-completionInfo-right'
+            };
+          }
+
+          // If horizontal space is constrained on both sides, position cleanly below or above
+          // the ENTIRE list container so it NEVER overlays or hides any completion options.
+          const spaceBelow = space.bottom - list.bottom;
+          const spaceAbove = list.top - space.top;
+          const listHeight = list.bottom - list.top;
+          const maxWidth = Math.min(380, Math.max(260, list.right - list.left));
+
+          if (spaceBelow >= 120 || spaceBelow >= spaceAbove) {
+            return {
+              style: `top: ${listHeight + 4}px; left: 0px; max-width: ${maxWidth}px; max-height: 180px; overflow-y: auto;`,
+              class: 'cm-completionInfo-below'
+            };
+          } else {
+            return {
+              style: `bottom: ${listHeight + 4}px; left: 0px; max-width: ${maxWidth}px; max-height: 180px; overflow-y: auto;`,
+              class: 'cm-completionInfo-above'
+            };
+          }
+        }
       }),
       createLspHoverExtension(
         () => this.currentFilePath,

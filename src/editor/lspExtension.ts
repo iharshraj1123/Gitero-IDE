@@ -49,6 +49,35 @@ function mapCompletionKind(kind?: CompletionItemKind): string {
   }
 }
 
+const SMART_METHOD_SNIPPETS: Record<string, string> = {
+  addEventListener: "addEventListener('${1:click}', (${2:event}) => {\n\t${0}\n})",
+  removeEventListener: "removeEventListener('${1:click}', ${2:listener})",
+  setTimeout: "setTimeout(() => {\n\t${0}\n}, ${1:1000})",
+  setInterval: "setInterval(() => {\n\t${0}\n}, ${1:1000})",
+  setImmediate: "setImmediate(() => {\n\t${0}\n})",
+  requestAnimationFrame: "requestAnimationFrame((${1:timestamp}) => {\n\t${0}\n})",
+  forEach: "forEach((${1:item}) => {\n\t${0}\n})",
+  map: "map((${1:item}) => ${0})",
+  filter: "filter((${1:item}) => ${0})",
+  reduce: "reduce((${1:acc}, ${2:curr}) => {\n\t${0}\n}, ${3:initialValue})",
+  find: "find((${1:item}) => ${0})",
+  findIndex: "findIndex((${1:item}) => ${0})",
+  some: "some((${1:item}) => ${0})",
+  every: "every((${1:item}) => ${0})",
+  flatMap: "flatMap((${1:item}) => ${0})",
+  sort: "sort((${1:a}, ${2:b}) => ${0})",
+  then: "then((${1:res}) => {\n\t${0}\n})",
+  catch: "catch((${1:err}) => {\n\t${0}\n})",
+  finally: "finally(() => {\n\t${0}\n})",
+  on: "on('${1:event}', (${2:data}) => {\n\t${0}\n})",
+  once: "once('${1:event}', (${2:data}) => {\n\t${0}\n})",
+  subscribe: "subscribe((${1:data}) => {\n\t${0}\n})",
+  useEffect: "useEffect(() => {\n\t${0}\n}, [${1}]);",
+  useCallback: "useCallback((${1:params}) => {\n\t${0}\n}, [${2}]);",
+  useMemo: "useMemo(() => {\n\t${0}\n}, [${1}]);",
+  useLayoutEffect: "useLayoutEffect(() => {\n\t${0}\n}, [${1}]);"
+};
+
 /**
  * Creates the composite autocompletion source querying LSP first, falling back to local tokens & snippets.
  */
@@ -63,6 +92,13 @@ export function createCompositeCompletionSource(
   return async (context: CompletionContext): Promise<CompletionResult | null> => {
     const filePath = getFilePath();
     const languageId = getLanguageId();
+
+    // Check if we are inside special parameter contexts (e.g. addEventListener('...') or createElement('...'))
+    // Local source handles these with rich domain-specific string literals
+    const localArgRes = localSource(context);
+    if (localArgRes && localArgRes.options.some((o) => (o.boost || 0) >= 80)) {
+      return localArgRes;
+    }
 
     const word = context.matchBefore(/[a-zA-Z_$][a-zA-Z0-9_$]*/);
 
@@ -95,14 +131,22 @@ export function createCompositeCompletionSource(
           // Check if followed by open parenthesis
           const nextChar = context.state.doc.sliceString(context.pos, context.pos + 1);
           const hasFollowingParen = nextChar === '(';
+          const charBeforeCursor = context.state.doc.sliceString(Math.max(0, context.pos - 1), context.pos);
+          const isAfterDot = charBeforeCursor === '.';
 
           const mapped: Completion[] = lspItems.map((item) => {
             const isCallable = item.kind === CompletionItemKind.Method ||
               item.kind === CompletionItemKind.Function ||
               item.kind === CompletionItemKind.Constructor;
 
+            // Sanitize label if server prepended a dot
+            let cleanLabel = item.label;
+            if (isAfterDot && cleanLabel.startsWith('.')) {
+              cleanLabel = cleanLabel.replace(/^\.+/, '');
+            }
+
             const cmItem: Completion = {
-              label: item.label,
+              label: cleanLabel,
               type: mapCompletionKind(item.kind),
               detail: item.detail,
               boost: isCallable ? 40 : 20
@@ -143,16 +187,31 @@ export function createCompositeCompletionSource(
 
             // Determine insert text or template
             let template = item.insertText || (item.textEdit ? ('newText' in item.textEdit ? item.textEdit.newText : '') : item.label);
-            const isSnippet = item.insertTextFormat === 2 || template.includes('${');
+            
+            // Strip leading dot if user already typed '.'
+            if (isAfterDot && template.startsWith('.')) {
+              template = template.replace(/^\.+/, '');
+            }
 
-            // If it's a method/function and autoParens is on, append arguments if not already present
-            if (isCallable && autoParens && !hasFollowingParen && !template.includes('(')) {
+            // Check for smart method snippets (e.g. addEventListener with arrow function callback)
+            const cleanMethodName = cleanLabel.replace(/\(.*\)$/, '');
+            if (SMART_METHOD_SNIPPETS[cleanMethodName] && !hasFollowingParen) {
+              template = SMART_METHOD_SNIPPETS[cleanMethodName];
+            } else if (isCallable && autoParens && !hasFollowingParen && !template.includes('(')) {
               template = `${template}(\${1})\${0}`;
             }
 
+            const isSnippet = item.insertTextFormat === 2 || template.includes('${');
+
             if (isSnippet || (isCallable && autoParens && !hasFollowingParen)) {
-              const snippetApply = snippet(template);
               cmItem.apply = async (view: EditorView, completion: Completion, from: number, to: number) => {
+                let effectiveTemplate = template;
+                const prevChar = view.state.doc.sliceString(Math.max(0, from - 1), from);
+                if (prevChar === '.' && effectiveTemplate.startsWith('.')) {
+                  effectiveTemplate = effectiveTemplate.replace(/^\.+/, '');
+                }
+
+                const snippetApply = snippet(effectiveTemplate);
                 snippetApply(view, completion, from, to);
 
                 // Handle additionalTextEdits (e.g. auto imports)
@@ -176,8 +235,17 @@ export function createCompositeCompletionSource(
                   view.dispatch({ changes });
                 }
               };
-            } else if (item.insertText || item.textEdit) {
-              cmItem.apply = template;
+            } else {
+              cmItem.apply = (view: EditorView, completion: Completion, from: number, to: number) => {
+                let effectiveTemplate = template;
+                const prevChar = view.state.doc.sliceString(Math.max(0, from - 1), from);
+                if (prevChar === '.' && effectiveTemplate.startsWith('.')) {
+                  effectiveTemplate = effectiveTemplate.replace(/^\.+/, '');
+                }
+                view.dispatch({
+                  changes: { from, to, insert: effectiveTemplate }
+                });
+              };
             }
 
             return cmItem;

@@ -786,6 +786,22 @@ export class TerminalPanelComponent {
     let html = '';
     let activeClasses: string[] = [];
 
+    const linkify = (str: string) => {
+      return str.replace(
+        /(https?:\/\/[^\s<>"']+)/g,
+        (url) => {
+          let cleanUrl = url;
+          let trailing = '';
+          const match = cleanUrl.match(/([.,:;!?]+)$/);
+          if (match) {
+            trailing = match[1];
+            cleanUrl = cleanUrl.slice(0, -trailing.length);
+          }
+          return `<a href="${cleanUrl}" class="terminal-link" target="_blank" rel="noopener noreferrer" title="${cleanUrl} (Opens in OS default browser)">${cleanUrl}</a>${trailing}`;
+        }
+      );
+    };
+
     for (const part of parts) {
       if (!part) continue;
       if (part.startsWith('\x1b[')) {
@@ -811,7 +827,7 @@ export class TerminalPanelComponent {
           }
         }
       } else {
-        const escaped = escapeHtml(part);
+        const escaped = linkify(escapeHtml(part));
         html += activeClasses.length > 0
           ? `<span class="${activeClasses.join(' ')}">${escaped}</span>`
           : escaped;

@@ -54,6 +54,8 @@ export interface TitleBarOptions {
   onToggleFullScreen?: () => void;
   onToggleDevTools?: () => void;
   onCheckUpdates?: () => void;
+  onOpenDocumentation?: () => void;
+  onReportIssue?: () => void;
   onAbout?: () => void;
 }
 
@@ -218,6 +220,9 @@ export class TitleBarComponent {
         id: 'help',
         label: 'Help',
         items: [
+          { label: 'Documentation & Website', action: this.options.onOpenDocumentation },
+          { label: 'Report Issue / Feedback', action: this.options.onReportIssue },
+          { label: '', divider: true },
           { label: 'Keyboard Shortcuts Reference', shortcut: 'Ctrl+K Ctrl+S', action: this.options.onOpenShortcuts },
           { label: 'Toggle Developer Tools', shortcut: 'F12', action: this.options.onToggleDevTools },
           { label: 'Check for Updates...', action: this.options.onCheckUpdates },

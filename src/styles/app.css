@@ -3162,6 +3162,18 @@ html.init-sidebar-collapsed .sidebar-resizer {
 .ansi-dim { opacity: 0.65; }
 .ansi-underline { text-decoration: underline; }
 
+.terminal-link {
+  color: var(--accent-color, #58a6ff);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.terminal-link:hover {
+  color: #79c0ff;
+  text-decoration: underline;
+}
+
 .terminal-input-row {
   display: flex;
   align-items: center;
@@ -6223,7 +6235,7 @@ body.transparency-active .settings-body-wrapper {
   border: 1px solid var(--border-color, #30363d) !important;
   border-radius: 6px !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   max-height: 320px !important;
   font-family: var(--font-mono, monospace) !important;
   font-size: 12px !important;
@@ -6232,6 +6244,8 @@ body.transparency-active .settings-body-wrapper {
 .cm-tooltip-autocomplete > ul {
   font-family: var(--font-mono, monospace) !important;
   max-height: 280px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 .cm-tooltip-autocomplete > ul > li {
@@ -6340,11 +6354,33 @@ body.transparency-active .settings-body-wrapper {
   border: 1px solid var(--border-color, #30363d) !important;
   border-radius: 6px !important;
   padding: 10px 14px !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
   font-size: 12px !important;
   line-height: 1.5 !important;
-  max-width: 380px !important;
   color: var(--fg-primary, #e6edf3) !important;
+  z-index: 10002 !important;
+  pointer-events: auto !important;
+}
+
+.cm-completionInfo.cm-completionInfo-right {
+  margin-left: 6px !important;
+}
+
+.cm-completionInfo.cm-completionInfo-left {
+  margin-right: 6px !important;
+}
+
+.cm-completionInfo.cm-completionInfo-below,
+.cm-completionInfo.cm-completionInfo-above {
+  margin: 4px 0 !important;
+  width: 100% !important;
+}
+
+/* Guard against narrow mode overlaying inside option list */
+.cm-completionInfo.cm-completionInfo-right-narrow,
+.cm-completionInfo.cm-completionInfo-left-narrow {
+  left: 0 !important;
+  right: auto !important;
 }
 
 .cm-completion-doc code {
