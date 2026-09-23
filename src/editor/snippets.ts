@@ -218,6 +218,144 @@ export default function \${1:ComponentName}() {
 }`,
     languages: ['JavaScript', 'TypeScript']
   },
+  {
+    trigger: 'setTimeout',
+    name: 'setTimeout',
+    detail: 'setTimeout with arrow callback',
+    template: `setTimeout(() => {
+  \${0}
+}, \${1:1000});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'sto',
+    name: 'sto',
+    detail: 'setTimeout shorthand',
+    template: `setTimeout(() => {
+  \${0}
+}, \${1:1000});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'setInterval',
+    name: 'setInterval',
+    detail: 'setInterval with arrow callback',
+    template: `setInterval(() => {
+  \${0}
+}, \${1:1000});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'sti',
+    name: 'sti',
+    detail: 'setInterval shorthand',
+    template: `setInterval(() => {
+  \${0}
+}, \${1:1000});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'setImmediate',
+    name: 'setImmediate',
+    detail: 'setImmediate callback',
+    template: `setImmediate(() => {
+  \${0}
+});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'raf',
+    name: 'raf',
+    detail: 'requestAnimationFrame callback',
+    template: `requestAnimationFrame((\${1:timestamp}) => {
+  \${0}
+});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'addEventListener',
+    name: 'addEventListener',
+    detail: 'DOM addEventListener with arrow callback',
+    template: `addEventListener('\${1:click}', (\${2:event}) => {
+  \${0}
+});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'ael',
+    name: 'ael',
+    detail: 'addEventListener shorthand',
+    template: `addEventListener('\${1:click}', (\${2:event}) => {
+  \${0}
+});`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'removeEventListener',
+    name: 'removeEventListener',
+    detail: 'DOM removeEventListener',
+    template: "removeEventListener('\${1:click}', \${2:listener});",
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'fetch',
+    name: 'fetch',
+    detail: 'fetch() Promise chain',
+    template: `fetch('\${1:url}')
+  .then((\${2:res}) => \${2:res}.json())
+  .then((\${3:data}) => {
+    \${0}
+  });`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'afetch',
+    name: 'afetch',
+    detail: 'async await fetch()',
+    template: `const \${1:res} = await fetch('\${2:url}');
+const \${3:data} = await \${1:res}.json();
+\${0}`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'qs',
+    name: 'qs',
+    detail: 'document.querySelector shorthand',
+    template: "document.querySelector('\${1:selector}')",
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'qsa',
+    name: 'qsa',
+    detail: 'document.querySelectorAll shorthand',
+    template: "document.querySelectorAll('\${1:selector}')",
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'gi',
+    name: 'gi',
+    detail: 'document.getElementById shorthand',
+    template: "document.getElementById('\${1:id}')",
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'iife',
+    name: 'iife',
+    detail: 'Immediately Invoked Function Expression (Arrow)',
+    template: `(() => {
+  \${0}
+})();`,
+    languages: ['JavaScript', 'TypeScript']
+  },
+  {
+    trigger: 'aiife',
+    name: 'aiife',
+    detail: 'Async Immediately Invoked Function Expression',
+    template: `(async () => {
+  \${0}
+})();`,
+    languages: ['JavaScript', 'TypeScript']
+  },
 
   // Python
   {
@@ -261,6 +399,14 @@ export default function \${1:ComponentName}() {
     template: `try:
     \${1:pass}
 except \${2:Exception} as \${3:e}:
+    \${0:pass}`,
+    languages: ['Python']
+  },
+  {
+    trigger: 'with',
+    name: 'with',
+    detail: 'Python with open statement',
+    template: `with open('\${1:filename}', '\${2:r}', encoding='utf-8') as \${3:f}:
     \${0:pass}`,
     languages: ['Python']
   },
@@ -319,6 +465,25 @@ int main(int argc, char* argv[]) {
 }`,
     languages: ['Rust']
   },
+  {
+    trigger: 'match',
+    name: 'match',
+    detail: 'Rust match expression',
+    template: `match \${1:expr} {
+    Ok(\${2:val}) => \${0},
+    Err(\${3:err}) => {},
+}`,
+    languages: ['Rust']
+  },
+  {
+    trigger: 'iflet',
+    name: 'iflet',
+    detail: 'Rust if let Some expression',
+    template: `if let Some(\${1:val}) = \${2:opt} {
+    \${0}
+}`,
+    languages: ['Rust']
+  },
 
   // Go
   {
@@ -339,6 +504,24 @@ func main() {
     name: 'fp',
     detail: 'fmt.Println statement',
     template: 'fmt.Println(\${1})',
+    languages: ['Go']
+  },
+  {
+    trigger: 'ife',
+    name: 'ife',
+    detail: 'Go if err != nil check',
+    template: `if err != nil {
+\treturn \${1:nil}, \${2:err}
+}`,
+    languages: ['Go']
+  },
+  {
+    trigger: 'hf',
+    name: 'hf',
+    detail: 'Go http.HandleFunc',
+    template: `http.HandleFunc("\${1:/path}", func(w http.ResponseWriter, r *http.Request) {
+\t\${0}
+})`,
     languages: ['Go']
   },
 

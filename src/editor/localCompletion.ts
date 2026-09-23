@@ -291,14 +291,14 @@ RUNTIME_MEMBERS.typescript = RUNTIME_MEMBERS.javascript;
 RUNTIME_MEMBERS.javascriptreact = RUNTIME_MEMBERS.javascript;
 RUNTIME_MEMBERS.typescriptreact = RUNTIME_MEMBERS.javascript;
 
-const RUNTIME_GLOBALS: Record<string, { label: string; type: 'variable' | 'class' | 'function'; detail: string }[]> = {
+const RUNTIME_GLOBALS: Record<string, { label: string; type: 'variable' | 'class' | 'function'; detail: string; template?: string }[]> = {
   javascript: [
     { label: 'console', type: 'variable', detail: 'Console' },
     { label: 'document', type: 'variable', detail: 'Document' },
     { label: 'window', type: 'variable', detail: 'Window' },
     { label: 'Math', type: 'variable', detail: 'Math' },
     { label: 'JSON', type: 'variable', detail: 'JSON' },
-    { label: 'Promise', type: 'class', detail: 'Promise<T>' },
+    { label: 'Promise', type: 'class', detail: 'Promise<T>', template: 'new Promise((${1:resolve}, ${2:reject}) => {\n\t${0}\n})' },
     { label: 'Array', type: 'class', detail: 'Array<T>' },
     { label: 'Object', type: 'class', detail: 'Object' },
     { label: 'String', type: 'class', detail: 'String' },
@@ -309,31 +309,44 @@ const RUNTIME_GLOBALS: Record<string, { label: string; type: 'variable' | 'class
     { label: 'Error', type: 'class', detail: 'Error' },
     { label: 'Map', type: 'class', detail: 'Map<K, V>' },
     { label: 'Set', type: 'class', detail: 'Set<T>' },
-    { label: 'fetch', type: 'function', detail: '(input: RequestInfo, init?: RequestInit): Promise<Response>' },
-    { label: 'setTimeout', type: 'function', detail: '(handler: Function, timeout?: number): number' },
-    { label: 'clearTimeout', type: 'function', detail: '(id: number): void' },
-    { label: 'setInterval', type: 'function', detail: '(handler: Function, timeout?: number): number' },
-    { label: 'clearInterval', type: 'function', detail: '(id: number): void' },
+    { label: 'setTimeout', type: 'function', detail: '(handler: Function, timeout?: number): number', template: "setTimeout(() => {\n\t${0}\n}, ${1:1000});" },
+    { label: 'setInterval', type: 'function', detail: '(handler: Function, timeout?: number): number', template: "setInterval(() => {\n\t${0}\n}, ${1:1000});" },
+    { label: 'setImmediate', type: 'function', detail: '(handler: Function): number', template: "setImmediate(() => {\n\t${0}\n});" },
+    { label: 'clearTimeout', type: 'function', detail: '(id: number): void', template: "clearTimeout(${1:id})" },
+    { label: 'clearInterval', type: 'function', detail: '(id: number): void', template: "clearInterval(${1:id})" },
+    { label: 'requestAnimationFrame', type: 'function', detail: '(callback: FrameRequestCallback): number', template: "requestAnimationFrame((${1:timestamp}) => {\n\t${0}\n});" },
+    { label: 'cancelAnimationFrame', type: 'function', detail: '(handle: number): void', template: "cancelAnimationFrame(${1:id})" },
+    { label: 'queueMicrotask', type: 'function', detail: '(callback: VoidFunction): void', template: "queueMicrotask(() => {\n\t${0}\n});" },
+    { label: 'addEventListener', type: 'function', detail: '(type: string, listener: EventListener): void', template: "addEventListener('${1:click}', (${2:event}) => {\n\t${0}\n});" },
+    { label: 'removeEventListener', type: 'function', detail: '(type: string, listener: EventListener): void', template: "removeEventListener('${1:click}', ${2:listener});" },
+    { label: 'fetch', type: 'function', detail: '(input: RequestInfo, init?: RequestInit): Promise<Response>', template: "fetch('${1:url}')" },
     { label: 'localStorage', type: 'variable', detail: 'Storage' },
     { label: 'sessionStorage', type: 'variable', detail: 'Storage' },
     { label: 'globalThis', type: 'variable', detail: 'globalThis' }
   ],
   python: [
-    { label: 'print', type: 'function', detail: '(*values, sep=" ", end="\\n", flush=False)' },
-    { label: 'len', type: 'function', detail: '(obj) -> int' },
-    { label: 'range', type: 'function', detail: '(stop) or (start, stop[, step])' },
-    { label: 'str', type: 'class', detail: 'str(object="") -> str' },
-    { label: 'int', type: 'class', detail: 'int(x=0) -> int' },
-    { label: 'float', type: 'class', detail: 'float(x=0.0) -> float' },
-    { label: 'list', type: 'class', detail: 'list(iterable=()) -> list' },
-    { label: 'dict', type: 'class', detail: 'dict(**kwargs) -> dict' },
-    { label: 'set', type: 'class', detail: 'set(iterable=()) -> set' },
-    { label: 'tuple', type: 'class', detail: 'tuple(iterable=()) -> tuple' },
-    { label: 'open', type: 'function', detail: '(file, mode="r", encoding=None)' },
-    { label: 'type', type: 'function', detail: 'type(object) -> type' },
-    { label: 'isinstance', type: 'function', detail: '(object, classinfo) -> bool' },
-    { label: 'enumerate', type: 'function', detail: '(iterable, start=0)' },
-    { label: 'zip', type: 'function', detail: '(*iterables)' }
+    { label: 'print', type: 'function', detail: '(*values, sep=" ", end="\\n", flush=False)', template: "print(${1:object})" },
+    { label: 'len', type: 'function', detail: '(obj) -> int', template: "len(${1:obj})" },
+    { label: 'range', type: 'function', detail: '(stop) or (start, stop[, step])', template: "range(${1:stop})" },
+    { label: 'open', type: 'function', detail: '(file, mode="r", encoding=None)', template: "open('${1:file}', '${2:r}', encoding='utf-8')" },
+    { label: 'str', type: 'class', detail: 'str(object="") -> str', template: "str(${1:object})" },
+    { label: 'int', type: 'class', detail: 'int(x=0) -> int', template: "int(${1:x})" },
+    { label: 'float', type: 'class', detail: 'float(x=0.0) -> float', template: "float(${1:x})" },
+    { label: 'list', type: 'class', detail: 'list(iterable=()) -> list', template: "list(${1:iterable})" },
+    { label: 'dict', type: 'class', detail: 'dict(**kwargs) -> dict', template: "dict(${1:kwargs})" },
+    { label: 'set', type: 'class', detail: 'set(iterable=()) -> set', template: "set(${1:iterable})" },
+    { label: 'tuple', type: 'class', detail: 'tuple(iterable=()) -> tuple', template: "tuple(${1:iterable})" },
+    { label: 'type', type: 'function', detail: 'type(object) -> type', template: "type(${1:object})" },
+    { label: 'isinstance', type: 'function', detail: '(object, classinfo) -> bool', template: "isinstance(${1:object}, ${2:classinfo})" },
+    { label: 'enumerate', type: 'function', detail: '(iterable, start=0)', template: "enumerate(${1:iterable})" },
+    { label: 'zip', type: 'function', detail: '(*iterables)', template: "zip(${1:iterables})" }
+  ],
+  go: [
+    { label: 'make', type: 'function', detail: 'make(t Type, size ...IntegerType) Type', template: "make(${1:type}, ${2:size})" },
+    { label: 'append', type: 'function', detail: 'append(slice []Type, elems ...Type) []Type', template: "append(${1:slice}, ${2:elem})" },
+    { label: 'len', type: 'function', detail: 'len(v Type) int', template: "len(${1:v})" },
+    { label: 'panic', type: 'function', detail: 'panic(v any)', template: "panic(${1:err})" },
+    { label: 'recover', type: 'function', detail: 'recover() any', template: "recover()" }
   ]
 };
 
@@ -589,12 +602,18 @@ export function createLocalCompletionSource(getLanguageId?: () => string) {
       if (!query || g.label.toLowerCase().startsWith(query)) {
         if (!seenLabels.has(g.label) && g.label !== prefix) {
           seenLabels.add(g.label);
-          options.push({
+          const cmItem: Completion = {
             label: g.label,
             type: g.type,
             detail: g.detail,
-            boost: g.label.toLowerCase() === query ? 45 : 35
-          });
+            boost: g.label.toLowerCase() === query ? 50 : 35
+          };
+          if (g.template) {
+            cmItem.apply = snippet(g.template);
+          } else if (g.type === 'function') {
+            cmItem.apply = snippet(`${g.label}(\${1})\${0}`);
+          }
+          options.push(cmItem);
         }
       }
     }
