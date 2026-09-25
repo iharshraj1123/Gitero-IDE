@@ -578,9 +578,14 @@ export class LspClient {
         };
       }
 
+      const rootPath = (this.currentWorkspaceRoot && this.currentWorkspaceRoot !== '.')
+        ? this.currentWorkspaceRoot
+        : (filePath ? filePath.substring(0, Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'))) : null);
+
       const initResult = await connection.request('initialize', {
         processId: null,
         rootUri,
+        rootPath,
         capabilities: {
           textDocument: {
             synchronization: {
@@ -1410,9 +1415,6 @@ export class LspClient {
       const cleanAppData = appData.replace(/\\/g, '/');
       const candidates = [
         `${cleanAppData}/npm/node_modules/typescript/lib/tsserver.js`,
-        `${cleanAppData}/npm/node_modules/vscode-langservers-extracted/node_modules/typescript/lib/tsserver.js`,
-        `${cleanAppData}/npm/node_modules/intelephense/node_modules/typescript/lib/tsserver.js`,
-        `${cleanAppData}/npm/node_modules/@angular/cli/node_modules/typescript/lib/tsserver.js`,
         `${cleanAppData}/npm/node_modules/typescript-language-server/node_modules/typescript/lib/tsserver.js`,
       ];
       for (const candidate of candidates) {
@@ -1452,7 +1454,8 @@ export class LspClient {
   private async pathExists(filePath: string): Promise<boolean> {
     if (typeof window !== 'undefined' && (window as any).Neutralino?.filesystem?.getStats) {
       try {
-        const stats = await (window as any).Neutralino.filesystem.getStats(filePath);
+        const norm = filePath.replace(/\//g, '\\');
+        const stats = await (window as any).Neutralino.filesystem.getStats(norm);
         return Boolean(stats);
       } catch {
         return false;

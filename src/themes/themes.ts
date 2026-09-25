@@ -1,7 +1,10 @@
+export type ThemeTransparencyPreset = 'solid' | 'dark-glass' | 'frosted-acrylic' | 'subtle-glass' | 'code-focus';
+
 export interface ThemeDefinition {
   id: string;
   name: string;
   isDark: boolean;
+  transparencyPreset?: ThemeTransparencyPreset;
   colors: {
     bgPrimary: string;
     bgSecondary: string;
@@ -257,6 +260,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
     id: 'dark-glass',
     name: 'Dark Glass',
     isDark: true,
+    transparencyPreset: 'dark-glass',
     colors: {
       bgPrimary: '#080b11',
       bgSecondary: '#030508',
