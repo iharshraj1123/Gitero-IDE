@@ -7,7 +7,7 @@ This guide walks you through installing Gitero IDE, opening your first workspace
 ## Installation
 
 ### Windows Installer (Recommended)
-1. Download `Gitero-Setup-0.3.5-beta.exe` from the GitHub Releases page.
+1. Download `Gitero-Setup-0.3.6-beta.exe` from the GitHub Releases page.
 2. Run the executable.
 3. The setup wizard installs Gitero IDE to `%LOCALAPPDATA%\Programs\Gitero IDE`.
 4. Optionally check the box to add the **"Open with Gitero"** option to your Windows Explorer context menu.

@@ -22,7 +22,7 @@
 * **Output Folder**:  
   `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\`
 * **Current Installer Executable**:  
-  `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\Gitero-Setup-0.3.5-beta.exe`
+  `d:\ProjectsNew\appDev2\Gitero IDE\installer-output\Gitero-Setup-0.3.6-beta.exe`
 * **Inno Setup Script**:  
   `d:\ProjectsNew\appDev2\Gitero IDE\installer\gitero.iss`
 
@@ -32,7 +32,7 @@
 
 * **GitHub Repository**: [https://github.com/iharshraj1123/Gitero-IDE](https://github.com/iharshraj1123/Gitero-IDE)
 * **Active Branch**: `main`
-* **Current Version**: `0.3.5-beta`
+* **Current Version**: `0.3.6-beta`
 
 ---
 

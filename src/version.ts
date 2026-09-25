@@ -12,10 +12,10 @@ declare const __GIT_BRANCH__: string;
  */
 export const APP_VERSION: string =
   (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) ||
-  ((typeof window !== 'undefined' && (window as any).NL_APPVERSION) ? (window as any).NL_APPVERSION : '0.3.5-beta');
+  ((typeof window !== 'undefined' && (window as any).NL_APPVERSION) ? (window as any).NL_APPVERSION : '0.3.6-beta');
 
 /**
- * Formatted display version (e.g. "v0.3.5-beta").
+ * Formatted display version (e.g. "v0.3.6-beta").
  */
 export const DISPLAY_VERSION: string = APP_VERSION.startsWith('v') ? APP_VERSION : `v${APP_VERSION}`;
 
