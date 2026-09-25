@@ -6427,6 +6427,13 @@ body.transparency-active .settings-body-wrapper {
   text-decoration-skip-ink: none !important;
 }
 
+.cm-lintRange-hint {
+  background-image: none !important;
+  text-decoration: underline dotted rgba(255, 255, 255, 0.35) !important;
+  text-underline-offset: 3px !important;
+  text-decoration-skip-ink: none !important;
+}
+
 .cm-gutter-lint {
   width: 16px !important;
 }
@@ -6469,6 +6476,12 @@ body.transparency-active .settings-body-wrapper {
 .cm-lint-marker-info {
   background-color: #58a6ff !important;
   box-shadow: 0 0 2px rgba(88, 166, 255, 0.6) !important;
+}
+
+.cm-lint-marker-hint {
+  background-color: #7d8590 !important;
+  box-shadow: 0 0 2px rgba(125, 133, 144, 0.4) !important;
+  opacity: 0.6;
 }
 
 /* Code editor content spacing */

@@ -30,9 +30,10 @@ export class LspProcess {
     }
 
     const commandArgs = this.args.length > 0 ? ` ${this.args.join(' ')}` : '';
+    const safeCmd = this.command.includes(' ') && !this.command.startsWith('"') ? `"${this.command}"` : this.command;
     const fullCommand = this.cwd
-      ? `cmd.exe /c "cd /d "${this.cwd}" && ${this.command}${commandArgs}"`
-      : `cmd.exe /c "${this.command}${commandArgs}"`;
+      ? `cmd.exe /s /c "cd /d "${this.cwd}" && ${safeCmd}${commandArgs}"`
+      : `cmd.exe /s /c "${safeCmd}${commandArgs}"`;
 
     try {
       const proc = await window.Neutralino.os.spawnProcess(fullCommand);

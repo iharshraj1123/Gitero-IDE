@@ -41,6 +41,48 @@ export function isBinaryFile(filePath: string): boolean {
   return BINARY_EXTENSIONS.has(ext);
 }
 
+export function isJsoncFile(filePath: string): boolean {
+  const norm = filePath.replace(/\\/g, '/').toLowerCase();
+  const fileName = norm.split('/').pop() || '';
+  const ext = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+
+  if (ext === 'jsonc' || ext === 'json5' || ext === 'babelrc' || ext === 'eslintrc' || ext === 'prettierrc' || ext === 'swcrc' || ext === 'hintrc') {
+    return true;
+  }
+
+  // TSConfig and JSConfig family
+  if (fileName === 'tsconfig.json' || fileName.startsWith('tsconfig.') || fileName.endsWith('.tsconfig.json')) {
+    return true;
+  }
+  if (fileName === 'jsconfig.json' || fileName.startsWith('jsconfig.') || fileName.endsWith('.jsconfig.json')) {
+    return true;
+  }
+
+  // VS Code and DevContainer configurations
+  if (norm.includes('/.vscode/') || norm.includes('/.devcontainer/')) {
+    return fileName.endsWith('.json');
+  }
+
+  // Known developer config files that permit comments
+  if (
+    fileName === 'neutralino.config.json' ||
+    fileName === 'tauri.conf.json' ||
+    fileName === 'turbo.json' ||
+    fileName === 'deno.json' ||
+    fileName === 'deno.jsonc' ||
+    fileName === 'launch.json' ||
+    fileName === 'tasks.json' ||
+    fileName === 'settings.json' ||
+    fileName === 'extensions.json' ||
+    fileName === 'keybindings.json' ||
+    fileName === 'devcontainer.json'
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function detectLanguage(filePath: string): LanguageInfo {
   const fileName = filePath.split(/[/\\]/).pop()?.toLowerCase() || '';
   const ext = fileName.includes('.') ? fileName.split('.').pop() || '' : fileName;
@@ -51,6 +93,10 @@ export function detectLanguage(filePath: string): LanguageInfo {
   }
   if (fileName === '.gitignore' || fileName === '.npmignore' || fileName === '.env') {
     return { name: 'Config', extension: () => [] };
+  }
+
+  if (isJsoncFile(filePath)) {
+    return { name: 'JSON with Comments', languageId: 'jsonc', extension: () => json() };
   }
 
   switch (ext) {
@@ -98,12 +144,14 @@ export function detectLanguage(filePath: string): LanguageInfo {
     case 'jav':
       return { name: 'Java', languageId: 'java', extension: () => java() };
     case 'json':
+      return { name: 'JSON', languageId: 'json', extension: () => json() };
     case 'jsonc':
     case 'json5':
     case 'babelrc':
     case 'eslintrc':
     case 'prettierrc':
-      return { name: 'JSON', languageId: 'json', extension: () => json() };
+    case 'swcrc':
+      return { name: 'JSON with Comments', languageId: 'jsonc', extension: () => json() };
     case 'md':
     case 'markdown':
     case 'mdown':
@@ -159,6 +207,7 @@ export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
   { name: 'HTML', languageId: 'html', extension: () => html() },
   { name: 'CSS', languageId: 'css', extension: () => css() },
   { name: 'JSON', languageId: 'json', extension: () => json() },
+  { name: 'JSON with Comments', languageId: 'jsonc', extension: () => json() },
   { name: 'Markdown', languageId: 'markdown', extension: () => markdown() },
   { name: 'Go', languageId: 'go', extension: () => go() },
   { name: 'Java', languageId: 'java', extension: () => java() },

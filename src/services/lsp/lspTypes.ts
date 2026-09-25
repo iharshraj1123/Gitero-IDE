@@ -141,12 +141,18 @@ export enum DiagnosticSeverity {
   Hint = 4
 }
 
+export enum DiagnosticTag {
+  Unnecessary = 1,
+  Deprecated = 2
+}
+
 export interface Diagnostic {
   range: Range;
   severity?: DiagnosticSeverity;
   code?: number | string;
   source?: string;
   message: string;
+  tags?: (DiagnosticTag | number)[];
 }
 
 export interface PublishDiagnosticsParams {

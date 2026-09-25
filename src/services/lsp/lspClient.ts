@@ -9,6 +9,7 @@ import {
   CompletionList,
   Diagnostic,
   DiagnosticSeverity,
+  DiagnosticTag,
   FormattingOptions,
   Hover,
   Location,
@@ -29,6 +30,7 @@ import { lspInstaller } from './lspInstaller';
 import { preferencesService } from '../preferences';
 import { notificationService } from '../notification';
 import { fsService } from '../fs';
+import { isJsoncFile } from '../../editor/languages';
 
 export function pathToUri(filePath: string): string {
   let normalized = filePath.replace(/\\/g, '/');
@@ -160,17 +162,83 @@ export class LspClient {
 
   private diagnosticsCache = new Map<string, Diagnostic[]>(); // Normalized path -> Diagnostic[]
 
+  private sanitizeDiagnostics(uri: string, diagnostics: Diagnostic[]): Diagnostic[] {
+    if (!diagnostics || diagnostics.length === 0) return [];
+
+    const normPath = uriToPath(uri).replace(/\//g, '\\').toLowerCase();
+    const fileName = normPath.split('\\').pop() || '';
+    const isJsonDoc = fileName.endsWith('.json') || fileName.endsWith('.jsonc') || fileName.endsWith('.json5') || isJsoncFile(normPath);
+    const sanitized: Diagnostic[] = [];
+
+    for (const d of diagnostics) {
+      const codeStr = d.code !== undefined ? String(d.code) : '';
+      const msg = d.message || '';
+
+      // 1. JSON False Positives:
+      // ErrorCode 521: "Comments are not permitted in JSON."
+      // ErrorCode 519: "Trailing comma"
+      if (isJsonDoc) {
+        if (codeStr === '521' || msg.includes('Comments are not permitted in JSON')) {
+          continue; // Suppress false comment error for JSON/JSONC documents
+        }
+        if (isJsoncFile(normPath) && (codeStr === '519' || msg.includes('Trailing comma'))) {
+          continue; // Suppress trailing comma false error for JSONC
+        }
+      }
+
+      const cloned: Diagnostic = { ...d };
+
+      // 2. TypeScript / JavaScript Unused Directives:
+      // TS2578: "Unused '@ts-expect-error' directive."
+      // TS2577: "Unused '@ts-ignore' directive."
+      // Demote to Hint so comments are never painted with red error squiggles or red gutter markers
+      if (codeStr === '2578' || codeStr === '2577' || msg.includes("Unused '@ts-expect-error'") || msg.includes("Unused '@ts-ignore'")) {
+        cloned.severity = DiagnosticSeverity.Hint;
+        cloned.tags = [DiagnosticTag.Unnecessary];
+        sanitized.push(cloned);
+        continue;
+      }
+
+      // 3. Unnecessary code (unused vars, imports, parameters) should NEVER be Error:
+      if (cloned.tags && (cloned.tags.includes(DiagnosticTag.Unnecessary) || (cloned.tags as number[]).includes(1))) {
+        if (cloned.severity === DiagnosticSeverity.Error) {
+          cloned.severity = DiagnosticSeverity.Hint;
+        }
+      }
+
+      // 4. Rust Analyzer unlinked file warning/error:
+      if (codeStr === 'unlinked-file' || msg.includes('not included in crate hierarchy')) {
+        cloned.severity = DiagnosticSeverity.Information;
+      }
+
+      // 5. Pyright missing type stubs:
+      if (codeStr === 'reportMissingTypeStubs') {
+        cloned.severity = DiagnosticSeverity.Hint;
+      }
+
+      sanitized.push(cloned);
+    }
+
+    return sanitized;
+  }
+
   private emitDiagnostics(params: PublishDiagnosticsParams) {
     const normPath = uriToPath(params.uri).replace(/\//g, '\\').toLowerCase();
-    if (!params.diagnostics || params.diagnostics.length === 0) {
+    const cleanDiagnostics = this.sanitizeDiagnostics(params.uri, params.diagnostics);
+    const sanitizedParams: PublishDiagnosticsParams = {
+      ...params,
+      diagnostics: cleanDiagnostics
+    };
+
+    if (cleanDiagnostics.length === 0) {
       this.diagnosticsCache.delete(normPath);
     } else {
-      this.diagnosticsCache.set(normPath, params.diagnostics);
+      this.diagnosticsCache.set(normPath, cleanDiagnostics);
     }
 
     for (const listener of this.diagnosticsListeners) {
       try {
-        listener(params);
+        listener(sanitizedParams);
       } catch (err) {
         console.error('[LSP Client] Diagnostics listener error:', err);
       }
@@ -397,6 +465,54 @@ export class LspClient {
         }
       });
 
+      // Handle server-to-client requests for configuration & dynamic capabilities
+      connection.onRequest('workspace/configuration', async (_method, params) => {
+        const items = params?.items || [];
+        return items.map((item: any) => {
+          const section = item?.section;
+          if (section === 'json') {
+            return {
+              validate: { enable: true },
+              format: { enable: true },
+              schemas: []
+            };
+          }
+          if (section === 'http') {
+            return { proxy: '', proxyStrictSSL: false };
+          }
+          if (section === 'typescript' || section === 'javascript') {
+            return {
+              suggest: { completeFunctionCalls: true },
+              preferences: {
+                includePackageJsonAutoImports: 'auto',
+                importModuleSpecifierPreference: 'shortest'
+              }
+            };
+          }
+          if (section === 'python') {
+            return {
+              analysis: {
+                autoSearchPaths: true,
+                useLibraryCodeForTypes: true,
+                diagnosticSeverityOverrides: {
+                  reportMissingTypeStubs: 'none'
+                }
+              }
+            };
+          }
+          return {};
+        });
+      });
+
+      connection.onRequest('client/registerCapability', async () => null);
+      connection.onRequest('client/unregisterCapability', async () => null);
+      connection.onRequest('workspace/workspaceFolders', async () => {
+        const rUri = (this.currentWorkspaceRoot && this.currentWorkspaceRoot !== '.')
+          ? pathToUri(this.currentWorkspaceRoot)
+          : null;
+        return rUri ? [{ uri: rUri, name: 'Workspace' }] : [];
+      });
+
       await activeProc.start();
 
       const session: ActiveSession = {
@@ -435,7 +551,8 @@ export class LspClient {
             allowJs: true,
             checkJs: false,
             skipLibCheck: true,
-            esModuleInterop: true
+            esModuleInterop: true,
+            lib: ['ESNext', 'DOM', 'DOM.Iterable']
           },
           ...(customPath || fallbackPath ? {
             tsserver: {
@@ -443,6 +560,15 @@ export class LspClient {
               ...(fallbackPath ? { fallbackPath } : {})
             }
           } : {})
+        };
+      } else if (config.id === 'json') {
+        initOptions = {
+          provideFormatter: true,
+          customCapabilities: {
+            rangeFormatting: {
+              dynamicRegistration: false
+            }
+          }
         };
       }
 
@@ -530,7 +656,9 @@ export class LspClient {
             applyEdit: true,
             workspaceEdit: {
               documentChanges: true
-            }
+            },
+            configuration: true,
+            workspaceFolders: true
           }
         },
         workspaceFolders: rootUri ? [{ uri: rootUri, name: 'Workspace' }] : null,
@@ -676,13 +804,18 @@ export class LspClient {
    * Notifies the server that a document was opened.
    */
   async notifyDidOpen(filePath: string, languageId: string, version: number, text: string): Promise<void> {
-    const session = await this.ensureServerRunning(languageId, filePath);
+    let effectiveLang = languageId;
+    if (languageId === 'json' && (isJsoncFile(filePath) || text.includes('//') || text.includes('/*'))) {
+      effectiveLang = 'jsonc';
+    }
+
+    const session = await this.ensureServerRunning(effectiveLang, filePath);
     if (!session) return;
 
     const uri = pathToUri(filePath);
     if (session.status !== 'ready') {
       // Buffer document until server handshake is complete
-      session.pendingOpenDocuments.set(uri, { filePath, languageId, version, text });
+      session.pendingOpenDocuments.set(uri, { filePath, languageId: effectiveLang, version, text });
       return;
     }
 
@@ -698,7 +831,7 @@ export class LspClient {
       await session.connection.notify('textDocument/didOpen', {
         textDocument: {
           uri,
-          languageId,
+          languageId: effectiveLang,
           version,
           text
         }
@@ -712,7 +845,12 @@ export class LspClient {
    * Notifies the server of document changes.
    */
   async notifyDidChange(filePath: string, languageId: string, version: number, text: string): Promise<void> {
-    const session = this.getSessionForLanguage(languageId);
+    let effectiveLang = languageId;
+    if (languageId === 'json' && (isJsoncFile(filePath) || text.includes('//') || text.includes('/*'))) {
+      effectiveLang = 'jsonc';
+    }
+
+    const session = this.getSessionForLanguage(effectiveLang);
     if (!session || session.status !== 'ready') return;
 
     const uri = pathToUri(filePath);

@@ -100,7 +100,7 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
   {
     id: 'json',
     name: 'JSON Language Server',
-    languages: ['json'],
+    languages: ['json', 'jsonc'],
     defaultCommand: 'vscode-json-language-server',
     defaultArgs: ['--stdio'],
     commandAliases: ['vscode-json-language-server.cmd', 'vscode-json-language-server'],
@@ -257,7 +257,21 @@ class LspServerRegistry {
           if (res.exitCode === 0 && res.stdOut && res.stdOut.trim().length > 0) {
             const lines = res.stdOut.trim().split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
             const nonWindowsApps = lines.filter((l: string) => !l.toLowerCase().includes('\\appdata\\local\\microsoft\\windowsapps\\'));
-            const targetPath = nonWindowsApps.length > 0 ? nonWindowsApps[0] : lines[0];
+            const pool = nonWindowsApps.length > 0 ? nonWindowsApps : lines;
+
+            // Windows priority: npm installs extensionless POSIX bash scripts into %APPDATA%\npm\ which cannot
+            // be spawned by Windows CreateProcess without a shell. Always prefer Windows executables (.cmd, .bat, .exe).
+            let targetPath = pool.find((l: string) => /\.(cmd|exe|bat)$/i.test(l)) || pool[0];
+
+            if (targetPath && !/\.[a-zA-Z0-9]+$/.test(targetPath)) {
+              for (const ext of ['.cmd', '.exe', '.bat']) {
+                const candidateWithExt = `${targetPath}${ext}`;
+                if (pool.includes(candidateWithExt)) {
+                  targetPath = candidateWithExt;
+                  break;
+                }
+              }
+            }
 
             if (targetPath.toLowerCase().includes('\\appdata\\local\\microsoft\\windowsapps\\')) {
               // Microsoft Store 0-byte execution alias; probe before accepting

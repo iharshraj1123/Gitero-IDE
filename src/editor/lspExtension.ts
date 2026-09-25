@@ -8,7 +8,7 @@ import { EditorView, hoverTooltip, keymap } from '@codemirror/view';
 import { Completion, CompletionContext, CompletionResult, snippet } from '@codemirror/autocomplete';
 import { setDiagnostics, Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { lspClient, pathToUri, uriToPath } from '../services/lsp/lspClient';
-import { CompletionItem, CompletionItemKind, Diagnostic, DiagnosticSeverity, Location } from '../services/lsp/lspTypes';
+import { CompletionItem, CompletionItemKind, Diagnostic, DiagnosticSeverity, DiagnosticTag, Location } from '../services/lsp/lspTypes';
 import { createLocalCompletionSource } from './localCompletion';
 import { createSnippetCompletionSource } from './snippets';
 import { preferencesService } from '../services/preferences';
@@ -382,6 +382,17 @@ export function updateViewDiagnostics(view: EditorView, filePath: string, diagno
       if (diag.severity === DiagnosticSeverity.Warning) severity = 'warning';
       else if (diag.severity === DiagnosticSeverity.Information) severity = 'info';
       else if (diag.severity === DiagnosticSeverity.Hint) severity = 'hint';
+
+      // Unnecessary symbols or directives should never display as harsh errors
+      if (diag.tags && (diag.tags.includes(DiagnosticTag.Unnecessary) || (diag.tags as number[]).includes(1))) {
+        if (severity === 'error') severity = 'hint';
+      }
+
+      // Check if diagnostic range falls on a comment line
+      const lineText = startLine.text.trim();
+      if ((lineText.startsWith('//') || lineText.startsWith('/*') || lineText.startsWith('#')) && severity === 'error') {
+        severity = 'hint';
+      }
 
       cmDiagnostics.push({
         from,
