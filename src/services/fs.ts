@@ -254,23 +254,38 @@ export class FileSystemService {
     }
   }
 
+  private bomFiles = new Set<string>();
+
   async readFile(filePath: string): Promise<string> {
     if (isNative()) {
       try {
-        return await window.Neutralino.filesystem.readFile(filePath);
+        const raw = await window.Neutralino.filesystem.readFile(filePath);
+        if (raw && raw.charCodeAt(0) === 0xFEFF) {
+          this.bomFiles.add(filePath.toLowerCase().replace(/\//g, '\\'));
+          return raw.slice(1);
+        }
+        return raw;
       } catch (err) {
         console.error('Error reading file:', err);
         throw err;
       }
     } else {
-      return mockFiles[filePath] || `// Content of ${filePath}\n`;
+      const raw = mockFiles[filePath] || `// Content of ${filePath}\n`;
+      if (raw && raw.charCodeAt(0) === 0xFEFF) {
+        return raw.slice(1);
+      }
+      return raw;
     }
   }
 
   async writeFile(filePath: string, content: string): Promise<void> {
     if (isNative()) {
       try {
-        await window.Neutralino.filesystem.writeFile(filePath, content);
+        const norm = filePath.toLowerCase().replace(/\//g, '\\');
+        const finalContent = this.bomFiles.has(norm) && content.charCodeAt(0) !== 0xFEFF
+          ? '\uFEFF' + content
+          : content;
+        await window.Neutralino.filesystem.writeFile(filePath, finalContent);
       } catch (err) {
         console.error('Error writing file:', err);
         throw err;

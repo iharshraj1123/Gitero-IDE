@@ -213,6 +213,13 @@ export class LspClient {
         cloned.severity = DiagnosticSeverity.Hint;
       }
 
+      // 6. XML BOM false-positive: "Content is not allowed in prolog."
+      if (fileName.endsWith('.xml') || fileName.endsWith('.xsd') || fileName.endsWith('.xsl') || fileName.endsWith('.xaml') || fileName.endsWith('.svg')) {
+        if (msg.includes('Content is not allowed in prolog') && d.range.start.line === 0) {
+          continue;
+        }
+      }
+
       sanitized.push(cloned);
     }
 
@@ -812,8 +819,10 @@ export class LspClient {
    * Notifies the server that a document was opened.
    */
   async notifyDidOpen(filePath: string, languageId: string, version: number, text: string): Promise<void> {
+    const cleanText = text && text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+
     let effectiveLang = languageId;
-    if (languageId === 'json' && (isJsoncFile(filePath) || text.includes('//') || text.includes('/*'))) {
+    if (languageId === 'json' && (isJsoncFile(filePath) || cleanText.includes('//') || cleanText.includes('/*'))) {
       effectiveLang = 'jsonc';
     }
 
@@ -823,7 +832,7 @@ export class LspClient {
     const uri = pathToUri(filePath);
     if (session.status !== 'ready') {
       // Buffer document until server handshake is complete
-      session.pendingOpenDocuments.set(uri, { filePath, languageId: effectiveLang, version, text });
+      session.pendingOpenDocuments.set(uri, { filePath, languageId: effectiveLang, version, text: cleanText });
       return;
     }
 
@@ -841,7 +850,7 @@ export class LspClient {
           uri,
           languageId: effectiveLang,
           version,
-          text
+          text: cleanText
         }
       });
     } catch (err) {
@@ -853,8 +862,10 @@ export class LspClient {
    * Notifies the server of document changes.
    */
   async notifyDidChange(filePath: string, languageId: string, version: number, text: string): Promise<void> {
+    const cleanText = text && text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+
     let effectiveLang = languageId;
-    if (languageId === 'json' && (isJsoncFile(filePath) || text.includes('//') || text.includes('/*'))) {
+    if (languageId === 'json' && (isJsoncFile(filePath) || cleanText.includes('//') || cleanText.includes('/*'))) {
       effectiveLang = 'jsonc';
     }
 
@@ -871,7 +882,7 @@ export class LspClient {
           version
         },
         contentChanges: [
-          { text }
+          { text: cleanText }
         ]
       });
     } catch (err) {
