@@ -480,33 +480,51 @@ export class SettingsModalComponent {
                 <!-- Theme Toolbar -->
                 <div class="setting-card theme-studio-card">
                   <div class="theme-studio-header">
-                    <div class="theme-select-container">
-                      <label for="setting-theme-select" class="theme-field-label">Theme Preset:</label>
-                      <select id="setting-theme-select" class="setting-select"></select>
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                      <div class="theme-select-container">
+                        <label for="setting-theme-select" class="theme-field-label">Active Theme:</label>
+                        <select id="setting-theme-select" class="setting-select"></select>
+                      </div>
+                      <div class="theme-select-container" id="theme-name-container" style="display: none;">
+                        <label for="setting-theme-name" class="theme-field-label">Theme Name:</label>
+                        <input type="text" id="setting-theme-name" class="setting-input-small" placeholder="Custom Theme Name" style="width: 140px;" />
+                      </div>
+                      <div class="theme-select-container">
+                        <label for="setting-theme-glass" class="theme-field-label">Glass Style:</label>
+                        <select id="setting-theme-glass" class="setting-select">
+                          <option value="solid">Solid (No Glass)</option>
+                          <option value="dark-glass">Dark Glass</option>
+                          <option value="frosted-acrylic">Frosted Acrylic</option>
+                          <option value="subtle-glass">Subtle Glass</option>
+                          <option value="code-focus">Code Focus</option>
+                        </select>
+                      </div>
                     </div>
                     <div class="theme-studio-actions">
-                      <button class="btn btn-secondary btn-sm" id="btn-theme-new" title="Create new custom theme">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        <span>New Theme</span>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-theme-new" title="Clone active theme to a new custom theme">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        <span>Clone to Custom</span>
                       </button>
-                      <button class="btn btn-primary btn-sm" id="btn-theme-save" title="Save customizations to theme">
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-theme-save" title="Save customizations to theme">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                         <span>Save Theme</span>
                       </button>
-                      <button class="btn btn-secondary btn-sm" id="btn-theme-export" title="Export current theme as JSON">
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-theme-export" title="Export current theme as JSON">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                        <span>Export JSON</span>
+                        <span>Export</span>
                       </button>
-                      <button class="btn btn-secondary btn-sm" id="btn-theme-import" title="Import theme from JSON">
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-theme-import" title="Import theme from JSON file">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span>Import JSON</span>
+                        <span>Import</span>
                       </button>
-                      <button class="btn btn-secondary btn-sm" id="btn-theme-delete" title="Delete custom theme" style="display: none; color: #f85149;">
+                      <input type="file" id="input-theme-file" accept=".json,application/json" style="display: none;" />
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-theme-delete" title="Delete custom theme" style="display: none; color: #f85149;">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         <span>Delete</span>
                       </button>
                     </div>
                   </div>
+                  <div id="theme-studio-status" style="display: none; padding: 6px 12px; margin-top: 10px; font-size: 12px; border-radius: 4px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); color: var(--accent-color, #38bdf8);"></div>
                 </div>
 
                 <!-- Live Interactive Code Preview -->
@@ -1489,62 +1507,115 @@ export class SettingsModalComponent {
 
   private workingTheme: ThemeDefinition | null = null;
 
+  private showThemeStudioStatus(message: string, isError = false) {
+    const statusEl = this.overlay.querySelector('#theme-studio-status') as HTMLElement;
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.style.display = 'block';
+    statusEl.style.color = isError ? '#f85149' : 'var(--accent-color, #38bdf8)';
+    statusEl.style.borderColor = isError ? 'rgba(248, 81, 73, 0.3)' : 'rgba(56, 189, 248, 0.2)';
+    statusEl.style.backgroundColor = isError ? 'rgba(248, 81, 73, 0.1)' : 'rgba(56, 189, 248, 0.1)';
+    setTimeout(() => {
+      if (statusEl) statusEl.style.display = 'none';
+    }, 4000);
+  }
+
   private setupThemeStudioListeners() {
     const themeSelect = this.overlay.querySelector('#setting-theme-select') as HTMLSelectElement;
+    const nameInput = this.overlay.querySelector('#setting-theme-name') as HTMLInputElement;
+    const glassSelect = this.overlay.querySelector('#setting-theme-glass') as HTMLSelectElement;
     const newBtn = this.overlay.querySelector('#btn-theme-new') as HTMLButtonElement;
     const saveBtn = this.overlay.querySelector('#btn-theme-save') as HTMLButtonElement;
     const exportBtn = this.overlay.querySelector('#btn-theme-export') as HTMLButtonElement;
     const importBtn = this.overlay.querySelector('#btn-theme-import') as HTMLButtonElement;
+    const fileInput = this.overlay.querySelector('#input-theme-file') as HTMLInputElement;
     const deleteBtn = this.overlay.querySelector('#btn-theme-delete') as HTMLButtonElement;
 
     themeSelect?.addEventListener('change', () => {
-      this.loadThemeIntoStudio(themeSelect.value);
+      const selectedId = themeSelect.value;
+      themeManager.applyTheme(selectedId, true);
+      this.loadThemeIntoStudio(selectedId);
+      this.showThemeStudioStatus(`Applied theme "${themeManager.getTheme(selectedId).name}".`);
+    });
+
+    nameInput?.addEventListener('input', () => {
+      if (!this.workingTheme || !themeManager.isCustomTheme(this.workingTheme.id)) return;
+      this.workingTheme.name = nameInput.value.trim() || this.workingTheme.name;
+      this.renderThemeLivePreview();
+    });
+
+    glassSelect?.addEventListener('change', () => {
+      if (!this.workingTheme) return;
+      const chosen = glassSelect.value as any;
+      this.workingTheme.transparencyPreset = chosen;
+      if (chosen === 'solid') {
+        transparencyService.applyPreset('solid');
+      } else {
+        transparencyService.applyPreset(chosen);
+      }
+      if (themeManager.isCustomTheme(this.workingTheme.id)) {
+        themeManager.saveCustomTheme(this.workingTheme);
+        this.showThemeStudioStatus(`Glass style updated to "${chosen}".`);
+      }
     });
 
     newBtn?.addEventListener('click', () => {
-      const name = prompt('Enter a name for the new custom theme:', (this.workingTheme?.name || 'Custom') + ' Copy');
-      if (!name || !name.trim()) return;
-      const baseColors = this.workingTheme?.colors || themeManager.getCurrentTheme().colors;
-      const id = 'custom-' + name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
+      const baseTheme = this.workingTheme || themeManager.getCurrentTheme();
+      const cleanName = baseTheme.name.replace(/\s*\(Custom\)$/, '');
+      const newName = `${cleanName} Custom`;
+      const id = 'custom-' + newName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
       const newTheme: ThemeDefinition = {
         id,
-        name: name.trim(),
-        isDark: true,
-        colors: { ...baseColors }
+        name: newName,
+        isDark: baseTheme.isDark,
+        transparencyPreset: this.workingTheme?.transparencyPreset || baseTheme.transparencyPreset || (baseTheme.id === 'dark-glass' ? 'dark-glass' : 'solid'),
+        colors: { ...baseTheme.colors }
       };
       themeManager.saveCustomTheme(newTheme);
       this.refreshThemeDropdown(newTheme.id);
       this.loadThemeIntoStudio(newTheme.id);
+      this.showThemeStudioStatus(`Created custom theme "${newName}". You can tweak colors, rename it, and adjust glass style.`);
     });
 
     saveBtn?.addEventListener('click', () => {
       if (!this.workingTheme) return;
       if (themeManager.isCustomTheme(this.workingTheme.id)) {
+        if (nameInput?.value.trim()) {
+          this.workingTheme.name = nameInput.value.trim();
+        }
+        if (glassSelect) {
+          this.workingTheme.transparencyPreset = glassSelect.value as any;
+        }
         themeManager.saveCustomTheme(this.workingTheme);
-        alert(`Saved theme "${this.workingTheme.name}".`);
+        this.refreshThemeDropdown(this.workingTheme.id);
+        this.loadThemeIntoStudio(this.workingTheme.id);
+        this.showThemeStudioStatus(`Theme "${this.workingTheme.name}" saved successfully.`);
       } else {
-        const name = prompt('Preset themes are protected. Save as a new custom theme name:', this.workingTheme.name + ' Custom');
-        if (!name || !name.trim()) return;
-        const id = 'custom-' + name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
+        const cleanName = this.workingTheme.name;
+        const newName = `${cleanName} Custom`;
+        const id = 'custom-' + newName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
         const newTheme: ThemeDefinition = {
-          ...this.workingTheme,
           id,
-          name: name.trim()
+          name: newName,
+          isDark: this.workingTheme.isDark,
+          transparencyPreset: this.workingTheme.transparencyPreset || (this.workingTheme.id === 'dark-glass' ? 'dark-glass' : 'solid'),
+          colors: { ...this.workingTheme.colors }
         };
         themeManager.saveCustomTheme(newTheme);
         this.refreshThemeDropdown(newTheme.id);
         this.loadThemeIntoStudio(newTheme.id);
+        this.showThemeStudioStatus(`Preset saved as new custom theme "${newName}".`);
       }
     });
 
     deleteBtn?.addEventListener('click', () => {
       if (!this.workingTheme || !themeManager.isCustomTheme(this.workingTheme.id)) return;
-      if (confirm(`Delete custom theme "${this.workingTheme.name}"?`)) {
-        themeManager.deleteCustomTheme(this.workingTheme.id);
-        const curTheme = themeManager.getCurrentTheme();
-        this.refreshThemeDropdown(curTheme.id);
-        this.loadThemeIntoStudio(curTheme.id);
-      }
+      const themeName = this.workingTheme.name;
+      themeManager.deleteCustomTheme(this.workingTheme.id);
+      const curTheme = themeManager.getCurrentTheme();
+      this.refreshThemeDropdown(curTheme.id);
+      this.loadThemeIntoStudio(curTheme.id);
+      this.showThemeStudioStatus(`Deleted custom theme "${themeName}".`);
     });
 
     exportBtn?.addEventListener('click', () => {
@@ -1558,18 +1629,31 @@ export class SettingsModalComponent {
       a.download = `${this.workingTheme.id}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      this.showThemeStudioStatus(`Exported theme "${this.workingTheme.name}" as JSON.`);
     });
 
     importBtn?.addEventListener('click', () => {
-      const input = prompt('Paste theme JSON content here:');
-      if (!input || !input.trim()) return;
-      try {
-        const imported = themeManager.importThemeJson(input.trim());
-        this.refreshThemeDropdown(imported.id);
-        this.loadThemeIntoStudio(imported.id);
-      } catch (err: any) {
-        alert('Failed to import theme: ' + err.message);
-      }
+      fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const imported = themeManager.importThemeJson(content);
+          this.refreshThemeDropdown(imported.id);
+          this.loadThemeIntoStudio(imported.id);
+          this.showThemeStudioStatus(`Successfully imported theme "${imported.name}".`);
+        } catch (err: any) {
+          this.showThemeStudioStatus(`Failed to import theme: ${err.message}`, true);
+        } finally {
+          fileInput.value = '';
+        }
+      };
+      reader.readAsText(file);
     });
   }
 
@@ -1612,9 +1696,23 @@ export class SettingsModalComponent {
   private loadThemeIntoStudio(themeId: string) {
     const theme = themeManager.getTheme(themeId);
     this.workingTheme = JSON.parse(JSON.stringify(theme));
+    const isCustom = themeManager.isCustomTheme(theme.id);
+
     const deleteBtn = this.overlay.querySelector('#btn-theme-delete') as HTMLButtonElement;
     if (deleteBtn) {
-      deleteBtn.style.display = themeManager.isCustomTheme(theme.id) ? 'inline-flex' : 'none';
+      deleteBtn.style.display = isCustom ? 'inline-flex' : 'none';
+    }
+
+    const nameContainer = this.overlay.querySelector('#theme-name-container') as HTMLElement;
+    const nameInput = this.overlay.querySelector('#setting-theme-name') as HTMLInputElement;
+    if (nameContainer && nameInput) {
+      nameContainer.style.display = isCustom ? 'flex' : 'none';
+      nameInput.value = this.workingTheme?.name || '';
+    }
+
+    const glassSelect = this.overlay.querySelector('#setting-theme-glass') as HTMLSelectElement;
+    if (glassSelect) {
+      glassSelect.value = this.workingTheme?.transparencyPreset || (theme.id === 'dark-glass' ? 'dark-glass' : 'solid');
     }
 
     this.renderThemeLivePreview();
@@ -2046,6 +2144,14 @@ export class SettingsModalComponent {
     // Save Working Theme
     if (this.workingTheme) {
       if (themeManager.isCustomTheme(this.workingTheme.id)) {
+        const nameInput = this.overlay.querySelector('#setting-theme-name') as HTMLInputElement;
+        if (nameInput?.value.trim()) {
+          this.workingTheme.name = nameInput.value.trim();
+        }
+        const glassSelect = this.overlay.querySelector('#setting-theme-glass') as HTMLSelectElement;
+        if (glassSelect) {
+          this.workingTheme.transparencyPreset = glassSelect.value as any;
+        }
         themeManager.saveCustomTheme(this.workingTheme);
       } else {
         themeManager.applyTheme(this.workingTheme.id, true);

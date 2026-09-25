@@ -191,11 +191,8 @@ export class LspClient {
       // 2. TypeScript / JavaScript Unused Directives:
       // TS2578: "Unused '@ts-expect-error' directive."
       // TS2577: "Unused '@ts-ignore' directive."
-      // Demote to Hint so comments are never painted with red error squiggles or red gutter markers
+      // Comments are completely ignored for checks (no errors, no hints, no squiggles).
       if (codeStr === '2578' || codeStr === '2577' || msg.includes("Unused '@ts-expect-error'") || msg.includes("Unused '@ts-ignore'")) {
-        cloned.severity = DiagnosticSeverity.Hint;
-        cloned.tags = [DiagnosticTag.Unnecessary];
-        sanitized.push(cloned);
         continue;
       }
 

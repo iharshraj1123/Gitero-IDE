@@ -383,15 +383,15 @@ export function updateViewDiagnostics(view: EditorView, filePath: string, diagno
       else if (diag.severity === DiagnosticSeverity.Information) severity = 'info';
       else if (diag.severity === DiagnosticSeverity.Hint) severity = 'hint';
 
-      // Unnecessary symbols or directives should never display as harsh errors
-      if (diag.tags && (diag.tags.includes(DiagnosticTag.Unnecessary) || (diag.tags as number[]).includes(1))) {
-        if (severity === 'error') severity = 'hint';
+      // Check if diagnostic range falls on a comment line - completely ignore comments for checks
+      const lineText = startLine.text.trim();
+      if (lineText.startsWith('//') || lineText.startsWith('/*') || lineText.startsWith('*') || lineText.startsWith('#')) {
+        continue;
       }
 
-      // Check if diagnostic range falls on a comment line
-      const lineText = startLine.text.trim();
-      if ((lineText.startsWith('//') || lineText.startsWith('/*') || lineText.startsWith('#')) && severity === 'error') {
-        severity = 'hint';
+      // Unnecessary symbols in code (e.g. unused imports or variables) should display as subtle hints, never errors
+      if (diag.tags && (diag.tags.includes(DiagnosticTag.Unnecessary) || (diag.tags as number[]).includes(1))) {
+        if (severity === 'error') severity = 'hint';
       }
 
       cmDiagnostics.push({

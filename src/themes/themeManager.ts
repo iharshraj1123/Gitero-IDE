@@ -113,6 +113,7 @@ export class ThemeManager {
       id,
       name: parsed.name,
       isDark: typeof parsed.isDark === 'boolean' ? parsed.isDark : true,
+      transparencyPreset: parsed.transparencyPreset || undefined,
       colors: {
         ...THEMES['github-dark'].colors,
         ...parsed.colors
@@ -131,11 +132,14 @@ export class ThemeManager {
       this.activeThemeOverride = null;
       if (persist) {
         preferencesService.set('editor.theme', theme.id);
-        if (theme.id === 'dark-glass') {
+        const preset = theme.transparencyPreset || (theme.id === 'dark-glass' ? 'dark-glass' : 'solid');
+        if (preset === 'solid') {
           const isTransEnabled = preferencesService.get('transparency.enabled');
-          if (!isTransEnabled) {
-            transparencyService.applyPreset('dark-glass');
+          if (isTransEnabled) {
+            transparencyService.applyPreset('solid');
           }
+        } else {
+          transparencyService.applyPreset(preset);
         }
       }
     } else {
