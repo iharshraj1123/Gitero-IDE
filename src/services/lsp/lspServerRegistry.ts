@@ -107,6 +107,17 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     installGuide: 'npm install -g vscode-langservers-extracted',
     installCommand: 'npm install -g vscode-langservers-extracted',
     packageManager: 'npm'
+  },
+  {
+    id: 'xml',
+    name: 'XML (LemMinX)',
+    languages: ['xml', 'xsd', 'xsl', 'xslt', 'svg', 'xaml'],
+    defaultCommand: 'lemminx',
+    defaultArgs: [],
+    commandAliases: ['lemminx.exe', 'lemminx-win32.exe', 'lemminx.cmd'],
+    installGuide: 'winget install RedHat.LemMinX (or download lemminx binary from Eclipse)',
+    installCommand: 'winget install RedHat.LemMinX --silent',
+    packageManager: 'winget'
   }
 ];
 

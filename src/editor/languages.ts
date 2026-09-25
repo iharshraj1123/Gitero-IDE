@@ -171,6 +171,9 @@ export function detectLanguage(filePath: string): LanguageInfo {
     case 'xaml':
     case 'rss':
     case 'atom':
+    case 'xsd':
+    case 'xsl':
+    case 'xslt':
       return { name: 'XML', languageId: 'xml', extension: () => xml() };
     case 'php':
     case 'phtml':

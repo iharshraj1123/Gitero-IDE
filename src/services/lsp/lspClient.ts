@@ -500,6 +500,12 @@ export class LspClient {
               }
             };
           }
+          if (section === 'xml') {
+            return {
+              format: { enabled: true },
+              validation: { enabled: true }
+            };
+          }
           return {};
         });
       });
