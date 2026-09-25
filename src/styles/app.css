@@ -3370,6 +3370,207 @@ html.init-sidebar-collapsed .sidebar-resizer {
 }
 
 /* ==========================================================================
+   Error Details Modal
+   ========================================================================== */
+.error-details-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-details-modal-dialog {
+  width: 680px;
+  max-width: 92vw;
+  max-height: 85vh;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.error-details-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.error-details-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg-primary);
+}
+
+.error-details-modal-close {
+  background: none;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+.error-details-modal-close:hover {
+  color: var(--fg-primary);
+  background: var(--bg-hover);
+}
+
+.error-details-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.error-details-subtitle {
+  font-size: 13px;
+  color: var(--fg-primary);
+  line-height: 1.4;
+}
+
+.error-details-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.error-details-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--fg-muted);
+}
+
+.error-details-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.error-details-command {
+  flex: 1;
+  font-family: var(--editor-font-family);
+  font-size: 12px;
+  color: var(--fg-primary);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.error-details-copy-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--fg-secondary);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.error-details-copy-btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg-primary);
+}
+
+.error-details-exit-code {
+  font-family: var(--editor-font-family);
+  font-size: 12px;
+  color: #f85149;
+  font-weight: 700;
+}
+
+.error-details-hints-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  line-height: 1.5;
+}
+
+.error-details-log {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--editor-font-family);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #e6edf3;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.error-details-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.error-details-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.error-details-footer-btn.secondary {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--fg-primary);
+}
+
+.error-details-footer-btn.secondary:hover {
+  background: var(--bg-hover);
+}
+
+.error-details-footer-btn.primary {
+  background: var(--accent-color);
+  border: 1px solid var(--accent-color);
+  color: #ffffff;
+}
+
+.error-details-footer-btn.primary:hover {
+  filter: brightness(1.1);
+}
+
+/* ==========================================================================
    Markdown Viewer Styles
    ========================================================================== */
 

@@ -49,8 +49,8 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'clangd',
     defaultArgs: ['--background-index'],
     commandAliases: ['clangd.exe', 'clangd'],
-    installGuide: 'winget install LLVM.LLVM (or install LLVM Clang)',
-    installCommand: 'winget install LLVM.LLVM --silent',
+    installGuide: 'winget install LLVM.clangd --accept-package-agreements --accept-source-agreements --silent (or install LLVM Clang)',
+    installCommand: 'winget install LLVM.clangd --accept-package-agreements --accept-source-agreements --silent',
     packageManager: 'winget'
   },
   {
@@ -114,10 +114,10 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     languages: ['xml', 'xsd', 'xsl', 'xslt', 'svg', 'xaml'],
     defaultCommand: 'lemminx',
     defaultArgs: [],
-    commandAliases: ['lemminx.exe', 'lemminx-win32.exe', 'lemminx.cmd'],
-    installGuide: 'winget install RedHat.LemMinX (or download lemminx binary from Eclipse)',
-    installCommand: 'winget install RedHat.LemMinX --silent',
-    packageManager: 'winget'
+    commandAliases: ['lemminx.cmd', 'lemminx.exe', 'lemminx'],
+    installGuide: 'Automated Eclipse LemMinX download or scoop install lemminx',
+    installCommand: 'powershell -NoProfile -Command "if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx)) { New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx | Out-Null }; curl.exe -s -L -o $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.jar https://download.eclipse.org/lemminx/releases/0.31.2/org.eclipse.lemminx-uber.jar; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.cmd -Value \'@echo off`r`njava -jar `"%~dp0lemminx.jar`" %*\'"',
+    packageManager: 'custom'
   }
 ];
 
@@ -228,6 +228,9 @@ class LspServerRegistry {
         } catch {}
       }
     } else if (config.id === 'cpp') {
+      if (localAppData) {
+        candidates.push(`${localAppData}\\Microsoft\\WinGet\\Links\\clangd.exe`);
+      }
       candidates.push(
         'C:\\Program Files\\LLVM\\bin\\clangd.exe',
         'C:\\Program Files (x86)\\LLVM\\bin\\clangd.exe',
@@ -235,6 +238,16 @@ class LspServerRegistry {
         'C:\\msys64\\ucrt64\\bin\\clangd.exe',
         'C:\\msys64\\clang64\\bin\\clangd.exe'
       );
+    } else if (config.id === 'xml') {
+      if (localAppData) {
+        candidates.push(`${localAppData}\\Gitero\\lsp\\lemminx\\lemminx.cmd`);
+        candidates.push(`${localAppData}\\Gitero\\lsp\\lemminx\\lemminx.exe`);
+        candidates.push(`${localAppData}\\Gitero\\lsp\\lemminx\\lemminx.bat`);
+      }
+      if (userProfile) {
+        candidates.push(`${userProfile}\\scoop\\shims\\lemminx.exe`);
+        candidates.push(`${userProfile}\\scoop\\shims\\lemminx.cmd`);
+      }
     }
 
     for (const rawCmd of candidates) {

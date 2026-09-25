@@ -1462,6 +1462,32 @@ export class LspClient {
   }
 
   /**
+   * Stops any running language server session matching a specific server ID.
+   * Useful before running an install or update command to release file locks on Windows.
+   */
+  async stopServer(serverId: string): Promise<void> {
+    const sessionsToStop = Array.from(this.sessions.entries())
+      .filter(([_, session]) => session.config.id === serverId);
+
+    const stoppedUnique = new Set<ActiveSession>();
+    for (const [langId, session] of sessionsToStop) {
+      this.sessions.delete(langId);
+      if (!stoppedUnique.has(session)) {
+        stoppedUnique.add(session);
+        try {
+          await session.connection.request('shutdown', undefined, 1500).catch(() => {});
+          await session.connection.notify('exit');
+          await session.process.stop();
+        } catch {
+          await session.process.stop();
+        } finally {
+          session.connection.dispose();
+        }
+      }
+    }
+  }
+
+  /**
    * Stops all running language server sessions cleanly.
    */
   async stopAll(): Promise<void> {

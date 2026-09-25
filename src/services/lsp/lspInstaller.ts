@@ -1,10 +1,13 @@
 /**
  * Language Server Background Installer Service
- * Provides one-click installation for language servers using system package managers (npm, pip, etc.).
+ * Provides one-click installation for language servers using system package managers (npm, pip, winget, etc.).
+ * Includes robust process unlocking, detailed error diagnostic logging, and actionable failure reporting.
  */
 
 import { ServerConfig, lspServerRegistry } from './lspServerRegistry';
+import { lspClient } from './lspClient';
 import { notificationService } from '../notification';
+import { errorModal } from '../../ui/errorModal';
 
 declare const window: any;
 
@@ -19,7 +22,7 @@ class LspInstallerService {
   }
 
   /**
-   * Check if the required package manager is available on the user's PATH
+   * Check if the required package manager or runtime is available on the user's PATH
    */
   async canInstall(server: ServerConfig): Promise<{ canInstall: boolean; error?: string; tool?: string }> {
     if (!server.installCommand) {
@@ -28,6 +31,27 @@ class LspInstallerService {
 
     if (typeof window === 'undefined' || !window.Neutralino?.os?.execCommand) {
       return { canInstall: false, error: 'Native execution environment is not available.' };
+    }
+
+    // Special checks for XML (requires Java or Scoop)
+    if (server.id === 'xml') {
+      try {
+        const javaRes = await window.Neutralino.os.execCommand('where.exe java');
+        if (javaRes.exitCode === 0 && javaRes.stdOut && javaRes.stdOut.trim().length > 0) {
+          return { canInstall: true, tool: 'java' };
+        }
+        const scoopRes = await window.Neutralino.os.execCommand('where.exe scoop');
+        if (scoopRes.exitCode === 0 && scoopRes.stdOut && scoopRes.stdOut.trim().length > 0) {
+          return { canInstall: true, tool: 'scoop' };
+        }
+        return {
+          canInstall: false,
+          tool: 'java',
+          error: 'Java (JRE/JDK 11+) or Scoop is required to run LemMinX. Please install Java (e.g. OpenJDK 17) or Scoop first.'
+        };
+      } catch {
+        return { canInstall: true };
+      }
     }
 
     const tool = server.packageManager || this.inferTool(server.installCommand);
@@ -90,7 +114,7 @@ class LspInstallerService {
       return { success: false, error: 'Installation is already in progress.' };
     }
 
-    // Verify package manager tool
+    // Verify package manager tool or runtime prerequisites
     const preCheck = await this.canInstall(server);
     if (!preCheck.canInstall) {
       notificationService.warn(
@@ -99,7 +123,7 @@ class LspInstallerService {
         server.installGuide ? [{
           label: 'Copy Manual Guide',
           onClick: () => {
-            navigator.clipboard.writeText(server.installGuide);
+            navigator.clipboard.writeText(server.installGuide || '');
             notificationService.info('Copied', 'Installation guide copied to clipboard.');
           }
         }] : undefined
@@ -108,6 +132,13 @@ class LspInstallerService {
     }
 
     this.installingServers.add(server.id);
+
+    // Stop and disconnect any existing session and lingering child processes to release Windows file locks (EBUSY)
+    try {
+      await lspClient.stopServer(server.id);
+    } catch (err) {
+      console.warn(`[LSP Installer] Warning stopping server ${server.id} before install:`, err);
+    }
 
     // Notify user of installation starting
     const progressNotif = notificationService.show({
@@ -123,16 +154,36 @@ class LspInstallerService {
     }));
 
     try {
-      // Prepend toolchain paths if applicable to ensure newly installed or user toolchain is found
-      let envPrefix = '';
-      if (server.packageManager === 'rustup' || server.id === 'rust') {
-        envPrefix = 'set PATH=%USERPROFILE%\\.cargo\\bin;%PATH% && ';
-      } else if (server.packageManager === 'go' || server.id === 'go') {
-        envPrefix = 'set PATH=%USERPROFILE%\\go\\bin;C:\\Program Files\\Go\\bin;%PATH% && ';
+      // Resolve command to execute
+      let fullCmd = server.installCommand;
+
+      // Smart handling for XML: if scoop is available, use scoop; otherwise use automated download
+      if (server.id === 'xml') {
+        let hasScoop = false;
+        try {
+          const scoopRes = await window.Neutralino.os.execCommand('where.exe scoop');
+          if (scoopRes.exitCode === 0 && scoopRes.stdOut?.trim()) {
+            hasScoop = true;
+          }
+        } catch {}
+
+        if (hasScoop) {
+          fullCmd = 'cmd.exe /c "scoop install lemminx"';
+        } else {
+          fullCmd = 'powershell -NoProfile -Command "if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx)) { New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx | Out-Null }; curl.exe -s -L -o $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.jar https://download.eclipse.org/lemminx/releases/0.31.2/org.eclipse.lemminx-uber.jar; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.cmd -Value \'@echo off`r`njava -jar `"%~dp0lemminx.jar`" %*\'"';
+        }
+      } else {
+        // Prepend toolchain paths if applicable to ensure newly installed or user toolchain is found
+        let envPrefix = '';
+        if (server.packageManager === 'rustup' || server.id === 'rust') {
+          envPrefix = 'set PATH=%USERPROFILE%\\.cargo\\bin;%PATH% && ';
+        } else if (server.packageManager === 'go' || server.id === 'go') {
+          envPrefix = 'set PATH=%USERPROFILE%\\go\\bin;C:\\Program Files\\Go\\bin;%PATH% && ';
+        }
+
+        fullCmd = `cmd.exe /c "${envPrefix}${server.installCommand}"`;
       }
 
-      // Execute command via Windows cmd.exe
-      const fullCmd = `cmd.exe /c "${envPrefix}${server.installCommand}"`;
       const res = await window.Neutralino.os.execCommand(fullCmd);
 
       notificationService.dismiss(progressNotif);
@@ -159,27 +210,95 @@ class LspInstallerService {
 
         return { success: true };
       } else {
-        const errorMsg = (res.stdErr || res.stdOut || 'Process exited with non-zero status').trim();
+        // Parse diagnostic failure reason
+        const rawErr = (res.stdErr || '').trim();
+        const rawOut = (res.stdOut || '').trim();
+        const combined = rawErr || rawOut || 'Process exited with non-zero status.';
+
+        // Extract most meaningful line for the notification card
+        const lines = combined.split('\n').map((l: string) => l.trim()).filter(Boolean);
+        let keyReason = lines[0] || `Exit code ${res.exitCode}`;
+        for (const line of lines) {
+          if (
+            line.includes('No package found') ||
+            line.includes('EBUSY') ||
+            line.includes('EACCES') ||
+            line.includes('access is denied') ||
+            line.includes('not recognized') ||
+            line.includes('command not found')
+          ) {
+            keyReason = line;
+            break;
+          }
+        }
+        if (keyReason.length > 95) {
+          keyReason = keyReason.slice(0, 92) + '...';
+        }
+
+        const hints = this.getTroubleshootingHints(server, res.exitCode, combined);
+
         notificationService.error(
           'Installation Failed',
-          `Failed to install ${server.name}.`,
-          [{
-            label: 'Copy Command',
-            onClick: () => {
-              navigator.clipboard.writeText(server.installCommand || '');
-              notificationService.info('Copied', 'Command copied to clipboard.');
+          `Failed to install ${server.name} (exit code ${res.exitCode}): ${keyReason}`,
+          [
+            {
+              label: 'View Error Log',
+              primary: true,
+              onClick: () => {
+                errorModal.open({
+                  title: `Installation Failed: ${server.name}`,
+                  subtitle: `The installation command exited with code ${res.exitCode}.`,
+                  command: fullCmd,
+                  exitCode: res.exitCode,
+                  stdout: res.stdOut,
+                  stderr: res.stdErr,
+                  hints
+                });
+              }
+            },
+            {
+              label: 'Copy Error Details',
+              onClick: () => {
+                const report = errorModal.formatFullReport({
+                  title: `Installation Failed: ${server.name}`,
+                  subtitle: `The installation command exited with code ${res.exitCode}.`,
+                  command: fullCmd,
+                  exitCode: res.exitCode,
+                  stdout: res.stdOut,
+                  stderr: res.stdErr,
+                  hints
+                });
+                navigator.clipboard.writeText(report);
+                notificationService.info('Copied', 'Error details copied to clipboard.');
+              }
+            },
+            {
+              label: 'Copy Command',
+              onClick: () => {
+                navigator.clipboard.writeText(server.installCommand || fullCmd);
+                notificationService.info('Copied', 'Command copied to clipboard.');
+              }
             }
-          }]
+          ]
         );
 
-        return { success: false, error: errorMsg };
+        return { success: false, error: combined };
       }
     } catch (err: any) {
       notificationService.dismiss(progressNotif);
       const errMsg = err?.message || 'Execution failed';
       notificationService.error(
         'Installation Error',
-        `An error occurred while installing ${server.name}: ${errMsg}`
+        `An error occurred while installing ${server.name}: ${errMsg}`,
+        [
+          {
+            label: 'Copy Error',
+            onClick: () => {
+              navigator.clipboard.writeText(`Server: ${server.name}\nError: ${errMsg}`);
+              notificationService.info('Copied', 'Error copied to clipboard.');
+            }
+          }
+        ]
       );
       return { success: false, error: errMsg };
     } finally {
@@ -197,7 +316,31 @@ class LspInstallerService {
     if (trimmed.startsWith('rustup')) return 'rustup';
     if (trimmed.startsWith('go')) return 'go';
     if (trimmed.startsWith('winget')) return 'winget';
+    if (trimmed.startsWith('scoop')) return 'scoop';
     return null;
+  }
+
+  private getTroubleshootingHints(server: ServerConfig, exitCode: number, errorText: string): string[] {
+    const hints: string[] = [];
+    const lower = errorText.toLowerCase();
+
+    if (lower.includes('ebusy') || lower.includes('resource busy')) {
+      hints.push('A running background process or editor instance is holding a lock on files. Terminating background instances or restarting the IDE usually resolves this.');
+    }
+    if (lower.includes('no package found') || lower.includes('404 not found')) {
+      hints.push('The package name was not found in the package manager registry. Try using an alternative installation method.');
+    }
+    if (lower.includes('access is denied') || lower.includes('eacces') || lower.includes('administrator')) {
+      hints.push('Administrator privileges may be required to install this package system-wide.');
+    }
+    if (lower.includes('java') || server.id === 'xml') {
+      hints.push('Ensure Java (JRE or JDK 11+) is installed and accessible on your system PATH.');
+    }
+    if (server.installGuide) {
+      hints.push(`Manual setup guide: ${server.installGuide}`);
+    }
+
+    return hints;
   }
 }
 
