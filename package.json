@@ -1,7 +1,7 @@
 {
   "name": "gitero-ide",
   "private": true,
-  "version": "0.3.6-beta",
+  "version": "0.3.7-beta",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {

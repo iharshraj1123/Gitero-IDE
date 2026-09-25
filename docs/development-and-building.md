@@ -79,7 +79,7 @@ This command performs a complete automated pipeline:
 1. Runs `npm run build` (TypeScript check and Vite bundle).
 2. Runs `npx @neutralinojs/neu build` (compiles `resources.neu` and native executables).
 3. Invokes Inno Setup compiler (`iscc`) on `installer/gitero.iss`.
-4. Outputs the final installer `Gitero-Setup-0.3.6-beta.exe` to `installer-output/`.
+4. Outputs the final installer `Gitero-Setup-0.3.7-beta.exe` to `installer-output/`.
 
 ---
 
