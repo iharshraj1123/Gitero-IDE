@@ -203,6 +203,18 @@ class LspServerRegistry {
     } else if (config.id === 'rust') {
       if (userProfile) {
         candidates.push(`${userProfile}\\.cargo\\bin\\rust-analyzer.exe`);
+        // Also check active/installed rustup toolchains directly
+        try {
+          const toolchainsDir = `${userProfile}\\.rustup\\toolchains`;
+          if (window.Neutralino?.filesystem?.readDirectory) {
+            const entries = await window.Neutralino.filesystem.readDirectory(toolchainsDir);
+            for (const entry of entries || []) {
+              if (entry.type === 'DIRECTORY') {
+                candidates.push(`${toolchainsDir}\\${entry.entry}\\bin\\rust-analyzer.exe`);
+              }
+            }
+          }
+        } catch {}
       }
     } else if (config.id === 'cpp') {
       candidates.push(
@@ -254,13 +266,13 @@ class LspServerRegistry {
             }
 
             if (config.id === 'rust') {
-              const isRustValid = await this.verifyRustExecutable(cleanCmd);
+              const isRustValid = await this.verifyRustExecutable(targetPath || cleanCmd);
               if (!isRustValid) continue;
             }
 
-            this.resolvedPathCache.set(cacheKey, cleanCmd);
+            this.resolvedPathCache.set(cacheKey, targetPath || cleanCmd);
             this.cache.set(cacheKey, true);
-            return cleanCmd;
+            return targetPath || cleanCmd;
           }
         } catch {
           // Not found on PATH
@@ -275,16 +287,27 @@ class LspServerRegistry {
 
   private async verifyRustExecutable(cmdOrPath: string): Promise<boolean> {
     try {
+      let userProfile = '';
+      try {
+        if (window.Neutralino?.os?.getEnv) {
+          userProfile = (await window.Neutralino.os.getEnv('USERPROFILE')) || '';
+        }
+      } catch {}
+
+      const envPrefix = userProfile ? `set PATH=${userProfile}\\.cargo\\bin;%PATH% && ` : '';
       const escaped = cmdOrPath.includes(' ') ? `"${cmdOrPath}"` : cmdOrPath;
-      const res = await window.Neutralino.os.execCommand(`cmd.exe /c "${escaped} --version"`);
+      const res = await window.Neutralino.os.execCommand(`cmd.exe /c "${envPrefix}${escaped} --version"`);
       if (res.exitCode !== 0) {
         return false;
       }
       const combined = `${res.stdOut || ''} ${res.stdErr || ''}`.toLowerCase();
-      if (combined.includes('unknown binary') || combined.includes('error:') || combined.includes('not installed')) {
+      if (combined.includes('unknown binary') || combined.includes('not installed')) {
         return false;
       }
-      return true;
+      if (combined.includes('rust-analyzer')) {
+        return true;
+      }
+      return false;
     } catch {
       return false;
     }

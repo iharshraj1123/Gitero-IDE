@@ -2527,10 +2527,12 @@ export class SettingsModalComponent {
     }
 
     window.addEventListener('gitero:lsp-server-installed', async () => {
+      lspServerRegistry.clearCache();
       await this.renderLspServersList();
     });
 
     window.addEventListener('gitero:lsp-install-status', async () => {
+      lspServerRegistry.clearCache();
       await this.renderLspServersList();
     });
 
@@ -2754,6 +2756,8 @@ export class SettingsModalComponent {
         installBtn.disabled = true;
         installBtn.textContent = 'Installing...';
         await lspInstaller.installServer(server);
+        lspServerRegistry.clearCache();
+        await this.renderLspServersList();
       });
 
       // Wire enable toggle
