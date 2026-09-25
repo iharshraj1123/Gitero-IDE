@@ -5,6 +5,7 @@ export class DiffModalComponent {
   private overlay: HTMLElement | null = null;
   private currentChange: GitFileChange | null = null;
   private isStaged: boolean = false;
+  private activeRequestId: number = 0;
 
   constructor() {
     this.setupGlobalListeners();
@@ -20,11 +21,11 @@ export class DiffModalComponent {
 
   public async open(change: GitFileChange, isStaged: boolean = false) {
     this.close();
+    const reqId = ++this.activeRequestId;
     this.currentChange = change;
     this.isStaged = isStaged;
 
     const fileName = change.relativePath.split('/').pop() || change.relativePath;
-    const diffData = await gitService.getFileDiff(change.relativePath, isStaged);
 
     this.overlay = document.createElement('div');
     this.overlay.className = 'diff-modal-overlay';
@@ -34,7 +35,7 @@ export class DiffModalComponent {
         <div class="diff-modal-header">
           <div class="diff-modal-title">
             <span class="diff-file-icon">${getFileIconSvg(fileName, false)}</span>
-            <span class="diff-file-path">${change.relativePath}</span>
+            <span class="diff-file-path">${this.escapeHtml(change.relativePath)}</span>
             <span class="git-status-code status-${change.status.toLowerCase()}">${change.status}</span>
             <span class="diff-stage-tag">${isStaged ? 'STAGED' : 'WORKING TREE'}</span>
           </div>
@@ -56,7 +57,9 @@ export class DiffModalComponent {
           </div>
         </div>
         <div class="diff-modal-body">
-          <div class="diff-viewer-table" id="diff-viewer-table"></div>
+          <div class="diff-viewer-table" id="diff-viewer-table">
+            <div class="diff-empty-msg">Loading diff...</div>
+          </div>
         </div>
       </div>
     `;
@@ -94,10 +97,75 @@ export class DiffModalComponent {
       toggleStageBtn.disabled = false;
       // Refresh diff view
       const refreshed = await gitService.getFileDiff(this.currentChange.relativePath, this.isStaged);
-      this.renderDiffContent(refreshed.diff);
+      if (this.activeRequestId === reqId) {
+        this.renderDiffContent(refreshed.diff);
+      }
     });
 
-    this.renderDiffContent(diffData.diff);
+    const diffData = await gitService.getFileDiff(change.relativePath, isStaged);
+    if (this.activeRequestId === reqId) {
+      this.renderDiffContent(diffData.diff);
+    }
+  }
+
+  /**
+   * Open diff modal specifically for a historical commit's changed file
+   */
+  public async openCommitDiff(commitHash: string, filePath: string, parentHash?: string, status: string = 'M') {
+    this.close();
+    const reqId = ++this.activeRequestId;
+    this.currentChange = null;
+    this.isStaged = false;
+
+    const fileName = filePath.split('/').pop() || filePath;
+    const shortHash = commitHash.slice(0, 7);
+
+    this.overlay = document.createElement('div');
+    this.overlay.className = 'diff-modal-overlay';
+
+    this.overlay.innerHTML = `
+      <div class="diff-modal-dialog">
+        <div class="diff-modal-header">
+          <div class="diff-modal-title">
+            <span class="diff-file-icon">${getFileIconSvg(fileName, false)}</span>
+            <span class="diff-file-path">${this.escapeHtml(filePath)}</span>
+            <span class="git-status-code status-${status.toLowerCase()}">${this.escapeHtml(status)}</span>
+            <span class="diff-stage-tag commit-tag">COMMIT ${this.escapeHtml(shortHash)}</span>
+          </div>
+          <div class="diff-modal-actions">
+            <button class="diff-modal-close-btn" id="btn-diff-close" aria-label="Close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="diff-modal-body">
+          <div class="diff-viewer-table" id="diff-viewer-table">
+            <div class="diff-empty-msg">Loading diff for commit ${this.escapeHtml(shortHash)}...</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(this.overlay);
+
+    // Setup action listeners
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) {
+        this.close();
+      }
+    });
+
+    this.overlay.querySelector('#btn-diff-close')?.addEventListener('click', () => {
+      this.close();
+    });
+
+    const diffText = await gitService.getCommitFileDiff(commitHash, filePath, parentHash);
+    if (this.activeRequestId === reqId) {
+      this.renderDiffContent(diffText);
+    }
   }
 
   private renderDiffContent(rawDiff: string) {
@@ -108,8 +176,18 @@ export class DiffModalComponent {
     tableEl.innerHTML = '';
     const lines = rawDiff.split(/\r?\n/);
 
-    if (!rawDiff || lines.length === 0 || (lines.length === 1 && !lines[0])) {
+    if (!rawDiff || lines.length === 0 || (lines.length === 1 && !lines[0]) || rawDiff === 'No differences detected') {
       tableEl.innerHTML = `<div class="diff-empty-msg">No differences detected.</div>`;
+      return;
+    }
+
+    if (rawDiff === 'No textual differences detected.' || rawDiff === 'No diff available.') {
+      tableEl.innerHTML = `<div class="diff-empty-msg">${this.escapeHtml(rawDiff)}</div>`;
+      return;
+    }
+
+    if (rawDiff.includes('Binary files ') && !rawDiff.includes('@@')) {
+      tableEl.innerHTML = `<div class="diff-empty-msg">Binary file changed (no textual diff available).</div>`;
       return;
     }
 
@@ -117,8 +195,18 @@ export class DiffModalComponent {
     let newLine = 0;
 
     for (const line of lines) {
-      // Check for file header lines (diff --git, index, ---, +++)
-      if (line.startsWith('diff --git') || line.startsWith('index ')) {
+      // Check for file header lines (diff --git, index, mode changes)
+      if (
+        line.startsWith('diff --git') ||
+        line.startsWith('index ') ||
+        line.startsWith('old mode') ||
+        line.startsWith('new mode') ||
+        line.startsWith('deleted file mode') ||
+        line.startsWith('new file mode') ||
+        line.startsWith('similarity index') ||
+        line.startsWith('rename from') ||
+        line.startsWith('rename to')
+      ) {
         continue;
       }
       if (line.startsWith('---') || line.startsWith('+++')) {
@@ -202,3 +290,4 @@ export class DiffModalComponent {
 }
 
 export const diffModal = new DiffModalComponent();
+

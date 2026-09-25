@@ -1023,13 +1023,25 @@ export class GitService {
    * Retrieve diff for a specific file in a specific commit
    */
   public async getCommitFileDiff(hash: string, filePath: string, parentHash?: string): Promise<string> {
-    const parent = parentHash || `${hash}^`;
-    const res = await this.runGitCommand(`diff ${parent} ${hash} -- "${filePath}"`, true);
-    if (res.exitCode === 0) {
-      return res.stdout || 'No textual differences detected.';
+    const cleanPath = filePath.replace(/\\/g, '/');
+    if (parentHash) {
+      const res = await this.runGitCommand(`diff ${parentHash} ${hash} -- "${cleanPath}"`, true);
+      if (res.exitCode === 0 && res.stdout.trim()) {
+        return res.stdout;
+      }
+    } else {
+      const res = await this.runGitCommand(`diff ${hash}^ ${hash} -- "${cleanPath}"`, true);
+      if (res.exitCode === 0 && res.stdout.trim()) {
+        return res.stdout;
+      }
     }
-    const showRes = await this.runGitCommand(`show ${hash} -- "${filePath}"`, true);
-    return showRes.stdout || 'No diff available.';
+
+    const showRes = await this.runGitCommand(`show --format="" ${hash} -- "${cleanPath}"`, true);
+    if (showRes.exitCode === 0 && showRes.stdout.trim()) {
+      return showRes.stdout;
+    }
+
+    return 'No textual differences detected.';
   }
 
   /**

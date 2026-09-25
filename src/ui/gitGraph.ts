@@ -964,30 +964,17 @@ export class GitGraphFullComponent {
 
     // Wire file click to view diff
     contentEl.querySelectorAll('.commit-file-row').forEach((row) => {
-      row.addEventListener('click', async (e) => {
+      row.addEventListener('click', async () => {
         const filePath = (row as HTMLElement).dataset.path;
         if (!filePath) return;
-        this.openCommitDiff(detail.hash, filePath, detail.parentHashes[0]);
+        const status = (row.querySelector('.commit-file-status') as HTMLElement)?.textContent?.trim() || 'M';
+        this.openCommitDiff(detail.hash, filePath, detail.parentHashes[0], status);
       });
     });
   }
 
-  private async openCommitDiff(hash: string, filePath: string, parentHash?: string) {
-    const diffText = await gitService.getCommitFileDiff(hash, filePath, parentHash);
-    const fileChange = {
-      path: filePath,
-      relativePath: filePath,
-      status: 'M' as const,
-      isStaged: false
-    };
-
-    // Open diff modal directly with historical diff content
-    diffModal.open(fileChange, false);
-    // Overwrite modal text with commit diff
-    const modalContent = document.querySelector('.diff-modal-body') as HTMLElement;
-    if (modalContent) {
-      modalContent.textContent = diffText;
-    }
+  private async openCommitDiff(hash: string, filePath: string, parentHash?: string, status: string = 'M') {
+    await diffModal.openCommitDiff(hash, filePath, parentHash, status);
   }
 
   private jumpToCommit(hash: string) {
