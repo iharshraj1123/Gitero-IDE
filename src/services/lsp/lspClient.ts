@@ -25,6 +25,7 @@ import {
 import { JsonRpcConnection } from './jsonRpc';
 import { LspProcess } from './lspProcess';
 import { lspServerRegistry } from './lspServerRegistry';
+import { lspInstaller } from './lspInstaller';
 import { preferencesService } from '../preferences';
 import { notificationService } from '../notification';
 import { fsService } from '../fs';
@@ -323,21 +324,25 @@ export class LspClient {
       }
     }
 
-    const command = userPref?.command || config.defaultCommand;
+    const resolvedCmd = userPref?.command || (await lspServerRegistry.resolveServerExecutable(config)) || config.defaultCommand;
+    const command = resolvedCmd;
     const args = userPref?.args || config.defaultArgs;
 
-    // Check if installed on PATH
-    const isInstalled = await lspServerRegistry.isServerInstalled(config);
-    if (!isInstalled && !userPref?.command) {
+    // Check if installed on PATH or resolved
+    const isInstalled = !!userPref?.command || (await lspServerRegistry.isServerInstalled(config));
+    if (!isInstalled) {
       this.emitStatus(normLang, 'stopped', config.name, 'Not installed on system PATH');
       return null;
     }
 
     this.emitStatus(normLang, 'starting', config.name);
 
+    let proc: LspProcess | null = null;
+    let startupExitCode: number | null = null;
+
     try {
       let connection: JsonRpcConnection;
-      const proc = new LspProcess(
+      const activeProc = new LspProcess(
         command,
         args,
         this.currentWorkspaceRoot,
@@ -350,34 +355,39 @@ export class LspClient {
         (exitCode) => {
           console.warn(`[LSP ${config.name}] Process exited with code ${exitCode}`);
           const curSession = this.sessions.get(normLang);
-          if (exitCode !== 0 && curSession && curSession.status === 'ready') {
-            notificationService.warn(
-              `LSP Terminated: ${config.name}`,
-              `Language server process exited unexpectedly with code ${exitCode}.`,
-              [
-                {
-                  label: 'Restart',
-                  primary: true,
-                  onClick: () => {
-                    this.restartServer(normLang);
+          if (curSession && curSession.status === 'ready') {
+            if (exitCode !== 0) {
+              notificationService.warn(
+                `LSP Terminated: ${config.name}`,
+                `Language server process exited unexpectedly with code ${exitCode}.`,
+                [
+                  {
+                    label: 'Restart',
+                    primary: true,
+                    onClick: () => {
+                      this.restartServer(normLang);
+                    }
+                  },
+                  {
+                    label: 'Configure',
+                    primary: false,
+                    onClick: () => {
+                      window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
+                    }
                   }
-                },
-                {
-                  label: 'Configure',
-                  primary: false,
-                  onClick: () => {
-                    window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
-                  }
-                }
-              ]
-            );
+                ]
+              );
+            }
+          } else {
+            startupExitCode = exitCode;
           }
           this.handleServerExit(normLang, config.name);
         }
       );
+      proc = activeProc;
 
       connection = new JsonRpcConnection(async (data) => {
-        await proc.send(data);
+        await activeProc.send(data);
       });
 
       // Handle server notifications
@@ -387,11 +397,11 @@ export class LspClient {
         }
       });
 
-      await proc.start();
+      await activeProc.start();
 
       const session: ActiveSession = {
         config,
-        process: proc,
+        process: activeProc,
         connection,
         status: 'starting',
         openFiles: new Set<string>(),
@@ -546,27 +556,84 @@ export class LspClient {
       return session;
     } catch (err: any) {
       console.warn(`[LSP Client] Failed to launch server for ${config.name}:`, err);
+      const rawStderr = proc?.getRecentStderr() || '';
+      const stderr = rawStderr.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').trim();
       const errMsg = err?.message || String(err);
-      this.emitStatus(normLang, 'error', config.name, errMsg);
+      this.emitStatus(normLang, 'error', config.name, stderr || errMsg);
 
       const isMissingTs = errMsg.includes('TypeScript installation') || errMsg.includes('tsserver');
       if (isMissingTs) {
         // Silently mark as stopped/unavailable instead of popping up an intrusive red error toast
         console.info('[LSP Client] TypeScript dependency or tsserver.js not found for workspace. Operating without LSP.');
         this.emitStatus(normLang, 'stopped', config.name);
-      } else {
-        notificationService.error(
-          `LSP Error: ${config.name}`,
-          `Failed to launch language server: ${errMsg}`,
+      } else if (config.id === 'rust' && (stderr.toLowerCase().includes('unknown binary') || stderr.toLowerCase().includes('rustup component add') || stderr.toLowerCase().includes('rust-analyzer'))) {
+        lspServerRegistry.clearCache();
+        notificationService.warn(
+          'Rust Analyzer Component Missing',
+          'Rust Analyzer is not installed in the active Rust toolchain. Run "rustup component add rust-analyzer" to install it.',
           [
             {
-              label: 'Configure LSP',
+              label: 'Install Now',
               primary: true,
+              onClick: () => {
+                lspInstaller.installServer(config);
+              }
+            },
+            {
+              label: 'Configure',
+              primary: false,
               onClick: () => {
                 window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
               }
+            },
+            {
+              label: 'Copy Command',
+              primary: false,
+              onClick: () => {
+                navigator.clipboard.writeText('rustup component add rust-analyzer');
+                notificationService.info('Copied', 'Command copied to clipboard.');
+              }
             }
-          ]
+          ],
+          12000
+        );
+      } else {
+        const displayDetail = stderr
+          ? (stderr.length > 250 ? stderr.substring(0, 247) + '...' : stderr)
+          : (startupExitCode !== null ? `Process exited early with code ${startupExitCode}.` : errMsg);
+
+        const actions: any[] = [];
+        if (config.installCommand) {
+          actions.push({
+            label: 'Install / Reinstall',
+            primary: true,
+            onClick: () => {
+              lspInstaller.installServer(config);
+            }
+          });
+        }
+        actions.push({
+          label: 'Configure LSP',
+          primary: !config.installCommand,
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'lsp' } }));
+          }
+        });
+        if (stderr) {
+          actions.push({
+            label: 'Copy Error',
+            primary: false,
+            onClick: () => {
+              navigator.clipboard.writeText(stderr);
+              notificationService.info('Copied', 'Error details copied to clipboard.');
+            }
+          });
+        }
+
+        notificationService.error(
+          `LSP Error: ${config.name}`,
+          `Failed to launch language server. ${displayDetail}`,
+          actions
         );
       }
       return null;

@@ -40,6 +40,34 @@ class LspInstallerService {
       if (res.exitCode === 0 && res.stdOut && res.stdOut.trim().length > 0) {
         return { canInstall: true, tool };
       }
+
+      // Check fallback path for rustup or go
+      let userProfile = '';
+      try {
+        if (window.Neutralino?.os?.getEnv) {
+          userProfile = (await window.Neutralino.os.getEnv('USERPROFILE')) || '';
+        }
+      } catch {}
+
+      if (tool === 'rustup' && userProfile) {
+        try {
+          const stats = await window.Neutralino.filesystem.getStats(`${userProfile}\\.cargo\\bin\\rustup.exe`);
+          if (stats) return { canInstall: true, tool };
+        } catch {}
+      }
+      if (tool === 'go') {
+        const goCandidates = [
+          userProfile ? `${userProfile}\\go\\bin\\go.exe` : '',
+          'C:\\Program Files\\Go\\bin\\go.exe'
+        ].filter(Boolean);
+        for (const cand of goCandidates) {
+          try {
+            const stats = await window.Neutralino.filesystem.getStats(cand);
+            if (stats) return { canInstall: true, tool };
+          } catch {}
+        }
+      }
+
       return {
         canInstall: false,
         tool,
@@ -95,8 +123,16 @@ class LspInstallerService {
     }));
 
     try {
+      // Prepend toolchain paths if applicable to ensure newly installed or user toolchain is found
+      let envPrefix = '';
+      if (server.packageManager === 'rustup' || server.id === 'rust') {
+        envPrefix = 'set PATH=%USERPROFILE%\\.cargo\\bin;%PATH% && ';
+      } else if (server.packageManager === 'go' || server.id === 'go') {
+        envPrefix = 'set PATH=%USERPROFILE%\\go\\bin;C:\\Program Files\\Go\\bin;%PATH% && ';
+      }
+
       // Execute command via Windows cmd.exe
-      const fullCmd = `cmd.exe /c "${server.installCommand}"`;
+      const fullCmd = `cmd.exe /c "${envPrefix}${server.installCommand}"`;
       const res = await window.Neutralino.os.execCommand(fullCmd);
 
       notificationService.dismiss(progressNotif);

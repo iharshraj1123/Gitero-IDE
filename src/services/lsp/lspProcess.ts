@@ -9,6 +9,7 @@ export class LspProcess {
   private processId: number | null = null;
   private isTerminated = false;
   private eventCleanup: (() => void) | null = null;
+  private stderrBuffer: string[] = [];
 
   constructor(
     public readonly command: string,
@@ -18,6 +19,10 @@ export class LspProcess {
     private readonly onStdErr: (data: string) => void,
     private readonly onExit: (exitCode: number) => void
   ) {}
+
+  getRecentStderr(): string {
+    return this.stderrBuffer.join('');
+  }
 
   async start(): Promise<number> {
     if (typeof window === 'undefined' || !window.Neutralino?.os) {
@@ -45,6 +50,10 @@ export class LspProcess {
           }
         } else if (detail.action === 'stdErr') {
           if (detail.data) {
+            this.stderrBuffer.push(detail.data);
+            if (this.stderrBuffer.length > 30) {
+              this.stderrBuffer.shift();
+            }
             this.onStdErr(detail.data);
           }
         } else if (detail.action === 'exit') {
