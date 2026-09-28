@@ -97,9 +97,41 @@ export const SUPPORTED_FILE_TYPES: FileTypeDefinition[] = [
     description: 'PHP script files with PHP badge'
   },
   {
+    id: 'kotlin',
+    name: 'Kotlin Source Files',
+    extensions: ['.kt', '.kts'],
+    progId: 'Gitero.Kotlin',
+    iconName: 'document-kotlin.ico',
+    description: 'Kotlin source files with KT badge'
+  },
+  {
+    id: 'dart',
+    name: 'Dart & Flutter Files',
+    extensions: ['.dart'],
+    progId: 'Gitero.Dart',
+    iconName: 'document-dart.ico',
+    description: 'Dart & Flutter source files with DART badge'
+  },
+  {
+    id: 'java',
+    name: 'Java Source Files',
+    extensions: ['.java'],
+    progId: 'Gitero.Java',
+    iconName: 'document-java.ico',
+    description: 'Java source files with JAVA badge'
+  },
+  {
+    id: 'csharp',
+    name: 'C# Source Files',
+    extensions: ['.cs'],
+    progId: 'Gitero.CSharp',
+    iconName: 'document-csharp.ico',
+    description: 'C# source files with C# badge'
+  },
+  {
     id: 'code',
     name: 'Source Code Files',
-    extensions: ['.c', '.cpp', '.h', '.hpp', '.rs', '.go', '.java', '.sql', '.xml'],
+    extensions: ['.c', '.cpp', '.h', '.hpp', '.rs', '.go', '.sql', '.xml'],
     progId: 'Gitero.Code',
     iconName: 'document-code.ico',
     description: 'Source code files with </> badge'

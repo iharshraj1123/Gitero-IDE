@@ -1,4 +1,7 @@
 import { Extension } from '@codemirror/state';
+import { StreamLanguage } from '@codemirror/language';
+import { kotlin, dart, csharp } from '@codemirror/legacy-modes/mode/clike';
+import { groovy } from '@codemirror/legacy-modes/mode/groovy';
 import { javascript } from '@codemirror/lang-javascript';
 import { html } from '@codemirror/lang-html';
 import { css } from '@codemirror/lang-css';
@@ -13,6 +16,11 @@ import { yaml } from '@codemirror/lang-yaml';
 import { sql } from '@codemirror/lang-sql';
 import { xml } from '@codemirror/lang-xml';
 import { php } from '@codemirror/lang-php';
+
+const kotlinLanguage = StreamLanguage.define(kotlin);
+const groovyLanguage = StreamLanguage.define(groovy);
+const dartLanguage = StreamLanguage.define(dart);
+const csharpLanguage = StreamLanguage.define(csharp);
 
 export interface LanguageInfo {
   name: string;
@@ -94,6 +102,21 @@ export function detectLanguage(filePath: string): LanguageInfo {
   if (fileName === '.gitignore' || fileName === '.npmignore' || fileName === '.env') {
     return { name: 'Config', extension: () => [] };
   }
+  if (fileName === 'build.gradle' || fileName === 'settings.gradle') {
+    return { name: 'Groovy / Gradle', languageId: 'groovy', extension: () => groovyLanguage };
+  }
+  if (fileName === 'build.gradle.kts' || fileName === 'settings.gradle.kts') {
+    return { name: 'Kotlin', languageId: 'kotlin', extension: () => kotlinLanguage };
+  }
+  if (fileName === 'proguard-rules.pro') {
+    return { name: 'Configuration', languageId: 'ini', extension: () => [] };
+  }
+  if (fileName === 'cmakelists.txt' || fileName === 'android.mk' || fileName === 'application.mk') {
+    return { name: 'C / C++', languageId: 'cpp', extension: () => cpp() };
+  }
+  if (fileName === 'pubspec.yaml' || fileName === 'analysis_options.yaml') {
+    return { name: 'YAML', languageId: 'yaml', extension: () => yaml() };
+  }
 
   if (isJsoncFile(filePath)) {
     return { name: 'JSON with Comments', languageId: 'jsonc', extension: () => json() };
@@ -143,6 +166,19 @@ export function detectLanguage(filePath: string): LanguageInfo {
     case 'java':
     case 'jav':
       return { name: 'Java', languageId: 'java', extension: () => java() };
+    case 'kt':
+    case 'kts':
+      return { name: 'Kotlin', languageId: 'kotlin', extension: () => kotlinLanguage };
+    case 'dart':
+      return { name: 'Dart / Flutter', languageId: 'dart', extension: () => dartLanguage };
+    case 'cs':
+      return { name: 'C#', languageId: 'csharp', extension: () => csharpLanguage };
+    case 'groovy':
+    case 'gvy':
+    case 'gy':
+    case 'gsh':
+    case 'gradle':
+      return { name: 'Groovy / Gradle', languageId: 'groovy', extension: () => groovyLanguage };
     case 'json':
       return { name: 'JSON', languageId: 'json', extension: () => json() };
     case 'jsonc':
@@ -214,6 +250,10 @@ export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
   { name: 'Markdown', languageId: 'markdown', extension: () => markdown() },
   { name: 'Go', languageId: 'go', extension: () => go() },
   { name: 'Java', languageId: 'java', extension: () => java() },
+  { name: 'Kotlin', languageId: 'kotlin', extension: () => kotlinLanguage },
+  { name: 'Dart / Flutter', languageId: 'dart', extension: () => dartLanguage },
+  { name: 'C#', languageId: 'csharp', extension: () => csharpLanguage },
+  { name: 'Groovy / Gradle', languageId: 'groovy', extension: () => groovyLanguage },
   { name: 'YAML', languageId: 'yaml', extension: () => yaml() },
   { name: 'SQL', languageId: 'sql', extension: () => sql() },
   { name: 'XML', languageId: 'xml', extension: () => xml() },

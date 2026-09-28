@@ -118,6 +118,28 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     installGuide: 'Automated Eclipse LemMinX download or scoop install lemminx',
     installCommand: 'powershell -NoProfile -Command "if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx)) { New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx | Out-Null }; curl.exe -s -L -o $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.jar https://download.eclipse.org/lemminx/releases/0.31.2/org.eclipse.lemminx-uber.jar; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.cmd -Value \'@echo off`r`njava -jar `"%~dp0lemminx.jar`" %*\'"',
     packageManager: 'custom'
+  },
+  {
+    id: 'java',
+    name: 'Java (Eclipse JDTLS)',
+    languages: ['java'],
+    defaultCommand: 'jdtls',
+    defaultArgs: [],
+    commandAliases: ['jdtls.bat', 'jdtls.cmd', 'jdtls.exe', 'jdtls'],
+    installGuide: 'scoop install jdtls (or download Eclipse JDT Language Server)',
+    installCommand: 'cmd.exe /c "scoop install jdtls"',
+    packageManager: 'scoop'
+  },
+  {
+    id: 'kotlin',
+    name: 'Kotlin Language Server',
+    languages: ['kotlin'],
+    defaultCommand: 'kotlin-language-server',
+    defaultArgs: [],
+    commandAliases: ['kotlin-language-server.cmd', 'kotlin-language-server.bat', 'kotlin-language-server'],
+    installGuide: 'scoop install kotlin-language-server (or download fwcd/kotlin-language-server)',
+    installCommand: 'cmd.exe /c "scoop install kotlin-language-server"',
+    packageManager: 'scoop'
   }
 ];
 
@@ -248,6 +270,53 @@ class LspServerRegistry {
         candidates.push(`${userProfile}\\scoop\\shims\\lemminx.exe`);
         candidates.push(`${userProfile}\\scoop\\shims\\lemminx.cmd`);
       }
+    } else if (config.id === 'java') {
+      if (userProfile) {
+        candidates.push(`${userProfile}\\scoop\\shims\\jdtls.cmd`);
+        candidates.push(`${userProfile}\\scoop\\shims\\jdtls.bat`);
+        candidates.push(`${userProfile}\\scoop\\shims\\jdtls.exe`);
+        candidates.push(`${userProfile}\\scoop\\apps\\jdtls\\current\\bin\\jdtls.bat`);
+      }
+      if (localAppData) {
+        candidates.push(`${localAppData}\\Gitero\\lsp\\jdtls\\bin\\jdtls.bat`);
+        candidates.push(`${localAppData}\\Gitero\\lsp\\jdtls\\jdtls.cmd`);
+      }
+      candidates.push('C:\\ProgramData\\chocolatey\\bin\\jdtls.exe');
+    } else if (config.id === 'kotlin') {
+      if (userProfile) {
+        candidates.push(`${userProfile}\\scoop\\shims\\kotlin-language-server.cmd`);
+        candidates.push(`${userProfile}\\scoop\\shims\\kotlin-language-server.bat`);
+        candidates.push(`${userProfile}\\scoop\\shims\\kotlin-language-server.exe`);
+        candidates.push(`${userProfile}\\scoop\\apps\\kotlin-language-server\\current\\bin\\kotlin-language-server.bat`);
+      }
+      if (localAppData) {
+        candidates.push(`${localAppData}\\Gitero\\lsp\\kotlin\\bin\\kotlin-language-server.bat`);
+        candidates.push(`${localAppData}\\Gitero\\lsp\\kotlin\\bin\\kotlin-language-server.cmd`);
+      }
+      candidates.push('C:\\ProgramData\\chocolatey\\bin\\kotlin-language-server.exe');
+    } else if (config.id === 'dart') {
+      if (userProfile) {
+        candidates.push(`${userProfile}\\flutter\\bin\\dart.bat`);
+        candidates.push(`${userProfile}\\scoop\\shims\\dart.exe`);
+        candidates.push(`${userProfile}\\scoop\\shims\\flutter.bat`);
+      }
+      if (localAppData) {
+        candidates.push(`${localAppData}\\flutter\\bin\\dart.bat`);
+        candidates.push(`${localAppData}\\Programs\\flutter\\bin\\dart.bat`);
+      }
+      candidates.push(
+        'C:\\src\\flutter\\bin\\dart.bat',
+        'C:\\flutter\\bin\\dart.bat',
+        'C:\\tools\\dart-sdk\\bin\\dart.exe',
+        'C:\\Program Files\\Dart\\dart-sdk\\bin\\dart.exe'
+      );
+    } else if (config.id === 'csharp') {
+      if (userProfile) {
+        candidates.push(`${userProfile}\\.dotnet\\tools\\csharp-ls.exe`);
+        candidates.push(`${userProfile}\\scoop\\shims\\omnisharp.exe`);
+        candidates.push(`${userProfile}\\scoop\\shims\\csharp-ls.exe`);
+      }
+      candidates.push('C:\\ProgramData\\chocolatey\\bin\\omnisharp.exe');
     }
 
     for (const rawCmd of candidates) {

@@ -583,6 +583,463 @@ gap: 1rem;`,
     detail: 'PHP Foreach Loop',
     template: `foreach (\${1:\$items} as \${2:\$item}) {\n  \${0}\n}`,
     languages: ['PHP']
+  },
+
+  // Java Templates & Helpers
+  {
+    trigger: 'psvm',
+    name: 'psvm',
+    detail: 'public static void main(String[] args)',
+    template: `public static void main(String[] args) {\n  \${0}\n}`,
+    languages: ['Java']
+  },
+  {
+    trigger: 'main',
+    name: 'main',
+    detail: 'public static void main entry point',
+    template: `public static void main(String[] args) {\n  \${0}\n}`,
+    languages: ['Java']
+  },
+  {
+    trigger: 'sout',
+    name: 'sout',
+    detail: 'System.out.println()',
+    template: 'System.out.println(${1});',
+    languages: ['Java']
+  },
+  {
+    trigger: 'serr',
+    name: 'serr',
+    detail: 'System.err.println()',
+    template: 'System.err.println(${1});',
+    languages: ['Java']
+  },
+  {
+    trigger: 'class',
+    name: 'class',
+    detail: 'Java Class declaration',
+    template: `public class \${1:ClassName} {\n  public \${1:ClassName}() {\n    \${0}\n  }\n}`,
+    languages: ['Java']
+  },
+  {
+    trigger: 'interface',
+    name: 'interface',
+    detail: 'Java Interface declaration',
+    template: `public interface \${1:InterfaceName} {\n  \${0}\n}`,
+    languages: ['Java']
+  },
+  {
+    trigger: 'record',
+    name: 'record',
+    detail: 'Java Record declaration (Java 16+)',
+    template: `public record \${1:RecordName}(\${2}) {\n  \${0}\n}`,
+    languages: ['Java']
+  },
+  {
+    trigger: 'trycatch',
+    name: 'trycatch',
+    detail: 'try-catch block',
+    template: `try {\n  \${1}\n} catch (\${2:Exception} e) {\n  e.printStackTrace();\n}`,
+    languages: ['Java', 'C#']
+  },
+  {
+    trigger: 'activity',
+    name: 'activity',
+    detail: 'Android AppCompatActivity (Java)',
+    template: `package \${1:com.example.app};
+
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class \${2:MainActivity} extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.\${3:activity_main});
+        \${0}
+    }
+}`,
+    languages: ['Java']
+  },
+
+  // Kotlin & Android Templates & Helpers
+  {
+    trigger: 'main',
+    name: 'main',
+    detail: 'Kotlin main function entry point',
+    template: `fun main(args: Array<String>) {\n  \${0}\n}`,
+    languages: ['Kotlin']
+  },
+  {
+    trigger: 'class',
+    name: 'class',
+    detail: 'Kotlin Class declaration',
+    template: `class \${1:ClassName} {\n  \${0}\n}`,
+    languages: ['Kotlin']
+  },
+  {
+    trigger: 'data',
+    name: 'data class',
+    detail: 'Kotlin Data Class',
+    template: `data class \${1:ClassName}(\n  val \${2:id}: \${3:Long},\n  val \${4:name}: \${5:String}\n)`,
+    languages: ['Kotlin']
+  },
+  {
+    trigger: 'fun',
+    name: 'fun',
+    detail: 'Kotlin Function declaration',
+    template: `fun \${1:functionName}(\${2}): \${3:Unit} {\n  \${0}\n}`,
+    languages: ['Kotlin']
+  },
+  {
+    trigger: 'composable',
+    name: 'composable',
+    detail: 'Jetpack Compose @Composable Function',
+    template: `@Composable\nfun \${1:ComponentName}(modifier: Modifier = Modifier) {\n  \${0}\n}`,
+    languages: ['Kotlin']
+  },
+  {
+    trigger: 'activity',
+    name: 'activity',
+    detail: 'Android ComponentActivity (Kotlin / Compose)',
+    template: `package \${1:com.example.app}
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+
+class \${2:MainActivity} : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface {
+                    \${0}
+                }
+            }
+        }
+    }
+}`,
+    languages: ['Kotlin']
+  },
+  {
+    trigger: 'viewmodel',
+    name: 'viewmodel',
+    detail: 'Android ViewModel with StateFlow',
+    template: `package \${1:com.example.app}
+
+import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class \${2:MainViewModel} : ViewModel() {
+    private val _uiState = MutableStateFlow(\${3:initialState})
+    val uiState: StateFlow<\${4:UiState}> = _uiState.asStateFlow()
+    \${0}
+}`,
+    languages: ['Kotlin']
+  },
+  {
+    trigger: 'launch',
+    name: 'launch',
+    detail: 'Kotlin Coroutine launch block',
+    template: `CoroutineScope(Dispatchers.\${1:IO}).launch {\n  \${0}\n}`,
+    languages: ['Kotlin']
+  },
+
+  // Dart & Flutter Templates & Helpers
+  {
+    trigger: 'main',
+    name: 'main',
+    detail: 'Flutter main() runApp entry point',
+    template: `void main() {\n  runApp(const \${1:MyApp}());\n}`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+  {
+    trigger: 'stless',
+    name: 'stless',
+    detail: 'Flutter StatelessWidget Boilerplate',
+    template: `import 'package:flutter/material.dart';
+
+class \${1:MyWidget} extends StatelessWidget {
+  const \${1:MyWidget}({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const \${2:Placeholder()};
+  }
+}`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+  {
+    trigger: 'stful',
+    name: 'stful',
+    detail: 'Flutter StatefulWidget Boilerplate',
+    template: `import 'package:flutter/material.dart';
+
+class \${1:MyWidget} extends StatefulWidget {
+  const \${1:MyWidget}({super.key});
+
+  @override
+  State<\${1:MyWidget}> createState() => _\${1:MyWidget}State();
+}
+
+class _\${1:MyWidget}State extends State<\${1:MyWidget}> {
+  @override
+  Widget build(BuildContext context) {
+    return const \${2:Placeholder()};
+  }
+}`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+  {
+    trigger: 'scaffold',
+    name: 'scaffold',
+    detail: 'Flutter Scaffold with AppBar and Body',
+    template: `Scaffold(
+  appBar: AppBar(
+    title: const Text('\${1:Title}'),
+  ),
+  body: \${2:Center(
+    child: Text('\${3:Hello World}'),
+  )},
+)`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+  {
+    trigger: 'column',
+    name: 'column',
+    detail: 'Flutter Column widget',
+    template: `Column(
+  mainAxisAlignment: MainAxisAlignment.\${1:center},
+  children: [
+    \${0},
+  ],
+)`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+  {
+    trigger: 'row',
+    name: 'row',
+    detail: 'Flutter Row widget',
+    template: `Row(
+  mainAxisAlignment: MainAxisAlignment.\${1:center},
+  children: [
+    \${0},
+  ],
+)`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+  {
+    trigger: 'container',
+    name: 'container',
+    detail: 'Flutter Container widget',
+    template: `Container(
+  padding: const EdgeInsets.all(\${1:16.0}),
+  child: \${0},
+)`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+  {
+    trigger: 'setstate',
+    name: 'setState',
+    detail: 'Flutter setState(() { ... }) call',
+    template: `setState(() {\n  \${0}\n});`,
+    languages: ['Dart', 'Dart / Flutter']
+  },
+
+  // Android XML Boilerplates
+  {
+    trigger: 'manifest',
+    name: 'manifest',
+    detail: 'Android AndroidManifest.xml skeleton',
+    template: `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.\${1:MyApp}">
+        <activity
+            android:name=".\${2:MainActivity}"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>`,
+    languages: ['XML']
+  },
+  {
+    trigger: 'layout-constraint',
+    name: 'layout-constraint',
+    detail: 'Android ConstraintLayout XML',
+    template: `<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    \${0}
+
+</androidx.constraintlayout.widget.ConstraintLayout>`,
+    languages: ['XML']
+  },
+  {
+    trigger: 'layout-linear',
+    name: 'layout-linear',
+    detail: 'Android LinearLayout XML',
+    template: `<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="\${1:vertical}">
+
+    \${0}
+
+</LinearLayout>`,
+    languages: ['XML']
+  },
+  {
+    trigger: 'textview',
+    name: 'textview',
+    detail: 'Android TextView XML element',
+    template: `<TextView
+    android:id="@+id/\${1:textView}"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="\${2:Hello World}" />`,
+    languages: ['XML']
+  },
+  {
+    trigger: 'button',
+    name: 'button',
+    detail: 'Android MaterialButton XML element',
+    template: `<com.google.android.material.button.MaterialButton
+    android:id="@+id/\${1:button}"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="\${2:Click Me}" />`,
+    languages: ['XML']
+  },
+  {
+    trigger: 'strings-xml',
+    name: 'strings-xml',
+    detail: 'Android strings.xml resource file',
+    template: `<resources>
+    <string name="app_name">\${1:MyApp}</string>
+    \${0}
+</resources>`,
+    languages: ['XML']
+  },
+
+  // Gradle / Groovy Boilerplates
+  {
+    trigger: 'android-app',
+    name: 'android-app',
+    detail: 'Android Application build.gradle template',
+    template: `plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace '\${1:com.example.app}'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "\${1:com.example.app}"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    \${0}
+}`,
+    languages: ['Groovy', 'Groovy / Gradle']
+  },
+  {
+    trigger: 'deps',
+    name: 'dependencies',
+    detail: 'Gradle dependencies block',
+    template: `dependencies {\n    implementation '\${1:group:artifact:version}'\n    \${0}\n}`,
+    languages: ['Groovy', 'Groovy / Gradle']
+  },
+
+  // C# Templates & Helpers
+  {
+    trigger: 'cw',
+    name: 'cw',
+    detail: 'Console.WriteLine()',
+    template: 'Console.WriteLine(${1});',
+    languages: ['C#']
+  },
+  {
+    trigger: 'class',
+    name: 'class',
+    detail: 'C# Class declaration',
+    template: `public class \${1:ClassName}\n{\n    public \${1:ClassName}()\n    {\n        \${0}\n    }\n}`,
+    languages: ['C#']
+  },
+  {
+    trigger: 'prop',
+    name: 'prop',
+    detail: 'C# Auto-implemented Property',
+    template: 'public ${1:string} ${2:MyProperty} { get; set; }',
+    languages: ['C#']
+  },
+  {
+    trigger: 'propg',
+    name: 'propg',
+    detail: 'C# Property with private setter',
+    template: 'public ${1:string} ${2:MyProperty} { get; private set; }',
+    languages: ['C#']
+  },
+  {
+    trigger: 'interface',
+    name: 'interface',
+    detail: 'C# Interface declaration',
+    template: `public interface I\${1:InterfaceName}\n{\n    \${0}\n}`,
+    languages: ['C#']
+  },
+  {
+    trigger: 'record',
+    name: 'record',
+    detail: 'C# Record declaration',
+    template: 'public record ${1:RecordName}(${2});',
+    languages: ['C#']
+  },
+  {
+    trigger: 'main',
+    name: 'main',
+    detail: 'C# async Task Main entry point',
+    template: `public static async Task Main(string[] args)\n{\n    \${0}\n}`,
+    languages: ['C#']
   }
 ];
 
@@ -628,6 +1085,23 @@ export function isSnippetApplicable(snippetLanguages: string[] | undefined, targ
   } else if (target === 'go' || target === 'golang') {
     targetAliases.add('go');
     targetAliases.add('golang');
+  } else if (target === 'java') {
+    targetAliases.add('java');
+  } else if (target === 'kotlin' || target === 'kt') {
+    targetAliases.add('kotlin');
+    targetAliases.add('kt');
+  } else if (target === 'dart' || target === 'flutter' || target.includes('dart')) {
+    targetAliases.add('dart');
+    targetAliases.add('flutter');
+    targetAliases.add('dart / flutter');
+  } else if (target === 'c#' || target === 'csharp' || target === 'cs') {
+    targetAliases.add('c#');
+    targetAliases.add('csharp');
+    targetAliases.add('cs');
+  } else if (target === 'groovy' || target === 'gradle' || target.includes('gradle')) {
+    targetAliases.add('groovy');
+    targetAliases.add('gradle');
+    targetAliases.add('groovy / gradle');
   } else if (target === 'html' || target === 'xml') {
     targetAliases.add('html');
     targetAliases.add('xml');

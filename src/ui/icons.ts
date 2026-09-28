@@ -92,6 +92,10 @@ const BADGE_MAP: Record<string, { text: string; bg: string; fg: string }> = {
   swift: { text: 'SWIFT', bg: '#f05138', fg: '#fff' },
   kt:    { text: 'KT',   bg: '#7f52ff', fg: '#fff' },
   kts:   { text: 'KT',   bg: '#7f52ff', fg: '#fff' },
+  dart:  { text: 'DART', bg: '#0175c2', fg: '#fff' },
+  cs:    { text: 'C#',   bg: '#68217a', fg: '#fff' },
+  groovy:{ text: 'GROOVY', bg: '#4298b8', fg: '#fff' },
+  gradle:{ text: 'GRADLE', bg: '#02303a', fg: '#fff' },
   sh:    { text: '>_',   bg: '#4eaa25', fg: '#fff' },
   bash:  { text: '>_',   bg: '#4eaa25', fg: '#fff' },
   zsh:   { text: '>_',   bg: '#4eaa25', fg: '#fff' },
@@ -206,6 +210,11 @@ const LUCIDE_COLOR_MAP: Record<string, { icon: any; color: string }> = {
   rb:    { icon: FileCode, color: '#cc342d' },
   swift: { icon: FileCode, color: '#f05138' },
   kt:    { icon: FileCode, color: '#7f52ff' },
+  kts:   { icon: FileCode, color: '#7f52ff' },
+  dart:  { icon: FileCode, color: '#0175c2' },
+  cs:    { icon: FileCode, color: '#68217a' },
+  groovy:{ icon: FileCode, color: '#4298b8' },
+  gradle:{ icon: Settings, color: '#00c7b7' },
   sh:    { icon: Terminal, color: '#4eaa25' },
   bash:  { icon: Terminal, color: '#4eaa25' },
   zsh:   { icon: Terminal, color: '#4eaa25' },
@@ -319,6 +328,21 @@ function getMaterialIcon(fileName: string, isDirectory: boolean, isOpen: boolean
   }
   if (['php', 'phtml'].includes(ext)) {
     return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#4f5b93"/><text x="8" y="11.5" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="7" fill="#fff">PHP</text></svg>`;
+  }
+  if (['java', 'class', 'jar'].includes(ext)) {
+    return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#ea2d2e"/><text x="8" y="11.5" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="6.5" fill="#fff">JAVA</text></svg>`;
+  }
+  if (['kt', 'kts'].includes(ext)) {
+    return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#7f52ff"/><text x="8" y="11.5" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="7" fill="#fff">KT</text></svg>`;
+  }
+  if (['dart'].includes(ext)) {
+    return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#0175c2"/><text x="8" y="11.5" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="6" fill="#fff">DART</text></svg>`;
+  }
+  if (['cs'].includes(ext)) {
+    return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#68217a"/><text x="8" y="11.5" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="7" fill="#fff">C#</text></svg>`;
+  }
+  if (['gradle', 'groovy'].includes(ext)) {
+    return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="2" fill="#02303a"/><text x="8" y="11.5" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="5.5" fill="#00c7b7">GRADLE</text></svg>`;
   }
 
   return renderLucideNode(File, 'var(--fg-muted, #8b949e)');

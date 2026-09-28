@@ -37,7 +37,7 @@ Name: "contextmenu"; Description: "Add 'Open with Gitero' to Windows Explorer co
 Name: "explorer_hotkey"; Description: "Enable Ctrl+. shortcut in Windows Explorer to open active folder in Gitero"; GroupDescription: "Windows Explorer Integration:"; Flags: checkedonce
 Name: "addtopath"; Description: "Add Gitero to PATH (allows 'gcode .' from Terminal / CMD / PowerShell)"; GroupDescription: "Terminal Integration:"
 Name: "assoc_md"; Description: "Register Gitero as default viewer for Markdown files (.md, .markdown)"; GroupDescription: "File Associations:"; Flags: checkedonce
-Name: "assoc_code"; Description: "Register Gitero for source code and script files (.js, .ts, .py, .html, .css, .json, etc.)"; GroupDescription: "File Associations:"; Flags: unchecked
+Name: "assoc_code"; Description: "Register Gitero for source code and script files (.js, .ts, .py, .kt, .dart, .java, .cs, .html, .css, .json, etc.)"; GroupDescription: "File Associations:"; Flags: unchecked
 Name: "assoc_txt"; Description: "Register Gitero for plain text files (.txt, .log)"; GroupDescription: "File Associations:"; Flags: unchecked
 
 [Files]
@@ -202,6 +202,45 @@ Root: HKCU; Subkey: "Software\Classes\.phtml\OpenWithProgids"; ValueType: string
 Root: HKCU; Subkey: "Software\Classes\.php"; ValueType: string; ValueData: "Gitero.PHP"; Tasks: assoc_code
 Root: HKCU; Subkey: "Software\Classes\.phtml"; ValueType: string; ValueData: "Gitero.PHP"; Tasks: assoc_code
 
+; Kotlin
+Root: HKCU; Subkey: "Software\Classes\Gitero.Kotlin"; ValueType: string; ValueData: "Kotlin Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Kotlin"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Kotlin Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Kotlin\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-kotlin.ico"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Kotlin\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\kt_auto_file\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-kotlin.ico"
+Root: HKCU; Subkey: "Software\Classes\kts_auto_file\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-kotlin.ico"
+Root: HKCU; Subkey: "Software\Classes\.kt\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Kotlin"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.kts\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Kotlin"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.kt"; ValueType: string; ValueData: "Gitero.Kotlin"; Tasks: assoc_code
+Root: HKCU; Subkey: "Software\Classes\.kts"; ValueType: string; ValueData: "Gitero.Kotlin"; Tasks: assoc_code
+
+; Dart / Flutter
+Root: HKCU; Subkey: "Software\Classes\Gitero.Dart"; ValueType: string; ValueData: "Dart Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Dart"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Dart Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Dart\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-dart.ico"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Dart\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\dart_auto_file\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-dart.ico"
+Root: HKCU; Subkey: "Software\Classes\.dart\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Dart"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.dart"; ValueType: string; ValueData: "Gitero.Dart"; Tasks: assoc_code
+
+; Java
+Root: HKCU; Subkey: "Software\Classes\Gitero.Java"; ValueType: string; ValueData: "Java Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Java"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Java Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Java\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-java.ico"
+Root: HKCU; Subkey: "Software\Classes\Gitero.Java\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\java_auto_file\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-java.ico"
+Root: HKCU; Subkey: "Software\Classes\.java\OpenWithProgids"; ValueType: string; ValueName: "Gitero.Java"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.java"; ValueType: string; ValueData: "Gitero.Java"; Tasks: assoc_code
+
+; C#
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSharp"; ValueType: string; ValueData: "C# Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSharp"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "C# Source File"
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSharp\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-csharp.ico"
+Root: HKCU; Subkey: "Software\Classes\Gitero.CSharp\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\cs_auto_file\DefaultIcon"; ValueType: string; ValueData: "{app}\icons\file-types\document-csharp.ico"
+Root: HKCU; Subkey: "Software\Classes\.cs\OpenWithProgids"; ValueType: string; ValueName: "Gitero.CSharp"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\.cs"; ValueType: string; ValueData: "Gitero.CSharp"; Tasks: assoc_code
+
 ; Plain Text
 Root: HKCU; Subkey: "Software\Classes\Gitero.Text"; ValueType: string; ValueData: "Plain Text Document"
 Root: HKCU; Subkey: "Software\Classes\Gitero.Text"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Plain Text Document"
@@ -230,6 +269,11 @@ Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: 
 Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".py"; ValueData: "Gitero.Python"
 Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".json"; ValueData: "Gitero.JSON"
 Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".php"; ValueData: "Gitero.PHP"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".kt"; ValueData: "Gitero.Kotlin"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".kts"; ValueData: "Gitero.Kotlin"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".dart"; ValueData: "Gitero.Dart"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".java"; ValueData: "Gitero.Java"
+Root: HKCU; Subkey: "Software\Gitero\Capabilities\FileAssociations"; ValueType: string; ValueName: ".cs"; ValueData: "Gitero.CSharp"
 Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Gitero"; ValueData: "Software\Gitero\Capabilities"
 
 ; 8. Windows Startup for Explorer Ctrl+. Shortcut

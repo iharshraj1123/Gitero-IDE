@@ -233,7 +233,7 @@ export interface ServerConfig {
   defaultArgs: string[];
   installGuide: string;
   installCommand?: string;
-  packageManager?: 'npm' | 'pip' | 'rustup' | 'go' | 'winget' | 'custom';
+  packageManager?: 'npm' | 'pip' | 'rustup' | 'go' | 'winget' | 'scoop' | 'dotnet' | 'custom';
   commandAliases?: string[];
 }
 
