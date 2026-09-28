@@ -33,8 +33,8 @@ class LspInstallerService {
       return { canInstall: false, error: 'Native execution environment is not available.' };
     }
 
-    // Special checks for XML (requires Java or Scoop)
-    if (server.id === 'xml') {
+    // Special checks for Java, Kotlin, XML (require Java 11+ runtime or Scoop)
+    if (server.id === 'xml' || server.id === 'java' || server.id === 'kotlin') {
       try {
         const javaRes = await window.Neutralino.os.execCommand('where.exe java');
         if (javaRes.exitCode === 0 && javaRes.stdOut && javaRes.stdOut.trim().length > 0) {
@@ -47,7 +47,7 @@ class LspInstallerService {
         return {
           canInstall: false,
           tool: 'java',
-          error: 'Java (JRE/JDK 11+) or Scoop is required to run LemMinX. Please install Java (e.g. OpenJDK 17) or Scoop first.'
+          error: `Java (JRE/JDK 11+) or Scoop is required for ${server.name}. Please install Java (e.g. OpenJDK 17) or Scoop first.`
         };
       } catch {
         return { canInstall: true };

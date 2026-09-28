@@ -126,9 +126,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'jdtls',
     defaultArgs: [],
     commandAliases: ['jdtls.bat', 'jdtls.cmd', 'jdtls.exe', 'jdtls'],
-    installGuide: 'scoop install jdtls (or download Eclipse JDT Language Server)',
-    installCommand: 'cmd.exe /c "scoop install jdtls"',
-    packageManager: 'scoop'
+    installGuide: 'Automated direct download or scoop install jdtls',
+    installCommand: 'cmd.exe /c "powershell -NoProfile -Command ""if (Get-Command scoop -ErrorAction SilentlyContinue) { scoop install jdtls } else { if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls)) { New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls | Out-Null }; curl.exe -s -L -o $env:TEMP\\jdtls.tar.gz https://download.eclipse.org/jdtls/milestones/1.39.0/jdt-language-server-1.39.0-202408291433.tar.gz; tar.exe -xzf $env:TEMP\\jdtls.tar.gz -C $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls; Remove-Item $env:TEMP\\jdtls.tar.gz -Force; $jar = (Get-ChildItem -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\plugins\\org.eclipse.equinox.launcher_*.jar | Select-Object -First 1).FullName; $cfg = $env:LOCALAPPDATA + \'\\Gitero\\lsp\\jdtls\\config_win\'; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\jdtls.cmd -Value (\'@echo off`r`njava -Declipse.application=org.eclipse.jdt.ls.core.id1 -Dosgi.bundles.defaultStartLevel=4 -Declipse.product=org.eclipse.jdt.ls.core.product -Dlog.level=ALL -noverify -Xmx1G --add-modules=ALL-SYSTEM --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -jar `\"\' + $jar + \'`\" -configuration `\"\' + $cfg + \'`\" -data `\"%LOCALAPPDATA%\\Gitero\\lsp\\jdtls\\workspace`\" %*\') }"""',
+    packageManager: 'custom'
   },
   {
     id: 'kotlin',
@@ -137,9 +137,9 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultCommand: 'kotlin-language-server',
     defaultArgs: [],
     commandAliases: ['kotlin-language-server.cmd', 'kotlin-language-server.bat', 'kotlin-language-server'],
-    installGuide: 'scoop install kotlin-language-server (or download fwcd/kotlin-language-server)',
-    installCommand: 'cmd.exe /c "scoop install kotlin-language-server"',
-    packageManager: 'scoop'
+    installGuide: 'Automated direct download or scoop install kotlin-language-server',
+    installCommand: 'cmd.exe /c "powershell -NoProfile -Command ""if (Get-Command scoop -ErrorAction SilentlyContinue) { scoop install kotlin-language-server } else { if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\kotlin)) { New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\kotlin | Out-Null }; curl.exe -s -L -o $env:TEMP\\kls.zip https://github.com/fwcd/kotlin-language-server/releases/latest/download/server.zip; tar.exe -xf $env:TEMP\\kls.zip -C $env:LOCALAPPDATA\\Gitero\\lsp\\kotlin --strip-components=1; Remove-Item $env:TEMP\\kls.zip -Force }"""',
+    packageManager: 'custom'
   }
 ];
 
