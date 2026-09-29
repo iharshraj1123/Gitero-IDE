@@ -678,7 +678,7 @@ export class LspClient {
         },
         workspaceFolders: rootUri ? [{ uri: rootUri, name: 'Workspace' }] : null,
         initializationOptions: initOptions
-      });
+      }, 60000);
 
       await connection.notify('initialized', {});
       session.capabilities = initResult?.capabilities;
@@ -741,8 +741,21 @@ export class LspClient {
           12000
         );
       } else {
-        const displayDetail = stderr
-          ? (stderr.length > 250 ? stderr.substring(0, 247) + '...' : stderr)
+        // Strip out harmless SLF4J / JVM startup banner noise from displayDetail
+        const cleanStderr = stderr
+          .split(/\r?\n/)
+          .filter((line) => {
+            const l = line.trim().toLowerCase();
+            return !l.startsWith('slf4j:') &&
+                   !l.startsWith('picked up _java_options') &&
+                   !l.startsWith('[main] info') &&
+                   !l.startsWith('[main] debug');
+          })
+          .join(' ')
+          .trim();
+
+        const displayDetail = cleanStderr
+          ? (cleanStderr.length > 250 ? cleanStderr.substring(0, 247) + '...' : cleanStderr)
           : (startupExitCode !== null ? `Process exited early with code ${startupExitCode}.` : errMsg);
 
         const actions: any[] = [];
