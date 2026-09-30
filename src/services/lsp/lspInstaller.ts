@@ -157,8 +157,8 @@ class LspInstallerService {
       // Resolve command to execute
       let fullCmd = server.installCommand;
 
-      // Smart handling for XML: if scoop is available, use scoop; otherwise use automated download
-      if (server.id === 'xml') {
+      // Smart handling for Java, Kotlin, XML: if scoop is available, use scoop; otherwise use automated download
+      if (server.id === 'xml' || server.id === 'java' || server.id === 'kotlin') {
         let hasScoop = false;
         try {
           const scoopRes = await window.Neutralino.os.execCommand('where.exe scoop');
@@ -168,9 +168,14 @@ class LspInstallerService {
         } catch {}
 
         if (hasScoop) {
-          fullCmd = 'cmd.exe /c "scoop install lemminx"';
-        } else {
-          fullCmd = 'powershell -NoProfile -Command "if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx)) { New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx | Out-Null }; curl.exe -s -L -o $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.jar https://download.eclipse.org/lemminx/releases/0.31.2/org.eclipse.lemminx-uber.jar; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.cmd -Value \'@echo off`r`njava -jar `"%~dp0lemminx.jar`" %*\'"';
+          const scoopPkg = server.id === 'xml' ? 'lemminx' : server.id === 'java' ? 'jdtls' : 'kotlin-language-server';
+          fullCmd = `cmd.exe /c "scoop install ${scoopPkg}"`;
+        } else if (server.id === 'xml') {
+          fullCmd = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx)) { $null = New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx }; curl.exe -s -L -o $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.jar https://download.eclipse.org/lemminx/releases/0.31.2/org.eclipse.lemminx-uber.jar; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\lemminx\\lemminx.cmd -Value \'@echo off`r`njava -jar `"%~dp0lemminx.jar`" %*\'"';
+        } else if (server.id === 'java') {
+          fullCmd = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls)) { $null = New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls }; curl.exe -s -L -o $env:TEMP\\jdtls.tar.gz https://download.eclipse.org/jdtls/milestones/1.39.0/jdt-language-server-1.39.0-202408291433.tar.gz; tar.exe -xzf $env:TEMP\\jdtls.tar.gz -C $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls; Remove-Item $env:TEMP\\jdtls.tar.gz -Force; $jar = (Get-ChildItem -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\plugins\\org.eclipse.equinox.launcher_*.jar | Select-Object -First 1).FullName; $cfg = $env:LOCALAPPDATA + \'\\Gitero\\lsp\\jdtls\\config_win\'; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\jdtls.cmd -Value (\'@echo off`r`njava -Declipse.application=org.eclipse.jdt.ls.core.id1 -Dosgi.bundles.defaultStartLevel=4 -Declipse.product=org.eclipse.jdt.ls.core.product -Dlog.level=ALL -noverify -Xmx1G --add-modules=ALL-SYSTEM --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -jar `\"\' + $jar + \'`\" -configuration `\"\' + $cfg + \'`\" -data `\"%LOCALAPPDATA%\\Gitero\\lsp\\jdtls\\workspace`\" %*\')"';
+        } else if (server.id === 'kotlin') {
+          fullCmd = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\kotlin)) { $null = New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\kotlin }; curl.exe -s -L -o $env:TEMP\\kls.zip https://github.com/fwcd/kotlin-language-server/releases/latest/download/server.zip; tar.exe -xf $env:TEMP\\kls.zip -C $env:LOCALAPPDATA\\Gitero\\lsp\\kotlin --strip-components=1; Remove-Item $env:TEMP\\kls.zip -Force"';
         }
       } else {
         // Prepend toolchain paths if applicable to ensure newly installed or user toolchain is found
@@ -181,7 +186,12 @@ class LspInstallerService {
           envPrefix = 'set PATH=%USERPROFILE%\\go\\bin;C:\\Program Files\\Go\\bin;%PATH% && ';
         }
 
-        fullCmd = `cmd.exe /c "${envPrefix}${server.installCommand}"`;
+        // Avoid double wrapping if already invoking powershell or cmd
+        if (server.installCommand.startsWith('powershell') || server.installCommand.startsWith('cmd.exe')) {
+          fullCmd = server.installCommand;
+        } else {
+          fullCmd = `cmd.exe /c "${envPrefix}${server.installCommand}"`;
+        }
       }
 
       const res = await window.Neutralino.os.execCommand(fullCmd);
@@ -333,8 +343,8 @@ class LspInstallerService {
     if (lower.includes('access is denied') || lower.includes('eacces') || lower.includes('administrator')) {
       hints.push('Administrator privileges may be required to install this package system-wide.');
     }
-    if (lower.includes('java') || server.id === 'xml') {
-      hints.push('Ensure Java (JRE or JDK 11+) is installed and accessible on your system PATH.');
+    if (lower.includes('java') || server.id === 'xml' || server.id === 'java' || server.id === 'kotlin') {
+      hints.push('Ensure Java (JRE or JDK 17+) is installed and accessible on your system PATH.');
     }
     if (server.installGuide) {
       hints.push(`Manual setup guide: ${server.installGuide}`);
