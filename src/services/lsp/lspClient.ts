@@ -741,7 +741,7 @@ export class LspClient {
           12000
         );
       } else {
-        // Strip out harmless SLF4J / JVM startup banner noise from displayDetail
+        // Strip out harmless SLF4J / JVM / OSGi startup banner noise from displayDetail
         const cleanStderr = stderr
           .split(/\r?\n/)
           .filter((line) => {
@@ -749,7 +749,17 @@ export class LspClient {
             return !l.startsWith('slf4j:') &&
                    !l.startsWith('picked up _java_options') &&
                    !l.startsWith('[main] info') &&
-                   !l.startsWith('[main] debug');
+                   !l.startsWith('[main] debug') &&
+                   !l.startsWith('warning: using incubator modules') &&
+                   !l.startsWith('openjdk 64-bit server vm warning:') &&
+                   !l.startsWith('options -xverify:none') &&
+                   !l.includes('org.apache.aries.spifly.baseactivator') &&
+                   !l.includes('registered provider') &&
+                   !l.includes('logbackservletcontainerinitializer') &&
+                   !l.includes('logbackserviceprovider') &&
+                   !l.startsWith('info:') &&
+                   !/^[a-z]{3}\s+\d{1,2},\s+\d{4}/i.test(l) &&
+                   !/^\d{2}-[a-z]{3}-\d{4}/i.test(l);
           })
           .join(' ')
           .trim();

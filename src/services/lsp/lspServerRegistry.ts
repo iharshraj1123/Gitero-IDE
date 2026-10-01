@@ -127,7 +127,7 @@ export const DEFAULT_SERVERS: ServerConfig[] = [
     defaultArgs: [],
     commandAliases: ['jdtls.bat', 'jdtls.cmd', 'jdtls.exe', 'jdtls'],
     installGuide: 'Automated direct download or scoop install jdtls',
-    installCommand: 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-Command scoop -ErrorAction SilentlyContinue) { scoop install jdtls } else { if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls)) { $null = New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls }; curl.exe -s -L -o $env:TEMP\\jdtls.tar.gz https://download.eclipse.org/jdtls/milestones/1.39.0/jdt-language-server-1.39.0-202408291433.tar.gz; tar.exe -xzf $env:TEMP\\jdtls.tar.gz -C $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls; Remove-Item $env:TEMP\\jdtls.tar.gz -Force; $jar = (Get-ChildItem -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\plugins\\org.eclipse.equinox.launcher_*.jar | Select-Object -First 1).FullName; $cfg = $env:LOCALAPPDATA + \'\\Gitero\\lsp\\jdtls\\config_win\'; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\jdtls.cmd -Value (\'@echo off`r`njava -Declipse.application=org.eclipse.jdt.ls.core.id1 -Dosgi.bundles.defaultStartLevel=4 -Declipse.product=org.eclipse.jdt.ls.core.product -Dlog.level=ALL -noverify -Xmx1G --add-modules=ALL-SYSTEM --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -jar `\"\' + $jar + \'`\" -configuration `\"\' + $cfg + \'`\" -data `\"%LOCALAPPDATA%\\Gitero\\lsp\\jdtls\\workspace`\" %*\') }"',
+    installCommand: 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-Command scoop -ErrorAction SilentlyContinue) { scoop install jdtls } else { if (!(Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls)) { $null = New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls }; curl.exe -s -L -o $env:TEMP\\jdtls.tar.gz https://download.eclipse.org/jdtls/milestones/1.39.0/jdt-language-server-1.39.0-202408291433.tar.gz; tar.exe -xzf $env:TEMP\\jdtls.tar.gz -C $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls; Remove-Item $env:TEMP\\jdtls.tar.gz -Force; $jar = (Get-ChildItem -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\plugins\\org.eclipse.equinox.launcher_*.jar | Select-Object -First 1).FullName; $cfg = $env:LOCALAPPDATA + \'\\Gitero\\lsp\\jdtls\\config_win\'; $cmd = \'@echo off`r`njava -Declipse.application=org.eclipse.jdt.ls.core.id1 -Dosgi.bundles.defaultStartLevel=4 -Declipse.product=org.eclipse.jdt.ls.core.product -Dlog.level=ALL -noverify -Xmx1G --add-modules=ALL-SYSTEM --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -jar `\"\' + $jar + \'`\" -configuration `\"\' + $cfg + \'`\" -data `\"%LOCALAPPDATA%\\Gitero\\lsp\\jdtls\\workspace`\" %*\'; Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\jdtls.cmd -Value $cmd; if (Test-Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\bin) { Set-Content -Path $env:LOCALAPPDATA\\Gitero\\lsp\\jdtls\\bin\\jdtls.bat -Value $cmd } }"',
     packageManager: 'custom'
   },
   {
@@ -278,8 +278,9 @@ class LspServerRegistry {
         candidates.push(`${userProfile}\\scoop\\apps\\jdtls\\current\\bin\\jdtls.bat`);
       }
       if (localAppData) {
-        candidates.push(`${localAppData}\\Gitero\\lsp\\jdtls\\bin\\jdtls.bat`);
         candidates.push(`${localAppData}\\Gitero\\lsp\\jdtls\\jdtls.cmd`);
+        candidates.push(`${localAppData}\\Gitero\\lsp\\jdtls\\bin\\jdtls.cmd`);
+        candidates.push(`${localAppData}\\Gitero\\lsp\\jdtls\\bin\\jdtls.bat`);
       }
       candidates.push('C:\\ProgramData\\chocolatey\\bin\\jdtls.exe');
     } else if (config.id === 'kotlin') {
