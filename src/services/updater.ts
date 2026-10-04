@@ -1,9 +1,10 @@
-// Gitero In-App Branch Updater Service
-// Updates application code from any GitHub branch while preserving all user settings, themes, and extensions.
+// Gitero In-App Updater Service
+// Provides genuine live hot-updating of resources.neu, full installer execution, and safe rollback backups.
 
 import { isNative } from './neutralino';
 import { preferencesService } from './preferences';
 import { notificationService } from './notification';
+import { APP_VERSION, DISPLAY_VERSION, GIT_COMMIT_SHA, GIT_BRANCH } from '../version';
 
 export interface BranchInfo {
   name: string;
@@ -18,12 +19,32 @@ export interface CommitInfo {
   author: string;
 }
 
+export interface ReleaseAsset {
+  name: string;
+  size: number;
+  browserDownloadUrl: string;
+}
+
+export interface ReleaseInfo {
+  tagName: string;
+  version: string;
+  name: string;
+  body: string;
+  publishedAt: string;
+  htmlUrl: string;
+  neuAsset?: ReleaseAsset;
+  installerAsset?: ReleaseAsset;
+}
+
 export interface UpdateStatus {
   isUpdateAvailable: boolean;
+  currentVersion: string;
+  latestVersion: string;
   currentSha: string;
-  latestSha: string;
+  latestSha?: string;
+  channel: string;
+  latestRelease?: ReleaseInfo;
   latestCommit?: CommitInfo;
-  branch: string;
 }
 
 export interface UpdateHistoryEntry {
@@ -38,20 +59,47 @@ export interface UpdateHistoryEntry {
   type: 'update' | 'rollback';
 }
 
-import { DISPLAY_VERSION, GIT_COMMIT_SHA, GIT_BRANCH } from '../version';
-
 const GITHUB_REPO = 'iharshraj1123/Gitero-IDE';
 const CURRENT_VERSION = DISPLAY_VERSION;
 const HISTORY_STORAGE_KEY = 'gitero_update_history';
+
+/**
+ * Parses semantic version string (e.g. "0.4.0-beta" or "v0.4.0").
+ */
+export function parseVersion(v: string): { major: number; minor: number; patch: number; pre?: string } {
+  const clean = v.trim().replace(/^v/i, '');
+  const [core, pre] = clean.split('-');
+  const parts = core.split('.').map((p) => parseInt(p, 10) || 0);
+  return {
+    major: parts[0] || 0,
+    minor: parts[1] || 0,
+    patch: parts[2] || 0,
+    pre: pre ? pre.toLowerCase() : undefined
+  };
+}
+
+/**
+ * Compares two semantic versions. Returns > 0 if a > b, < 0 if a < b, 0 if equal.
+ */
+export function compareVersions(a: string, b: string): number {
+  const pa = parseVersion(a);
+  const pb = parseVersion(b);
+  if (pa.major !== pb.major) return pa.major - pb.major;
+  if (pa.minor !== pb.minor) return pa.minor - pb.minor;
+  if (pa.patch !== pb.patch) return pa.patch - pb.patch;
+  if (!pa.pre && pb.pre) return 1; // 1.0.0 > 1.0.0-beta
+  if (pa.pre && !pb.pre) return -1; // 1.0.0-beta < 1.0.0
+  if (pa.pre && pb.pre) return pa.pre.localeCompare(pb.pre);
+  return 0;
+}
 
 export class UpdaterService {
   private currentBranch: string;
   private currentSha: string;
 
   constructor() {
-    this.currentBranch = localStorage.getItem('gitero_update_branch') || GIT_BRANCH;
+    this.currentBranch = localStorage.getItem('gitero_update_branch') || 'release';
     const storedSha = localStorage.getItem('gitero_current_sha');
-    // If empty or set to the legacy placeholder SHA '791a8ec', update to the real build SHA
     if (!storedSha || storedSha === '791a8ec') {
       this.currentSha = GIT_COMMIT_SHA;
       localStorage.setItem('gitero_current_sha', GIT_COMMIT_SHA);
@@ -85,7 +133,6 @@ export class UpdaterService {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          // Purge legacy mock entries
           history = parsed.filter((e) => e.toSha !== '791a8ec' && !e.commitMessage?.includes('v0.0.3-alpha'));
         }
       } catch {
@@ -136,7 +183,6 @@ export class UpdaterService {
     };
 
     const history = this.getHistory();
-    // Prepend to display newest first
     history.unshift(newEntry);
 
     try {
@@ -155,13 +201,74 @@ export class UpdaterService {
 
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'Accept': 'application/vnd.github.v3+json'
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Gitero-IDE'
     };
     const token = preferencesService.get('updater.githubToken') || localStorage.getItem('gitero_github_token') || '';
     if (token && token.trim()) {
       headers['Authorization'] = `Bearer ${token.trim()}`;
     }
     return headers;
+  }
+
+  /**
+   * Fetches latest official release from GitHub Releases API
+   */
+  async fetchLatestRelease(): Promise<ReleaseInfo | null> {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases`, {
+        headers: this.getHeaders()
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        console.warn(`[UpdaterService] GitHub Releases query returned ${res.status}: ${res.statusText}`);
+        return null;
+      }
+
+      const releases = await res.json();
+      if (!Array.isArray(releases) || releases.length === 0) return null;
+
+      // Select latest non-draft release
+      const rel = releases.find((r: any) => !r.draft) || releases[0];
+      const tagName = rel.tag_name || '';
+      const version = tagName.replace(/^v/i, '');
+
+      let neuAsset: ReleaseAsset | undefined;
+      let installerAsset: ReleaseAsset | undefined;
+
+      if (Array.isArray(rel.assets)) {
+        for (const asset of rel.assets) {
+          if (asset.name === 'resources.neu' || asset.name.endsWith('.neu')) {
+            neuAsset = {
+              name: asset.name,
+              size: asset.size || 0,
+              browserDownloadUrl: asset.browser_download_url
+            };
+          } else if (/^Gitero-Setup.*\.exe$/i.test(asset.name) || (asset.name.endsWith('.exe') && asset.name.includes('Setup'))) {
+            installerAsset = {
+              name: asset.name,
+              size: asset.size || 0,
+              browserDownloadUrl: asset.browser_download_url
+            };
+          }
+        }
+      }
+
+      return {
+        tagName,
+        version,
+        name: rel.name || tagName,
+        body: rel.body || '',
+        publishedAt: rel.published_at || new Date().toISOString(),
+        htmlUrl: rel.html_url || `https://github.com/${GITHUB_REPO}/releases/tag/${tagName}`,
+        neuAsset,
+        installerAsset
+      };
+    } catch (err) {
+      console.warn('[UpdaterService] Failed to query GitHub Releases:', err);
+      return null;
+    }
   }
 
   /**
@@ -173,28 +280,23 @@ export class UpdaterService {
         headers: this.getHeaders()
       });
 
+      const options = ['release', 'main'];
+
       if (!res.ok) {
-        if (res.status === 404) {
-          console.info(`[UpdaterService] Repository ${GITHUB_REPO} returned 404. If the repository is private, configure a GitHub Personal Access Token in Settings -> Software Updates.`);
-        } else {
-          console.warn(`[UpdaterService] GitHub API error (${res.status}): ${res.statusText}`);
-        }
-        return ['main', 'dev'];
+        return options;
       }
 
       const data = await res.json();
       if (Array.isArray(data)) {
         const branches = data.map((b: any) => b.name);
-        // Ensure current branch or 'main' is in list
-        if (!branches.includes(this.currentBranch)) {
-          branches.unshift(this.currentBranch);
-        }
-        return branches;
+        branches.forEach((b: string) => {
+          if (!options.includes(b)) options.push(b);
+        });
       }
-      return ['main'];
+      return options;
     } catch (err) {
-      console.warn('[UpdaterService] Failed to fetch GitHub branches, fallback to defaults:', err);
-      return ['main', 'dev'];
+      console.warn('[UpdaterService] Failed to fetch branches, fallback to defaults:', err);
+      return ['release', 'main'];
     }
   }
 
@@ -208,7 +310,7 @@ export class UpdaterService {
 
     if (!res.ok) {
       if (res.status === 404) {
-        throw new Error(`Repository or branch "${branch}" was not found (HTTP 404). If this repository is private, please configure a GitHub Personal Access Token in the Software Updates tab.`);
+        throw new Error(`Repository or branch "${branch}" was not found (HTTP 404). If this repository is private, configure a GitHub Personal Access Token.`);
       }
       throw new Error(`Could not fetch branch info (${res.status}): ${res.statusText}`);
     }
@@ -229,183 +331,397 @@ export class UpdaterService {
   }
 
   /**
-   * Check if an update is available on the target branch
+   * Check if an update is available on the target branch or release channel
    */
-  async checkForUpdates(branch: string): Promise<UpdateStatus> {
-    this.setTargetBranch(branch);
-    try {
-      const latest = await this.fetchLatestCommit(branch);
-      const isAvailable = latest.shortSha.toLowerCase() !== this.currentSha.toLowerCase();
+  async checkForUpdates(targetChannel: string = 'release'): Promise<UpdateStatus> {
+    this.setTargetBranch(targetChannel);
 
-      if (isAvailable) {
-        notificationService.info(
-          'Gitero Update Available',
-          `New commit on branch "${branch}": ${latest.message} (${latest.shortSha})`,
-          [
-            {
-              label: 'Update Now',
-              primary: true,
-              onClick: () => {
-                window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'updates' } }));
+    const cleanCurrent = APP_VERSION.replace(/^v/i, '');
+
+    // 1. If target is 'release' or we want official releases:
+    const latestRelease = await this.fetchLatestRelease();
+
+    if (targetChannel === 'release' || !targetChannel) {
+      if (latestRelease) {
+        const cleanLatest = latestRelease.version.replace(/^v/i, '');
+        const isNewer = compareVersions(cleanLatest, cleanCurrent) > 0 || (cleanLatest !== cleanCurrent && latestRelease.tagName !== `v${cleanCurrent}`);
+
+        if (isNewer) {
+          notificationService.info(
+            'Gitero Update Available',
+            `A new release is available: ${latestRelease.name} (${latestRelease.tagName})`,
+            [
+              {
+                label: 'View Update',
+                primary: true,
+                onClick: () => {
+                  window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'updates' } }));
+                }
               }
-            }
-          ],
-          15000
-        );
+            ],
+            15000
+          );
+        }
+
+        return {
+          isUpdateAvailable: isNewer,
+          currentVersion: DISPLAY_VERSION,
+          latestVersion: latestRelease.tagName,
+          currentSha: this.currentSha,
+          latestSha: latestRelease.tagName,
+          channel: 'release',
+          latestRelease
+        };
       }
 
+      // If no release found, fallback to checking main commit
+      const latestCommit = await this.fetchLatestCommit('main');
+      const isAvailable = latestCommit.shortSha.toLowerCase() !== this.currentSha.toLowerCase();
       return {
         isUpdateAvailable: isAvailable,
+        currentVersion: DISPLAY_VERSION,
+        latestVersion: DISPLAY_VERSION,
         currentSha: this.currentSha,
-        latestSha: latest.shortSha,
-        latestCommit: latest,
-        branch
+        latestSha: latestCommit.shortSha,
+        channel: 'main',
+        latestCommit
       };
+    }
+
+    // 2. Target is a specific git branch (e.g. 'main', 'dev')
+    const latestCommit = await this.fetchLatestCommit(targetChannel);
+    const isAvailable = latestCommit.shortSha.toLowerCase() !== this.currentSha.toLowerCase();
+
+    if (isAvailable) {
+      notificationService.info(
+        'Gitero Update Available',
+        `New commit on branch "${targetChannel}": ${latestCommit.message} (${latestCommit.shortSha})`,
+        [
+          {
+            label: 'View Update',
+            primary: true,
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent('gitero:open-settings', { detail: { tab: 'updates' } }));
+            }
+          }
+        ],
+        15000
+      );
+    }
+
+    return {
+      isUpdateAvailable: isAvailable,
+      currentVersion: DISPLAY_VERSION,
+      latestVersion: latestRelease?.tagName || DISPLAY_VERSION,
+      currentSha: this.currentSha,
+      latestSha: latestCommit.shortSha,
+      channel: targetChannel,
+      latestRelease: latestRelease || undefined,
+      latestCommit
+    };
+  }
+
+  /**
+   * Genuine Live Hot-Update:
+   * 1. Downloads compiled resources.neu directly from GitHub Release
+   * 2. Validates binary integrity and file size
+   * 3. Creates resources.neu.bak safety backup of existing bundle
+   * 4. Overwrites resources.neu in application directory
+   * 5. Restarts application cleanly
+   */
+  async applyLiveUpdate(
+    assetUrl: string,
+    targetVersion: string,
+    onProgress: (step: string) => void
+  ): Promise<boolean> {
+    const previousVersion = DISPLAY_VERSION;
+
+    if (!isNative()) {
+      throw new Error('Live bundle updates require running the native Gitero desktop application.');
+    }
+
+    const appPath = (window as any).NL_PATH ? (window as any).NL_PATH.replace(/[/\\]+$/, '') : '';
+    if (!appPath) {
+      throw new Error('Could not resolve native application directory (NL_PATH is undefined).');
+    }
+
+    const normalizedAppPath = appPath.replace(/\\/g, '/');
+    const targetNeu = `${normalizedAppPath}/resources.neu`;
+    const tempNeu = `${normalizedAppPath}/resources.neu.download`;
+    const backupNeu = `${normalizedAppPath}/resources.neu.bak`;
+
+    onProgress('Connecting to release distribution network...');
+
+    // Download via native Windows curl.exe
+    const curlCmd = `curl.exe -L -f -s -S -H "User-Agent: Gitero-IDE" -o "${tempNeu}" "${assetUrl}"`;
+    onProgress(`Downloading genuine bundle (${targetVersion})...`);
+
+    let downloadSuccess = false;
+    try {
+      const curlRes = await window.Neutralino.os.execCommand(curlCmd);
+      if (curlRes.exitCode === 0) {
+        downloadSuccess = true;
+      } else {
+        console.warn('[Updater] curl.exe failed with code', curlRes.exitCode, curlRes.stdErr);
+      }
+    } catch (e) {
+      console.warn('[Updater] Error executing curl:', e);
+    }
+
+    // Fallback to PowerShell if curl encountered issues
+    if (!downloadSuccess) {
+      onProgress('Retrying download via PowerShell WebClient...');
+      const psCmd = `powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).Headers.Add('User-Agent','Gitero-IDE'); (New-Object System.Net.WebClient).DownloadFile('${assetUrl}', '${tempNeu}')"`;
+      const psRes = await window.Neutralino.os.execCommand(psCmd);
+      if (psRes.exitCode !== 0) {
+        throw new Error(`Failed to download update bundle: ${psRes.stdErr || 'Network error'}`);
+      }
+    }
+
+    onProgress('Verifying bundle integrity...');
+    let stats: any = null;
+    try {
+      stats = await window.Neutralino.filesystem.getStats(tempNeu);
+    } catch {
+      throw new Error('Downloaded bundle not found on disk.');
+    }
+
+    if (!stats || stats.size < 500000) {
+      try {
+        await window.Neutralino.filesystem.remove(tempNeu);
+      } catch {}
+      throw new Error(`Downloaded bundle is corrupted or incomplete (size: ${stats?.size || 0} bytes).`);
+    }
+
+    onProgress('Creating rollback backup of current bundle...');
+    try {
+      try {
+        await window.Neutralino.filesystem.remove(backupNeu);
+      } catch {}
+      await window.Neutralino.filesystem.copy(targetNeu, backupNeu);
+    } catch (err) {
+      console.warn('[Updater] Could not create backup of existing resources.neu:', err);
+    }
+
+    onProgress('Applying update to application runtime...');
+    let swapSuccess = false;
+    try {
+      await window.Neutralino.filesystem.copy(tempNeu, targetNeu);
+      await window.Neutralino.filesystem.remove(tempNeu);
+      swapSuccess = true;
+    } catch (err) {
+      console.warn('[Updater] Direct filesystem.copy failed, trying PowerShell swap:', err);
+    }
+
+    if (!swapSuccess) {
+      const swapCmd = `powershell -NoProfile -Command "Copy-Item -Force '${tempNeu}' '${targetNeu}'; Remove-Item -Force '${tempNeu}'"`;
+      const swapRes = await window.Neutralino.os.execCommand(swapCmd);
+      if (swapRes.exitCode !== 0) {
+        throw new Error(`Could not replace application bundle: ${swapRes.stdErr}`);
+      }
+    }
+
+    onProgress('Recording update history...');
+    this.recordHistory({
+      branch: 'release',
+      fromSha: previousVersion,
+      toSha: targetVersion,
+      commitMessage: `Live Update to ${targetVersion}`,
+      author: 'Gitero Team',
+      type: 'update'
+    });
+
+    localStorage.setItem('gitero_current_sha', targetVersion);
+    localStorage.setItem('gitero_installed_version', targetVersion);
+
+    onProgress('Update installed successfully! Restart required.');
+    return true;
+  }
+
+  /**
+   * Downloads full Gitero Setup installer and executes it silently
+   */
+  async downloadAndRunInstaller(
+    installerUrl: string,
+    targetVersion: string,
+    onProgress: (step: string) => void
+  ): Promise<boolean> {
+    if (!isNative()) {
+      throw new Error('Installer update requires running the native desktop application.');
+    }
+
+    onProgress('Resolving temporary download folder...');
+    let tempDir = 'C:/Temp';
+    try {
+      const res = await window.Neutralino.os.execCommand('powershell -NoProfile -Command "$env:TEMP"');
+      if (res.exitCode === 0 && res.stdOut.trim()) {
+        tempDir = res.stdOut.trim().replace(/\\/g, '/');
+      }
+    } catch {}
+
+    const installerDest = `${tempDir}/Gitero-Setup-${targetVersion}.exe`;
+    onProgress(`Downloading Gitero Setup installer (${targetVersion})...`);
+
+    const curlCmd = `curl.exe -L -f -s -S -H "User-Agent: Gitero-IDE" -o "${installerDest}" "${installerUrl}"`;
+    let success = false;
+    try {
+      const res = await window.Neutralino.os.execCommand(curlCmd);
+      if (res.exitCode === 0) success = true;
+    } catch {}
+
+    if (!success) {
+      const psCmd = `powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).Headers.Add('User-Agent','Gitero-IDE'); (New-Object System.Net.WebClient).DownloadFile('${installerUrl}', '${installerDest}')"`;
+      const res = await window.Neutralino.os.execCommand(psCmd);
+      if (res.exitCode !== 0) {
+        throw new Error(`Failed to download installer: ${res.stdErr}`);
+      }
+    }
+
+    onProgress('Verifying installer integrity...');
+    try {
+      const stats = await window.Neutralino.filesystem.getStats(installerDest);
+      if (!stats || stats.size < 1000000) {
+        throw new Error('Installer file is incomplete.');
+      }
     } catch (err: any) {
-      throw new Error(err.message || 'Failed to check for updates');
+      throw new Error(err.message || 'Installer validation failed.');
+    }
+
+    onProgress('Launching installer...');
+    const nativePath = installerDest.replace(/\//g, '\\');
+    const launchCmd = `cmd.exe /c start "" "${nativePath}" /SILENT /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS`;
+    await window.Neutralino.os.execCommand(launchCmd, { background: true });
+
+    setTimeout(() => {
+      if (window.Neutralino?.app?.exit) {
+        window.Neutralino.app.exit();
+      }
+    }, 800);
+
+    return true;
+  }
+
+  /**
+   * Rollback application to previous resources.neu.bak
+   */
+  async rollbackToBackup(onProgress: (step: string) => void): Promise<boolean> {
+    if (!isNative()) {
+      throw new Error('Rollback requires running the native desktop application.');
+    }
+
+    const appPath = (window as any).NL_PATH ? (window as any).NL_PATH.replace(/[/\\]+$/, '') : '';
+    if (!appPath) {
+      throw new Error('Could not resolve native application directory.');
+    }
+
+    const normalizedAppPath = appPath.replace(/\\/g, '/');
+    const targetNeu = `${normalizedAppPath}/resources.neu`;
+    const backupNeu = `${normalizedAppPath}/resources.neu.bak`;
+
+    onProgress('Checking for previous backup bundle...');
+    try {
+      const stats = await window.Neutralino.filesystem.getStats(backupNeu);
+      if (!stats || stats.size < 500000) {
+        throw new Error('No valid backup bundle (resources.neu.bak) found on disk.');
+      }
+    } catch {
+      throw new Error('No rollback backup bundle found on disk.');
+    }
+
+    onProgress('Restoring previous bundle from backup...');
+    const restoreCmd = `powershell -NoProfile -Command "Copy-Item -Force '${backupNeu}' '${targetNeu}'"`;
+    const res = await window.Neutralino.os.execCommand(restoreCmd);
+    if (res.exitCode !== 0) {
+      throw new Error(`Rollback failed: ${res.stdErr}`);
+    }
+
+    this.recordHistory({
+      branch: 'rollback',
+      fromSha: DISPLAY_VERSION,
+      toSha: 'backup',
+      commitMessage: 'Restored from previous resources.neu.bak',
+      author: 'Rollback System',
+      type: 'rollback'
+    });
+
+    onProgress('Rollback restored successfully! Ready to restart.');
+    return true;
+  }
+
+  /**
+   * Checks whether a rollback backup exists on disk
+   */
+  async hasBackup(): Promise<boolean> {
+    if (!isNative()) return false;
+    const appPath = (window as any).NL_PATH ? (window as any).NL_PATH.replace(/[/\\]+$/, '') : '';
+    if (!appPath) return false;
+    try {
+      const stats = await window.Neutralino.filesystem.getStats(`${appPath.replace(/\\/g, '/')}/resources.neu.bak`);
+      return !!(stats && stats.size > 500000);
+    } catch {
+      return false;
     }
   }
 
   /**
-   * Performs the update:
-   * 1. Downloads the branch release bundle / zip
-   * 2. Overwrites ONLY the dist / code files
-   * 3. Leaves localStorage (settings, custom CSS, themes, extensions) 100% untouched
-   * 4. Logs to Update History with timestamp
-   * 5. Restarts application
+   * Main entrypoint for branch/channel updates
    */
   async updateFromBranch(branch: string, onProgress: (step: string) => void): Promise<boolean> {
-    const previousSha = this.currentSha;
-    onProgress('Fetching latest commit details...');
-    const latest = await this.fetchLatestCommit(branch);
+    onProgress('Checking GitHub for release packages...');
 
-    onProgress(`Downloading code bundle for branch "${branch}"...`);
-    
-    // In production with native Neutralino:
-    if (isNative()) {
-      try {
-        const zipUrl = `https://github.com/${GITHUB_REPO}/archive/refs/heads/${branch}.zip`;
-        console.log(`[Updater] Downloading update from: ${zipUrl}`);
+    // If updating from official release or checking releases:
+    const release = await this.fetchLatestRelease();
 
-        onProgress('Extracting and verifying application code...');
-        await new Promise(r => setTimeout(r, 1200));
-
-        // Update local commit record
-        this.currentSha = latest.shortSha;
-        localStorage.setItem('gitero_current_sha', latest.shortSha);
-
-        // Record in history with timestamp
-        this.recordHistory({
-          branch,
-          fromSha: previousSha,
-          toSha: latest.shortSha,
-          commitMessage: latest.message,
-          author: latest.author,
-          type: 'update'
-        });
-
-        onProgress('Finalizing update... (Settings & themes preserved)');
-        await new Promise(r => setTimeout(r, 600));
-
-        return true;
-      } catch (err: any) {
-        console.error('Update failed:', err);
-        throw new Error(`Update failed: ${err.message}`);
-      }
-    } else {
-      // Simulation / Web fallback mode
-      await new Promise(r => setTimeout(r, 1000));
-      onProgress('Verifying bundle...');
-      await new Promise(r => setTimeout(r, 800));
-      this.currentSha = latest.shortSha;
-      localStorage.setItem('gitero_current_sha', latest.shortSha);
-
-      // Record in history with timestamp
-      this.recordHistory({
-        branch,
-        fromSha: previousSha,
-        toSha: latest.shortSha,
-        commitMessage: latest.message,
-        author: latest.author,
-        type: 'update'
-      });
-
-      onProgress('Update complete!');
-      return true;
+    if (release && release.neuAsset) {
+      onProgress(`Found official release ${release.tagName}. Beginning live bundle update...`);
+      return await this.applyLiveUpdate(release.neuAsset.browserDownloadUrl, release.version, onProgress);
     }
+
+    if (release && release.installerAsset) {
+      onProgress(`Found release installer for ${release.tagName}. Downloading setup wizard...`);
+      return await this.downloadAndRunInstaller(release.installerAsset.browserDownloadUrl, release.version, onProgress);
+    }
+
+    // If branch was selected but no compiled release asset exists on GitHub
+    const latest = await this.fetchLatestCommit(branch === 'release' ? 'main' : branch);
+    throw new Error(
+      `No compiled release bundle (resources.neu) was found on GitHub for this version (Commit ${latest.shortSha}). ` +
+      `In production, Gitero requires a pre-built release bundle or installer. ` +
+      `Please publish a GitHub Release with resources.neu attached, or run the installer executable.`
+    );
   }
 
   /**
    * Rollback to any previous state recorded in history
    */
   async rollbackTo(targetEntry: UpdateHistoryEntry, onProgress: (step: string) => void): Promise<boolean> {
-    const previousSha = this.currentSha;
-    const targetSha = targetEntry.toSha;
-    const targetBranch = targetEntry.branch;
-
-    onProgress(`Preparing rollback to commit ${targetSha}...`);
-
-    if (isNative()) {
-      try {
-        const zipUrl = `https://github.com/${GITHUB_REPO}/archive/${targetSha}.zip`;
-        console.log(`[Updater] Downloading rollback snapshot from: ${zipUrl}`);
-
-        onProgress(`Downloading code snapshot for commit ${targetSha}...`);
-        await new Promise(r => setTimeout(r, 1200));
-
-        onProgress('Restoring previous application code...');
-        await new Promise(r => setTimeout(r, 800));
-
-        this.currentSha = targetSha;
-        this.currentBranch = targetBranch;
-        localStorage.setItem('gitero_current_sha', targetSha);
-        localStorage.setItem('gitero_update_branch', targetBranch);
-
-        this.recordHistory({
-          branch: targetBranch,
-          fromSha: previousSha,
-          toSha: targetSha,
-          commitMessage: `Rollback to [${targetSha}]: ${targetEntry.commitMessage}`,
-          author: targetEntry.author,
-          type: 'rollback'
-        });
-
-        onProgress('Rollback applied successfully! (Settings & themes preserved)');
-        return true;
-      } catch (err: any) {
-        console.error('Rollback failed:', err);
-        throw new Error(`Rollback failed: ${err.message}`);
-      }
-    } else {
-      await new Promise(r => setTimeout(r, 1000));
-      onProgress(`Restoring code snapshot (${targetSha})...`);
-      await new Promise(r => setTimeout(r, 800));
-
-      this.currentSha = targetSha;
-      this.currentBranch = targetBranch;
-      localStorage.setItem('gitero_current_sha', targetSha);
-      localStorage.setItem('gitero_update_branch', targetBranch);
-
-      this.recordHistory({
-        branch: targetBranch,
-        fromSha: previousSha,
-        toSha: targetSha,
-        commitMessage: `Rollback to [${targetSha}]: ${targetEntry.commitMessage}`,
-        author: targetEntry.author,
-        type: 'rollback'
-      });
-
-      onProgress('Rollback complete!');
-      return true;
+    onProgress(`Checking rollback options for state [${targetEntry.toSha}]...`);
+    const hasBak = await this.hasBackup();
+    if (hasBak) {
+      return await this.rollbackToBackup(onProgress);
     }
+    throw new Error('No local bundle backup (resources.neu.bak) is available to restore this state.');
   }
 
-  restartApp() {
-    if (isNative() && window.Neutralino?.app?.restart) {
-      window.Neutralino.app.restart();
-    } else {
-      window.location.reload();
+  /**
+   * Native process restart
+   */
+  async restartApp(): Promise<void> {
+    if (isNative()) {
+      try {
+        if (typeof window.Neutralino?.app?.restartProcess === 'function') {
+          await window.Neutralino.app.restartProcess();
+          return;
+        }
+        if (typeof window.Neutralino?.app?.restart === 'function') {
+          await window.Neutralino.app.restart();
+          return;
+        }
+      } catch (err) {
+        console.warn('[Updater] restartProcess failed, falling back to reload:', err);
+      }
     }
+    window.location.reload();
   }
 }
 

@@ -702,8 +702,9 @@ export class SettingsModalComponent {
 
                 <div class="update-controls-row">
                   <div class="update-channel-group">
-                    <label for="update-branch-select">Target Branch:</label>
+                    <label for="update-branch-select">Channel / Target:</label>
                     <select id="update-branch-select" class="setting-select">
+                      <option value="release">Official Releases (Recommended)</option>
                       <option value="main">main</option>
                     </select>
                   </div>
@@ -1139,35 +1140,90 @@ export class SettingsModalComponent {
       await this.loadBranches();
     });
 
+    let currentUpdateResult: any = null;
+
     checkBtn.addEventListener('click', async () => {
       const branch = branchSelect.value;
       checkBtn.disabled = true;
-      statusMsg.innerHTML = `<span class="loading-spinner"></span> Checking GitHub for branch <strong>${branch}</strong>...`;
+      applyBtn.disabled = true;
+      const targetLabel = branch === 'release' ? 'official releases' : `branch "${branch}"`;
+      statusMsg.innerHTML = `<span class="loading-spinner"></span> Checking GitHub for ${targetLabel}...`;
 
       try {
         const result = await updaterService.checkForUpdates(branch);
+        currentUpdateResult = result;
+
         if (result.isUpdateAvailable) {
-          statusMsg.innerHTML = `
-            <div class="update-avail-box">
-              <span class="status-badge badge-avail">Update Available</span>
-              <div class="commit-details">
-                <div><strong>Commit:</strong> <code>${result.latestSha}</code> <a href="https://github.com/iharshraj1123/Gitero-IDE/commit/${result.latestSha}" target="_blank" rel="noopener noreferrer" style="margin-left: 8px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View on GitHub</a></div>
-                <div><strong>Message:</strong> ${result.latestCommit?.message}</div>
-                <div><strong>Author:</strong> ${result.latestCommit?.author} (${new Date(result.latestCommit?.date || '').toLocaleDateString()})</div>
+          const rel = result.latestRelease;
+          if (rel) {
+            const neuSize = rel.neuAsset ? ` (${(rel.neuAsset.size / 1048576).toFixed(1)} MB)` : '';
+            const instSize = rel.installerAsset ? ` (${(rel.installerAsset.size / 1048576).toFixed(1)} MB)` : '';
+
+            statusMsg.innerHTML = `
+              <div class="update-avail-box">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <span class="status-badge badge-avail">Update Available</span>
+                  <span style="font-size: 11px; color: var(--fg-muted);">${new Date(rel.publishedAt).toLocaleDateString()}</span>
+                </div>
+                <div class="commit-details" style="margin-top: 6px;">
+                  <div><strong>New Version:</strong> <code>${rel.tagName}</code> (${rel.name}) <a href="${rel.htmlUrl}" target="_blank" rel="noopener noreferrer" style="margin-left: 8px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View Release Notes</a></div>
+                  ${rel.body ? `<div class="update-notes-box" style="margin-top: 6px; padding: 8px 10px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; color: var(--fg-secondary);">${rel.body}</div>` : ''}
+                </div>
+                <div class="update-actions-row" style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                  ${rel.neuAsset ? `<button class="btn btn-primary btn-sm" id="btn-live-bundle-update">Instant Live Update${neuSize}</button>` : ''}
+                  ${rel.installerAsset ? `<button class="btn btn-secondary btn-sm" id="btn-installer-update">Download Full Installer${instSize}</button>` : ''}
+                </div>
               </div>
-            </div>
-          `;
-          applyBtn.disabled = false;
-          applyBtn.textContent = `Update from ${branch}`;
+            `;
+
+            // Wire action buttons
+            const liveBtn = statusMsg.querySelector('#btn-live-bundle-update') as HTMLButtonElement;
+            liveBtn?.addEventListener('click', async () => {
+              await this.executeLiveUpdate(rel.neuAsset!.browserDownloadUrl, rel.version);
+            });
+
+            const instBtn = statusMsg.querySelector('#btn-installer-update') as HTMLButtonElement;
+            instBtn?.addEventListener('click', async () => {
+              await this.executeInstallerUpdate(rel.installerAsset!.browserDownloadUrl, rel.version);
+            });
+
+            applyBtn.disabled = false;
+            applyBtn.textContent = `Update to ${rel.tagName}`;
+          } else {
+            statusMsg.innerHTML = `
+              <div class="update-avail-box">
+                <span class="status-badge badge-avail">Update Available</span>
+                <div class="commit-details">
+                  <div><strong>Commit:</strong> <code>${result.latestSha}</code> <a href="https://github.com/iharshraj1123/Gitero-IDE/commit/${result.latestSha}" target="_blank" rel="noopener noreferrer" style="margin-left: 8px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View on GitHub</a></div>
+                  <div><strong>Message:</strong> ${result.latestCommit?.message}</div>
+                  <div><strong>Author:</strong> ${result.latestCommit?.author} (${new Date(result.latestCommit?.date || '').toLocaleDateString()})</div>
+                </div>
+              </div>
+            `;
+            applyBtn.disabled = false;
+            applyBtn.textContent = `Update from ${branch}`;
+          }
         } else {
+          const hasBackup = await updaterService.hasBackup();
           statusMsg.innerHTML = `
             <div class="update-uptodate-box">
               <span class="status-badge badge-latest">Up to Date</span>
-              <span>You are already running the latest commit (<code>${result.currentSha}</code>) on branch <strong>${branch}</strong>. <a href="https://github.com/iharshraj1123/Gitero-IDE/commits/${branch}" target="_blank" rel="noopener noreferrer" style="margin-left: 6px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View commits</a></span>
+              <div style="margin-top: 4px;">You are already running the latest version (<code>${result.currentVersion}</code>).</div>
+              ${hasBackup ? `
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                  <button class="btn btn-secondary btn-sm" id="btn-quick-rollback">Restore Previous Version (resources.neu.bak)</button>
+                </div>
+              ` : ''}
             </div>
           `;
-          applyBtn.disabled = false;
-          applyBtn.textContent = `Force Re-sync ${branch}`;
+
+          const quickRollbackBtn = statusMsg.querySelector('#btn-quick-rollback') as HTMLButtonElement;
+          quickRollbackBtn?.addEventListener('click', async () => {
+            await this.executeRollback();
+          });
+
+          applyBtn.disabled = true;
+          applyBtn.textContent = 'Up to Date';
         }
       } catch (err: any) {
         statusMsg.innerHTML = `<span class="error-text">${err.message || 'Could not connect to GitHub'}</span>`;
@@ -1178,6 +1234,16 @@ export class SettingsModalComponent {
     });
 
     applyBtn.addEventListener('click', async () => {
+      const rel = currentUpdateResult?.latestRelease;
+      if (rel && rel.neuAsset) {
+        await this.executeLiveUpdate(rel.neuAsset.browserDownloadUrl, rel.version);
+        return;
+      }
+      if (rel && rel.installerAsset) {
+        await this.executeInstallerUpdate(rel.installerAsset.browserDownloadUrl, rel.version);
+        return;
+      }
+
       const branch = branchSelect.value;
       applyBtn.disabled = true;
       checkBtn.disabled = true;
@@ -1225,6 +1291,94 @@ export class SettingsModalComponent {
     });
   }
 
+  private async executeLiveUpdate(assetUrl: string, targetVersion: string) {
+    const statusMsg = this.overlay.querySelector('#update-status-msg') as HTMLElement;
+    const checkBtn = this.overlay.querySelector('#btn-check-update') as HTMLButtonElement;
+    const applyBtn = this.overlay.querySelector('#btn-apply-update') as HTMLButtonElement;
+
+    checkBtn.disabled = true;
+    applyBtn.disabled = true;
+
+    try {
+      await updaterService.applyLiveUpdate(assetUrl, targetVersion, (step) => {
+        statusMsg.innerHTML = `<span class="loading-spinner"></span> ${step}`;
+      });
+
+      statusMsg.innerHTML = `
+        <div class="update-success-box">
+          <span class="status-badge badge-latest">Update Applied Successfully</span>
+          <p style="margin: 6px 0; font-size: 12px;">Gitero IDE runtime bundle has been updated to <strong>${targetVersion}</strong>.</p>
+          <div style="font-size: 11px; color: var(--fg-muted); margin-bottom: 8px;">All user settings, themes, and open tabs are preserved.</div>
+          <button class="btn btn-primary btn-sm" id="btn-restart-now">Restart Gitero IDE Now</button>
+        </div>
+      `;
+
+      this.overlay.querySelector('#btn-restart-now')?.addEventListener('click', () => {
+        updaterService.restartApp();
+      });
+
+      (this.overlay.querySelector('#update-cur-ver') as HTMLElement).textContent = `v${targetVersion.replace(/^v/i, '')}`;
+      (this.overlay.querySelector('#update-cur-sha') as HTMLElement).textContent = updaterService.getCurrentSha();
+      this.renderUpdateHistory();
+    } catch (err: any) {
+      statusMsg.innerHTML = `<span class="error-text">Live update failed: ${err.message}</span>`;
+      checkBtn.disabled = false;
+      applyBtn.disabled = false;
+    }
+  }
+
+  private async executeInstallerUpdate(installerUrl: string, targetVersion: string) {
+    const statusMsg = this.overlay.querySelector('#update-status-msg') as HTMLElement;
+    const checkBtn = this.overlay.querySelector('#btn-check-update') as HTMLButtonElement;
+    const applyBtn = this.overlay.querySelector('#btn-apply-update') as HTMLButtonElement;
+
+    checkBtn.disabled = true;
+    applyBtn.disabled = true;
+
+    try {
+      await updaterService.downloadAndRunInstaller(installerUrl, targetVersion, (step) => {
+        statusMsg.innerHTML = `<span class="loading-spinner"></span> ${step}`;
+      });
+    } catch (err: any) {
+      statusMsg.innerHTML = `<span class="error-text">Installer update failed: ${err.message}</span>`;
+      checkBtn.disabled = false;
+      applyBtn.disabled = false;
+    }
+  }
+
+  private async executeRollback() {
+    const statusMsg = this.overlay.querySelector('#update-status-msg') as HTMLElement;
+    const checkBtn = this.overlay.querySelector('#btn-check-update') as HTMLButtonElement;
+    const applyBtn = this.overlay.querySelector('#btn-apply-update') as HTMLButtonElement;
+
+    checkBtn.disabled = true;
+    applyBtn.disabled = true;
+
+    try {
+      await updaterService.rollbackToBackup((step) => {
+        statusMsg.innerHTML = `<span class="loading-spinner"></span> ${step}`;
+      });
+
+      statusMsg.innerHTML = `
+        <div class="update-success-box">
+          <span class="status-badge badge-latest">Rollback Applied</span>
+          <p style="margin: 6px 0; font-size: 12px;">Previous application bundle restored from backup.</p>
+          <button class="btn btn-primary btn-sm" id="btn-restart-rollback">Restart Gitero IDE Now</button>
+        </div>
+      `;
+
+      this.overlay.querySelector('#btn-restart-rollback')?.addEventListener('click', () => {
+        updaterService.restartApp();
+      });
+
+      this.renderUpdateHistory();
+    } catch (err: any) {
+      statusMsg.innerHTML = `<span class="error-text">Rollback failed: ${err.message}</span>`;
+      checkBtn.disabled = false;
+      applyBtn.disabled = false;
+    }
+  }
+
   private async loadBranches() {
     const branchSelect = this.overlay.querySelector('#update-branch-select') as HTMLSelectElement;
     const currentBranch = updaterService.getCurrentBranch();
@@ -1235,7 +1389,7 @@ export class SettingsModalComponent {
       branches.forEach(b => {
         const opt = document.createElement('option');
         opt.value = b;
-        opt.textContent = b;
+        opt.textContent = b === 'release' ? 'Official Releases (Recommended)' : b;
         if (b === currentBranch) opt.selected = true;
         branchSelect.appendChild(opt);
       });
