@@ -59,7 +59,7 @@ export interface UpdateHistoryEntry {
   type: 'update' | 'rollback';
 }
 
-const GITHUB_REPO = 'iharshraj1123/Gitero-IDE';
+export const GITHUB_REPO = 'iharshraj1123/Gitero-IDE';
 const CURRENT_VERSION = DISPLAY_VERSION;
 const HISTORY_STORAGE_KEY = 'gitero_update_history';
 
@@ -98,7 +98,7 @@ export class UpdaterService {
   private currentSha: string;
 
   constructor() {
-    this.currentBranch = localStorage.getItem('gitero_update_branch') || 'release';
+    this.currentBranch = preferencesService.get('updater.channel') || localStorage.getItem('gitero_update_branch') || 'release';
     const storedSha = localStorage.getItem('gitero_current_sha');
     if (!storedSha || storedSha === '791a8ec') {
       this.currentSha = GIT_COMMIT_SHA;
@@ -114,7 +114,7 @@ export class UpdaterService {
   }
 
   getCurrentBranch(): string {
-    return this.currentBranch;
+    return preferencesService.get('updater.channel') || this.currentBranch || 'release';
   }
 
   getCurrentSha(): string {
@@ -123,6 +123,7 @@ export class UpdaterService {
 
   setTargetBranch(branch: string) {
     this.currentBranch = branch;
+    preferencesService.set('updater.channel', branch);
     localStorage.setItem('gitero_update_branch', branch);
   }
 
@@ -339,9 +340,9 @@ export class UpdaterService {
     const cleanCurrent = APP_VERSION.replace(/^v/i, '');
 
     // 1. If target is 'release' or we want official releases:
-    const latestRelease = await this.fetchLatestRelease();
-
     if (targetChannel === 'release' || !targetChannel) {
+      const latestRelease = await this.fetchLatestRelease();
+
       if (latestRelease) {
         const cleanLatest = latestRelease.version.replace(/^v/i, '');
         const isNewer = compareVersions(cleanLatest, cleanCurrent) > 0 || (cleanLatest !== cleanCurrent && latestRelease.tagName !== `v${cleanCurrent}`);
@@ -374,23 +375,34 @@ export class UpdaterService {
         };
       }
 
-      // If no release found, fallback to checking main commit
-      const latestCommit = await this.fetchLatestCommit('main');
-      const isAvailable = latestCommit.shortSha.toLowerCase() !== this.currentSha.toLowerCase();
       return {
-        isUpdateAvailable: isAvailable,
+        isUpdateAvailable: false,
         currentVersion: DISPLAY_VERSION,
         latestVersion: DISPLAY_VERSION,
         currentSha: this.currentSha,
-        latestSha: latestCommit.shortSha,
-        channel: 'main',
-        latestCommit
+        latestSha: this.currentSha,
+        channel: 'release'
       };
     }
 
     // 2. Target is a specific git branch (e.g. 'main', 'dev')
+    // Decoupled from GitHub Releases!
     const latestCommit = await this.fetchLatestCommit(targetChannel);
     const isAvailable = latestCommit.shortSha.toLowerCase() !== this.currentSha.toLowerCase();
+
+    // Query package.json on that branch to determine its active version
+    let branchVersion = DISPLAY_VERSION;
+    try {
+      const pkgRes = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/${targetChannel}/package.json`, {
+        headers: this.getHeaders()
+      });
+      if (pkgRes.ok) {
+        const pkgData = await pkgRes.json();
+        if (pkgData.version) {
+          branchVersion = `v${pkgData.version.replace(/^v/i, '')}`;
+        }
+      }
+    } catch {}
 
     if (isAvailable) {
       notificationService.info(
@@ -412,11 +424,11 @@ export class UpdaterService {
     return {
       isUpdateAvailable: isAvailable,
       currentVersion: DISPLAY_VERSION,
-      latestVersion: latestRelease?.tagName || DISPLAY_VERSION,
+      latestVersion: branchVersion,
       currentSha: this.currentSha,
       latestSha: latestCommit.shortSha,
       channel: targetChannel,
-      latestRelease: latestRelease || undefined,
+      latestRelease: undefined,
       latestCommit
     };
   }
@@ -432,7 +444,8 @@ export class UpdaterService {
   async applyLiveUpdate(
     assetUrl: string,
     targetVersion: string,
-    onProgress: (step: string) => void
+    onProgress: (step: string) => void,
+    targetBranch: string = 'release'
   ): Promise<boolean> {
     const previousVersion = DISPLAY_VERSION;
 
@@ -523,10 +536,10 @@ export class UpdaterService {
 
     onProgress('Recording update history...');
     this.recordHistory({
-      branch: 'release',
+      branch: targetBranch,
       fromSha: previousVersion,
       toSha: targetVersion,
-      commitMessage: `Live Update to ${targetVersion}`,
+      commitMessage: targetBranch === 'release' ? `Live Update to ${targetVersion}` : `Branch Update (${targetBranch}) to ${targetVersion}`,
       author: 'Gitero Team',
       type: 'update'
     });
@@ -667,27 +680,62 @@ export class UpdaterService {
    * Main entrypoint for branch/channel updates
    */
   async updateFromBranch(branch: string, onProgress: (step: string) => void): Promise<boolean> {
-    onProgress('Checking GitHub for release packages...');
+    onProgress(`Checking for latest build on branch "${branch}"...`);
 
-    // If updating from official release or checking releases:
-    const release = await this.fetchLatestRelease();
-
-    if (release && release.neuAsset) {
-      onProgress(`Found official release ${release.tagName}. Beginning live bundle update...`);
-      return await this.applyLiveUpdate(release.neuAsset.browserDownloadUrl, release.version, onProgress);
+    if (branch === 'release') {
+      const release = await this.fetchLatestRelease();
+      if (release && release.neuAsset) {
+        onProgress(`Found official release ${release.tagName}. Beginning live bundle update...`);
+        return await this.applyLiveUpdate(release.neuAsset.browserDownloadUrl, release.version, onProgress, 'release');
+      }
+      if (release && release.installerAsset) {
+        onProgress(`Found release installer for ${release.tagName}. Downloading setup wizard...`);
+        return await this.downloadAndRunInstaller(release.installerAsset.browserDownloadUrl, release.version, onProgress);
+      }
+      throw new Error('No official release packages found on GitHub Releases.');
     }
 
-    if (release && release.installerAsset) {
-      onProgress(`Found release installer for ${release.tagName}. Downloading setup wizard...`);
-      return await this.downloadAndRunInstaller(release.installerAsset.browserDownloadUrl, release.version, onProgress);
+    // Branch update: Fetch branch latest commit
+    const latestCommit = await this.fetchLatestCommit(branch);
+
+    // 1. Try to find a rolling continuous release for this branch (e.g., continuous-main)
+    const rollingAssetUrl = `https://github.com/${GITHUB_REPO}/releases/download/continuous-${branch}/resources.neu`;
+    let foundUrl = '';
+    try {
+      const headRes = await fetch(rollingAssetUrl, { method: 'HEAD' });
+      if (headRes.ok) {
+        foundUrl = rollingAssetUrl;
+      }
+    } catch {}
+
+    // 2. If not rolling, check if latest commit corresponds to a tagged release
+    if (!foundUrl) {
+      try {
+        const pkgRes = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/${branch}/package.json`, {
+          headers: this.getHeaders()
+        });
+        if (pkgRes.ok) {
+          const pkgData = await pkgRes.json();
+          const ver = pkgData.version ? pkgData.version.replace(/^v/i, '') : '';
+          if (ver) {
+            const tagAssetUrl = `https://github.com/${GITHUB_REPO}/releases/download/v${ver}/resources.neu`;
+            const tagHead = await fetch(tagAssetUrl, { method: 'HEAD' });
+            if (tagHead.ok) {
+              foundUrl = tagAssetUrl;
+            }
+          }
+        }
+      } catch {}
     }
 
-    // If branch was selected but no compiled release asset exists on GitHub
-    const latest = await this.fetchLatestCommit(branch === 'release' ? 'main' : branch);
+    if (foundUrl) {
+      onProgress(`Found runtime bundle for branch "${branch}" (${latestCommit.shortSha}). Downloading update...`);
+      return await this.applyLiveUpdate(foundUrl, latestCommit.shortSha, onProgress, branch);
+    }
+
     throw new Error(
-      `No compiled release bundle (resources.neu) was found on GitHub for this version (Commit ${latest.shortSha}). ` +
-      `In production, Gitero requires a pre-built release bundle or installer. ` +
-      `Please publish a GitHub Release with resources.neu attached, or run the installer executable.`
+      `No compiled release bundle (resources.neu) was found on GitHub for branch "${branch}" (Commit ${latestCommit.shortSha}). ` +
+      `A rolling build or release package needs to be generated on GitHub for this branch.`
     );
   }
 

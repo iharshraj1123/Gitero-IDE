@@ -51,6 +51,7 @@ export interface GiteroPreferences {
 
   // Software Updates
   'updater.githubToken': string;
+  'updater.channel': string;
 
   // Transparency & Glassmorphism
   'transparency.enabled': boolean;
@@ -172,6 +173,7 @@ export const DEFAULT_PREFERENCES: GiteroPreferences = {
   'search.matchWholeWord': false,
   'search.useRegex': false,
   'updater.githubToken': '',
+  'updater.channel': 'release',
   'lsp.enabled': true,
   'lsp.diagnostics': true,
   'lsp.hover': true,

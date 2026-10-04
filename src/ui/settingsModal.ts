@@ -1,7 +1,7 @@
 import { themeManager } from '../themes/themeManager';
 import { ThemeDefinition } from '../themes/themes';
 import { vimIntegration } from '../editor/vim';
-import { updaterService } from '../services/updater';
+import { updaterService, GITHUB_REPO } from '../services/updater';
 import { preferencesService, CursorStyle, IconTheme } from '../services/preferences';
 import { renderIconPreview } from './icons';
 import { fileAssociationService } from '../services/fileAssociation';
@@ -1142,6 +1142,16 @@ export class SettingsModalComponent {
 
     let currentUpdateResult: any = null;
 
+    branchSelect?.addEventListener('change', () => {
+      const chosen = branchSelect.value;
+      preferencesService.set('updater.channel', chosen);
+      updaterService.setTargetBranch(chosen);
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Check for Updates';
+      currentUpdateResult = null;
+      statusMsg.innerHTML = `<span style="font-size: 12px; color: var(--fg-muted);">Channel switched to <strong>${chosen === 'release' ? 'Official Releases (Recommended)' : chosen}</strong>. Click "Check for Updates" to query GitHub.</span>`;
+    });
+
     checkBtn.addEventListener('click', async () => {
       const branch = branchSelect.value;
       checkBtn.disabled = true;
@@ -1154,15 +1164,15 @@ export class SettingsModalComponent {
         currentUpdateResult = result;
 
         if (result.isUpdateAvailable) {
-          const rel = result.latestRelease;
-          if (rel) {
+          if (branch === 'release' && result.latestRelease) {
+            const rel = result.latestRelease;
             const neuSize = rel.neuAsset ? ` (${(rel.neuAsset.size / 1048576).toFixed(1)} MB)` : '';
             const instSize = rel.installerAsset ? ` (${(rel.installerAsset.size / 1048576).toFixed(1)} MB)` : '';
 
             statusMsg.innerHTML = `
               <div class="update-avail-box">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                  <span class="status-badge badge-avail">Update Available</span>
+                  <span class="status-badge badge-avail">Official Release Available</span>
                   <span style="font-size: 11px; color: var(--fg-muted);">${new Date(rel.publishedAt).toLocaleDateString()}</span>
                 </div>
                 <div class="commit-details" style="margin-top: 6px;">
@@ -1192,23 +1202,37 @@ export class SettingsModalComponent {
           } else {
             statusMsg.innerHTML = `
               <div class="update-avail-box">
-                <span class="status-badge badge-avail">Update Available</span>
-                <div class="commit-details">
-                  <div><strong>Commit:</strong> <code>${result.latestSha}</code> <a href="https://github.com/iharshraj1123/Gitero-IDE/commit/${result.latestSha}" target="_blank" rel="noopener noreferrer" style="margin-left: 8px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View on GitHub</a></div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <span class="status-badge badge-avail">Branch Update Available (${branch})</span>
+                  <span style="font-size: 11px; color: var(--fg-muted);">${new Date(result.latestCommit?.date || '').toLocaleString()}</span>
+                </div>
+                <div class="commit-details" style="margin-top: 6px;">
+                  <div><strong>Latest Commit:</strong> <code>${result.latestSha}</code> <a href="https://github.com/${GITHUB_REPO}/commit/${result.latestCommit?.sha}" target="_blank" rel="noopener noreferrer" style="margin-left: 8px; color: var(--accent-color, #58a6ff); font-size: 11px; text-decoration: none;">View on GitHub</a></div>
                   <div><strong>Message:</strong> ${result.latestCommit?.message}</div>
-                  <div><strong>Author:</strong> ${result.latestCommit?.author} (${new Date(result.latestCommit?.date || '').toLocaleDateString()})</div>
+                  <div><strong>Author:</strong> ${result.latestCommit?.author}</div>
+                  ${result.latestVersion ? `<div><strong>Branch Version:</strong> <code>${result.latestVersion}</code></div>` : ''}
+                </div>
+                <div class="update-actions-row" style="display: flex; gap: 8px; margin-top: 8px;">
+                  <button class="btn btn-primary btn-sm" id="btn-branch-update-action">Update from ${branch} (${result.latestSha})</button>
                 </div>
               </div>
             `;
+
+            const branchUpdateBtn = statusMsg.querySelector('#btn-branch-update-action') as HTMLButtonElement;
+            branchUpdateBtn?.addEventListener('click', () => {
+              applyBtn.click();
+            });
+
             applyBtn.disabled = false;
-            applyBtn.textContent = `Update from ${branch}`;
+            applyBtn.textContent = `Update from ${branch} (${result.latestSha})`;
           }
         } else {
           const hasBackup = await updaterService.hasBackup();
+          const channelName = branch === 'release' ? 'official release' : `branch "${branch}"`;
           statusMsg.innerHTML = `
             <div class="update-uptodate-box">
               <span class="status-badge badge-latest">Up to Date</span>
-              <div style="margin-top: 4px;">You are already running the latest version (<code>${result.currentVersion}</code>).</div>
+              <div style="margin-top: 4px;">You are already running the latest ${channelName} build (<code>${result.currentSha || result.currentVersion}</code>).</div>
               ${hasBackup ? `
                 <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color);">
                   <button class="btn btn-secondary btn-sm" id="btn-quick-rollback">Restore Previous Version (resources.neu.bak)</button>
@@ -1234,17 +1258,20 @@ export class SettingsModalComponent {
     });
 
     applyBtn.addEventListener('click', async () => {
+      const branch = branchSelect.value;
       const rel = currentUpdateResult?.latestRelease;
-      if (rel && rel.neuAsset) {
-        await this.executeLiveUpdate(rel.neuAsset.browserDownloadUrl, rel.version);
-        return;
-      }
-      if (rel && rel.installerAsset) {
-        await this.executeInstallerUpdate(rel.installerAsset.browserDownloadUrl, rel.version);
-        return;
+
+      if (branch === 'release' && rel) {
+        if (rel.neuAsset) {
+          await this.executeLiveUpdate(rel.neuAsset.browserDownloadUrl, rel.version);
+          return;
+        }
+        if (rel.installerAsset) {
+          await this.executeInstallerUpdate(rel.installerAsset.browserDownloadUrl, rel.version);
+          return;
+        }
       }
 
-      const branch = branchSelect.value;
       applyBtn.disabled = true;
       checkBtn.disabled = true;
 
@@ -1256,7 +1283,7 @@ export class SettingsModalComponent {
         statusMsg.innerHTML = `
           <div class="update-success-box">
             <span class="status-badge badge-latest">Update Applied Successfully</span>
-            <p>Gitero IDE updated to branch <strong>${branch}</strong>.</p>
+            <p>Gitero IDE updated to branch <strong>${branch}</strong> (${updaterService.getCurrentSha()}).</p>
             <button class="btn btn-primary btn-sm" id="btn-restart-now" style="margin-top: 8px;">Restart Gitero IDE</button>
           </div>
         `;
@@ -1381,7 +1408,7 @@ export class SettingsModalComponent {
 
   private async loadBranches() {
     const branchSelect = this.overlay.querySelector('#update-branch-select') as HTMLSelectElement;
-    const currentBranch = updaterService.getCurrentBranch();
+    const currentBranch = preferencesService.get('updater.channel') || updaterService.getCurrentBranch();
 
     try {
       const branches = await updaterService.fetchBranches();
@@ -1393,6 +1420,13 @@ export class SettingsModalComponent {
         if (b === currentBranch) opt.selected = true;
         branchSelect.appendChild(opt);
       });
+      if (currentBranch && !branches.includes(currentBranch)) {
+        const opt = document.createElement('option');
+        opt.value = currentBranch;
+        opt.textContent = currentBranch === 'release' ? 'Official Releases (Recommended)' : currentBranch;
+        opt.selected = true;
+        branchSelect.appendChild(opt);
+      }
     } catch (e) {
       console.warn('Could not load branches', e);
     }
