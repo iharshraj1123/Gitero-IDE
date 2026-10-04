@@ -39,3 +39,13 @@ jobs:
           name: gitero-bundle-${{ github.ref_name }}
           path: dist-bundle.zip
           retention-days: 30
+
+      - name: Generate Neutralino resources.neu
+        run: npx @neutralinojs/neu build
+
+      - name: Publish Continuous Rolling Branch Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload continuous-${{ github.ref_name }} dist/gitero/resources.neu --clobber || \
+          gh release create continuous-${{ github.ref_name }} dist/gitero/resources.neu --title "Continuous Branch Build (${{ github.ref_name }})" --notes "Automated rolling build of resources.neu for branch ${{ github.ref_name }}" --prerelease

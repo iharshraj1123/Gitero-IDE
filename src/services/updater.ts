@@ -698,17 +698,25 @@ export class UpdaterService {
     // Branch update: Fetch branch latest commit
     const latestCommit = await this.fetchLatestCommit(branch);
 
-    // 1. Try to find a rolling continuous release for this branch (e.g., continuous-main)
-    const rollingAssetUrl = `https://github.com/${GITHUB_REPO}/releases/download/continuous-${branch}/resources.neu`;
     let foundUrl = '';
-    try {
-      const headRes = await fetch(rollingAssetUrl, { method: 'HEAD' });
-      if (headRes.ok) {
-        foundUrl = rollingAssetUrl;
-      }
-    } catch {}
 
-    // 2. If not rolling, check if latest commit corresponds to a tagged release
+    // 1. Try to query rolling release via GitHub API (supports CORS)
+    try {
+      const relRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/tags/continuous-${branch}`, {
+        headers: this.getHeaders()
+      });
+      if (relRes.ok) {
+        const relData = await relRes.json();
+        const asset = relData.assets?.find((a: any) => a.name === 'resources.neu');
+        if (asset?.browser_download_url) {
+          foundUrl = asset.browser_download_url;
+        }
+      }
+    } catch (e) {
+      console.warn('[Updater] Could not query continuous branch release:', e);
+    }
+
+    // 2. If not found in rolling release, check if the branch version has an official release package
     if (!foundUrl) {
       try {
         const pkgRes = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/${branch}/package.json`, {
@@ -718,14 +726,21 @@ export class UpdaterService {
           const pkgData = await pkgRes.json();
           const ver = pkgData.version ? pkgData.version.replace(/^v/i, '') : '';
           if (ver) {
-            const tagAssetUrl = `https://github.com/${GITHUB_REPO}/releases/download/v${ver}/resources.neu`;
-            const tagHead = await fetch(tagAssetUrl, { method: 'HEAD' });
-            if (tagHead.ok) {
-              foundUrl = tagAssetUrl;
+            const tagRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/tags/v${ver}`, {
+              headers: this.getHeaders()
+            });
+            if (tagRes.ok) {
+              const tagData = await tagRes.json();
+              const asset = tagData.assets?.find((a: any) => a.name === 'resources.neu');
+              if (asset?.browser_download_url) {
+                foundUrl = asset.browser_download_url;
+              }
             }
           }
         }
-      } catch {}
+      } catch (e) {
+        console.warn('[Updater] Could not query version release for branch:', e);
+      }
     }
 
     if (foundUrl) {
