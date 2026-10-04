@@ -31,6 +31,7 @@ import { NotificationToastComponent } from './ui/notificationToast';
 import { NotificationCenterComponent } from './ui/notificationCenter';
 import { notificationService } from './services/notification';
 import { FileConflictModalComponent } from './ui/fileConflictModal';
+import { diff3Merge } from './services/diff3Merge';
 import { checkMissingLsp } from './services/lsp/lspDetector';
 import { DISPLAY_VERSION } from './version';
 import { initExternalLinkHandler, openExternal } from './services/externalLinkService';
@@ -493,6 +494,24 @@ async function bootstrap() {
   // 7. Initialize Conflict Resolution Modal & Tab Bar
   const conflictModal = new FileConflictModalComponent();
 
+  // Helper to apply 3-way merge with inline conflict markers into the active editor
+  function applyMergeMarkers(tab: EditorTab, mergedText: string, diskContent: string, modifiedAt: number) {
+    const isCurrentActive = editorState.getActiveTab()?.id === tab.id;
+    editorState.applyMergedContent(tab.id, mergedText, diskContent, modifiedAt);
+
+    if (isCurrentActive) {
+      editorManager.reloadActiveDocument(mergedText);
+      statusBar.showMessage(`Merged conflict markers into editor. Use CodeMirror lenses to resolve.`);
+    }
+
+    notificationService.show({
+      type: 'info',
+      title: 'Conflict Markers Inserted',
+      message: `Use the inline action lenses in the editor to accept your changes, external changes, or both.`,
+      durationMs: 7000
+    });
+  }
+
   // Helper to open conflict modal for a tab
   function promptConflictModal(tab: EditorTab, diskContent: string) {
     const isCurrentActive = editorState.getActiveTab()?.id === tab.id;
@@ -504,6 +523,7 @@ async function bootstrap() {
       tab,
       diskContent,
       localContent: currentLocalContent,
+      baseContent: tab.originalContent || '',
       onOverwrite: async () => {
         const toSave = (editorState.getActiveTab()?.id === tab.id)
           ? editorManager.getContent()
@@ -524,6 +544,9 @@ async function bootstrap() {
         editorState.markSaved(tab.id, diskContent, s?.modifiedAt || Date.now());
         statusBar.showMessage(`Reverted ${tab.name} to disk version`);
         gitService.refresh();
+      },
+      onMergeWithMarkers: (mergedText) => {
+        applyMergeMarkers(tab, mergedText, diskContent, tab.lastModifiedDiskTime || Date.now());
       }
     });
   }
@@ -597,46 +620,76 @@ async function bootstrap() {
         }
         return true;
       } else {
-        // Dirty tab: CONFLICT GUARD ACTIVATED
-        editorState.setExternalConflict(tab.id, true);
-        notificationService.show({
-          type: 'warning',
-          title: 'File Conflict Detected',
-          message: `"${tab.name}" was modified on disk while you have unsaved changes.`,
-          durationMs: 0,
-          actions: [
-            {
-              label: 'Compare',
-              primary: true,
-              onClick: () => promptConflictModal(tab, diskContent)
-            },
-            {
-              label: 'Revert to Disk',
-              onClick: async () => {
-                if (editorState.getActiveTab()?.id === tab.id) {
-                  editorManager.reloadActiveDocument(diskContent);
+        // Dirty tab: Run 3-Way Merge between Base, Ours, and Disk
+        const baseContent = tab.originalContent || '';
+        const merge3 = diff3Merge(baseContent, currentBufferContent, diskContent);
+
+        if (merge3.success) {
+          // Clean 3-Way Auto-Merge! Non-overlapping changes combined seamlessly!
+          editorState.applyMergedContent(tab.id, merge3.text, diskContent, stats.modifiedAt);
+
+          if (isCurrentActive) {
+            editorManager.reloadActiveDocument(merge3.text);
+            statusBar.showMessage(`Auto-merged external changes with your unsaved edits in ${tab.name}`);
+            gitService.refresh();
+          } else {
+            const langInfo = detectLanguage(tab.path);
+            lspClient.notifyDidChange(tab.path, langInfo.languageId || 'plaintext', 1, merge3.text);
+          }
+
+          notificationService.show({
+            type: 'success',
+            title: 'Auto-Merged External Changes',
+            message: `External additions on disk were cleanly combined with your unsaved code in "${tab.name}".`,
+            durationMs: 5000
+          });
+          return true;
+        } else {
+          // Dirty tab with overlapping collision: CONFLICT GUARD ACTIVATED
+          editorState.setExternalConflict(tab.id, true);
+          notificationService.show({
+            type: 'warning',
+            title: 'File Conflict Detected',
+            message: `"${tab.name}" was modified on disk with ${merge3.conflictCount} colliding section(s).`,
+            durationMs: 0,
+            actions: [
+              {
+                label: 'Compare & Resolve',
+                primary: true,
+                onClick: () => promptConflictModal(tab, diskContent)
+              },
+              {
+                label: 'Merge with Markers',
+                onClick: () => applyMergeMarkers(tab, merge3.text, diskContent, stats.modifiedAt)
+              },
+              {
+                label: 'Revert to Disk',
+                onClick: async () => {
+                  if (editorState.getActiveTab()?.id === tab.id) {
+                    editorManager.reloadActiveDocument(diskContent);
+                  }
+                  editorState.markSaved(tab.id, diskContent, stats.modifiedAt);
+                  statusBar.showMessage(`Reverted ${tab.name} to disk version`);
+                  gitService.refresh();
                 }
-                editorState.markSaved(tab.id, diskContent, stats.modifiedAt);
-                statusBar.showMessage(`Reverted ${tab.name} to disk version`);
-                gitService.refresh();
+              },
+              {
+                label: 'Overwrite',
+                onClick: async () => {
+                  const toSave = isCurrentActive ? editorManager.getContent() : tab.content;
+                  fsService.recordInternalWrite(tab.path);
+                  await fsService.writeFile(tab.path, toSave);
+                  const s = await fsService.getFileStats(tab.path);
+                  editorState.markSaved(tab.id, toSave, s?.modifiedAt || Date.now());
+                  editorManager.notifyDidSave();
+                  statusBar.showMessage(`Saved ${tab.name} (overwrote disk version)`);
+                  gitService.refresh();
+                }
               }
-            },
-            {
-              label: 'Overwrite',
-              onClick: async () => {
-                const toSave = isCurrentActive ? editorManager.getContent() : tab.content;
-                fsService.recordInternalWrite(tab.path);
-                await fsService.writeFile(tab.path, toSave);
-                const s = await fsService.getFileStats(tab.path);
-                editorState.markSaved(tab.id, toSave, s?.modifiedAt || Date.now());
-                editorManager.notifyDidSave();
-                statusBar.showMessage(`Saved ${tab.name} (overwrote disk version)`);
-                gitService.refresh();
-              }
-            }
-          ]
-        });
-        return true;
+            ]
+          });
+          return true;
+        }
       }
     } catch (e) {
       console.warn('[Gitero IDE] Error checking tab external changes:', e);
@@ -758,6 +811,21 @@ async function bootstrap() {
       ) {
         const diskContent = await fsService.readFile(activeTab.path).catch(() => null);
         if (diskContent !== null && diskContent !== currentContent) {
+          // Attempt 3-way merge on save before blocking
+          const merge3 = diff3Merge(activeTab.originalContent || '', currentContent, diskContent);
+          if (merge3.success) {
+            const mergedFormatted = formatContentForSave(merge3.text);
+            fsService.recordInternalWrite(activeTab.path);
+            await fsService.writeFile(activeTab.path, mergedFormatted);
+            const freshStats = await fsService.getFileStats(activeTab.path);
+            editorState.markSaved(activeTab.id, mergedFormatted, freshStats?.modifiedAt || Date.now());
+            editorManager.reloadActiveDocument(mergedFormatted);
+            editorManager.notifyDidSave();
+            statusBar.showMessage(`Auto-merged and saved ${activeTab.name}`);
+            gitService.refresh();
+            return;
+          }
+
           editorState.setExternalConflict(activeTab.id, true);
           promptConflictModal(activeTab, diskContent);
           return;

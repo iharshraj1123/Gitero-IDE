@@ -6,13 +6,16 @@
 
 import { EditorTab } from '../state/editorState';
 import { getFileIconSvg } from './icons';
+import { diff3Merge } from '../services/diff3Merge';
 
 export interface FileConflictOptions {
   tab: EditorTab;
   diskContent: string;
   localContent: string;
+  baseContent?: string;
   onOverwrite: () => Promise<void> | void;
   onRevert: () => Promise<void> | void;
+  onMergeWithMarkers?: (mergedText: string) => Promise<void> | void;
   onKeepBoth?: () => void;
 }
 
@@ -125,11 +128,30 @@ export class FileConflictModalComponent {
     this.close();
     this.currentOptions = options;
 
-    const { tab, diskContent, localContent } = options;
+    const { tab, diskContent, localContent, baseContent } = options;
     const fileName = tab.name;
+
+    const merge3Result = baseContent
+      ? diff3Merge(baseContent, localContent, diskContent)
+      : null;
 
     this.overlay = document.createElement('div');
     this.overlay.className = 'diff-modal-overlay conflict-modal-overlay';
+
+    const mergeBtnHtml = (merge3Result && options.onMergeWithMarkers)
+      ? `
+        <button class="btn btn-secondary btn-sm" id="btn-conflict-merge" title="Apply 3-way merge with inline conflict markers into the editor">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>
+          </svg>
+          <span>Merge with Markers${merge3Result.conflictCount > 0 ? ` (${merge3Result.conflictCount})` : ''}</span>
+        </button>
+      `
+      : '';
+
+    const bannerText = merge3Result && merge3Result.conflictCount > 0
+      ? `Overlapping changes detected on ${merge3Result.conflictCount} section(s). Red (-) lines show disk changes; green (+) show your local edits. You can overwrite disk, revert to disk, or merge with inline markers to resolve directly in the editor.`
+      : `This file has been modified on disk by an external process or AI agent. Red (-) lines represent the external disk version; green (+) lines represent your unsaved editor changes.`;
 
     this.overlay.innerHTML = `
       <div class="diff-modal-dialog conflict-modal-dialog">
@@ -140,6 +162,7 @@ export class FileConflictModalComponent {
             <span class="conflict-badge">CONFLICT: MODIFIED ON DISK</span>
           </div>
           <div class="diff-modal-actions conflict-modal-actions">
+            ${mergeBtnHtml}
             <button class="btn btn-warning btn-sm" id="btn-conflict-overwrite" title="Save local editor changes to disk, overwriting external changes">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -169,10 +192,7 @@ export class FileConflictModalComponent {
             <line x1="12" y1="9" x2="12" y2="13"/>
             <line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
-          <span class="conflict-banner-text">
-            This file has been modified on disk by an external process or AI agent.
-            Red (-) lines represent the external disk version; green (+) lines represent your unsaved editor changes.
-          </span>
+          <span class="conflict-banner-text">${this.escapeHtml(bannerText)}</span>
         </div>
         <div class="diff-modal-body conflict-modal-body">
           <div class="diff-viewer-table" id="conflict-diff-viewer-table">
@@ -196,6 +216,17 @@ export class FileConflictModalComponent {
         options.onKeepBoth();
       }
       this.close();
+    });
+
+    const mergeBtn = this.overlay.querySelector('#btn-conflict-merge') as HTMLButtonElement;
+    mergeBtn?.addEventListener('click', async () => {
+      if (!merge3Result || !options.onMergeWithMarkers) return;
+      mergeBtn.disabled = true;
+      try {
+        await options.onMergeWithMarkers(merge3Result.text);
+      } finally {
+        this.close();
+      }
     });
 
     const overwriteBtn = this.overlay.querySelector('#btn-conflict-overwrite') as HTMLButtonElement;

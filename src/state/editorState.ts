@@ -495,7 +495,20 @@ export class EditorStateManager {
     this.listeners.push(listener);
   }
 
-  private notify() {
+  applyMergedContent(id: string, mergedContent: string, diskOriginal: string, modifiedAt?: number) {
+    const tab = this.tabs.find(t => t.id === id);
+    if (tab) {
+      tab.content = mergedContent;
+      tab.originalContent = diskOriginal;
+      tab.lastModifiedDiskTime = modifiedAt || Date.now();
+      tab.isDirty = true;
+      tab.hasExternalConflict = false;
+      this.persist();
+      this.notify();
+    }
+  }
+
+  notify() {
     const active = this.getActiveTab();
     this.listeners.forEach(fn => fn(this.tabs, active));
   }
