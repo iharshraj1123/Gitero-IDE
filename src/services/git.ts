@@ -13,6 +13,12 @@ export interface GitBranch {
   isCurrent: boolean;
 }
 
+export interface BranchSwitchResult {
+  success: boolean;
+  error?: string;
+  hadConflict?: boolean;
+}
+
 export interface GitRef {
   name: string;
   type: 'head' | 'branch' | 'remote' | 'tag' | 'reflog' | 'dangling';
@@ -666,6 +672,92 @@ export class GitService {
       }
     }
     return branches;
+  }
+
+  /**
+   * Checks if working directory or staged index has uncommitted changes
+   */
+  public hasUncommittedChanges(): boolean {
+    return this.state.stagedChanges.length > 0 || this.state.workingChanges.length > 0;
+  }
+
+  /**
+   * Retrieves list of all changed (uncommitted) files deduplicated by relative path
+   */
+  public getUncommittedFiles(): GitFileChange[] {
+    const map = new Map<string, GitFileChange>();
+    for (const f of this.state.stagedChanges) {
+      map.set(f.relativePath, f);
+    }
+    for (const f of this.state.workingChanges) {
+      map.set(f.relativePath, f);
+    }
+    return Array.from(map.values());
+  }
+
+  /**
+   * Switch or create branch with industry standard dirty tree handling
+   */
+  public async switchBranchWithHandling(
+    targetBranch: string,
+    mode: 'bring' | 'stash' | 'discard' | 'normal',
+    isNewBranch: boolean = false
+  ): Promise<BranchSwitchResult> {
+    const cleanBranch = targetBranch.trim().replace(/\s+/g, '-');
+
+    if (mode === 'normal') {
+      const res = isNewBranch
+        ? await this.createAndCheckoutBranch(cleanBranch)
+        : await this.checkoutBranch(cleanBranch);
+      return { success: res.success, error: res.error };
+    }
+
+    if (mode === 'stash') {
+      const stashRes = await this.stash(true, `Auto-stashed before switching to ${cleanBranch}`);
+      if (!stashRes.success) {
+        return { success: false, error: `Failed to stash changes: ${stashRes.error}` };
+      }
+      const switchRes = isNewBranch
+        ? await this.createAndCheckoutBranch(cleanBranch)
+        : await this.checkoutBranch(cleanBranch);
+      return { success: switchRes.success, error: switchRes.error };
+    }
+
+    if (mode === 'bring') {
+      const stashRes = await this.stash(true, `Auto-stashed before switching to ${cleanBranch}`);
+      if (!stashRes.success) {
+        return { success: false, error: `Failed to stash changes: ${stashRes.error}` };
+      }
+
+      const switchRes = isNewBranch
+        ? await this.createAndCheckoutBranch(cleanBranch)
+        : await this.checkoutBranch(cleanBranch);
+
+      if (!switchRes.success) {
+        await this.stashPop();
+        return { success: false, error: `Failed to switch branch: ${switchRes.error}` };
+      }
+
+      const popRes = await this.stashPop();
+      if (!popRes.success) {
+        return {
+          success: true,
+          hadConflict: true,
+          error: `Changes were brought over, but merge conflicts occurred: ${popRes.error}`
+        };
+      }
+      return { success: true };
+    }
+
+    if (mode === 'discard') {
+      await this.discardAll();
+      const switchRes = isNewBranch
+        ? await this.createAndCheckoutBranch(cleanBranch)
+        : await this.checkoutBranch(cleanBranch);
+      return { success: switchRes.success, error: switchRes.error };
+    }
+
+    return { success: false, error: 'Unknown switch mode' };
   }
 
   /**

@@ -1,10 +1,11 @@
-import { gitService, GitFileChange, GitState } from '../services/git';
+import { gitService, GitFileChange, GitState, GitBranch } from '../services/git';
 import { fsService } from '../services/fs';
 import { editorState } from '../state/editorState';
 import { getFileIconSvg } from './icons';
 import { diffModal } from './diffModal';
 import { MenuController, MenuItem } from './menu';
 import { GitGraphSidebarComponent } from './gitGraph';
+import { gitBranchSafetyModal } from './gitBranchSafetyModal';
 
 export interface GitPanelOptions {
   onOpenGitGraph?: () => void;
@@ -18,7 +19,14 @@ export class GitPanelComponent {
   private viewMode: 'tree' | 'list' = 'list';
   private sortMode: 'name' | 'path' | 'status' = 'path';
 
+  private branchBarEl!: HTMLElement;
   private branchLabel!: HTMLElement;
+  private branchDropdownEl!: HTMLElement;
+  private isBranchDropdownOpen: boolean = false;
+  private cachedBranches: GitBranch[] = [];
+  private branchSearchQuery: string = '';
+  private isCreatingBranch: boolean = false;
+
   private commitInput!: HTMLTextAreaElement;
   private commitBtn!: HTMLButtonElement;
   private stagedHeader!: HTMLElement;
@@ -71,9 +79,13 @@ export class GitPanelComponent {
 
       <div class="git-panel-body" id="git-panel-body">
         <div class="git-branch-bar" id="git-branch-bar" title="Click to Switch or Create Branch">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
-          <span class="git-branch-text" id="git-panel-branch">Checking...</span>
+          <div class="git-branch-bar-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            <span class="git-branch-text" id="git-panel-branch">Checking...</span>
+          </div>
+          <svg class="git-branch-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
+        <div class="git-branch-dropdown" id="git-branch-dropdown" style="display: none;"></div>
 
         <div class="git-commit-box">
           <textarea class="git-commit-input" id="git-commit-input" placeholder="Message (Ctrl+Enter to commit)" rows="2" spellcheck="false"></textarea>
@@ -139,6 +151,8 @@ export class GitPanelComponent {
 
     this.bodyEl = this.container.querySelector('#git-panel-body') as HTMLElement;
     this.emptyStateEl = this.container.querySelector('#git-empty-state') as HTMLElement;
+    this.branchBarEl = this.container.querySelector('#git-branch-bar') as HTMLElement;
+    this.branchDropdownEl = this.container.querySelector('#git-branch-dropdown') as HTMLElement;
     this.branchLabel = this.container.querySelector('#git-panel-branch') as HTMLElement;
     this.commitInput = this.container.querySelector('#git-commit-input') as HTMLTextAreaElement;
     this.commitBtn = this.container.querySelector('#btn-git-commit-action') as HTMLButtonElement;
@@ -189,9 +203,27 @@ export class GitPanelComponent {
       this.showGitMenu(e.currentTarget as HTMLElement);
     });
 
-    // Branch bar click to prompt checkout / switch
-    this.branchLabel.parentElement?.addEventListener('click', () => {
-      this.promptCheckout();
+    // Branch bar click to toggle dropdown
+    this.branchBarEl?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleBranchDropdown();
+    });
+
+    // Close branch dropdown on pointerdown outside
+    document.addEventListener('pointerdown', (e) => {
+      if (this.isBranchDropdownOpen) {
+        const target = e.target as Node;
+        if (!this.branchDropdownEl.contains(target) && !this.branchBarEl.contains(target)) {
+          this.closeBranchDropdown();
+        }
+      }
+    });
+
+    // Close branch dropdown on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isBranchDropdownOpen) {
+        this.closeBranchDropdown();
+      }
     });
 
     this.container.querySelector('#btn-git-stage-all')?.addEventListener('click', (e) => {
@@ -767,29 +799,284 @@ export class GitPanelComponent {
     }
   }
 
-  async promptCheckout() {
-    const branches = await gitService.getBranches();
-    const branchNames = branches.map((b) => b.name).join('\n');
-    const target = prompt(`Enter branch or commit to checkout:\nAvailable:\n${branchNames}`);
-    if (!target?.trim()) return;
-
-    const res = await gitService.checkoutBranch(target.trim());
-    if (res.success) {
-      this.statusMessage.textContent = `Checked out ${target.trim()}`;
+  public toggleBranchDropdown() {
+    if (this.isBranchDropdownOpen) {
+      this.closeBranchDropdown();
     } else {
-      alert(`Checkout error: ${res.error}`);
+      this.openBranchDropdown();
     }
   }
 
-  async promptCreateBranch() {
-    const name = prompt('Enter new branch name:');
-    if (!name?.trim()) return;
-    const res = await gitService.createAndCheckoutBranch(name.trim());
-    if (res.success) {
-      this.statusMessage.textContent = `Created and checked out ${name.trim()}`;
-    } else {
-      alert(`Create branch error: ${res.error}`);
+  public async openBranchDropdown() {
+    this.isBranchDropdownOpen = true;
+    this.isCreatingBranch = false;
+    this.branchSearchQuery = '';
+    this.branchBarEl.classList.add('open');
+    this.branchDropdownEl.style.display = 'flex';
+
+    this.renderBranchDropdownSkeleton();
+
+    try {
+      this.cachedBranches = await gitService.getBranches();
+    } catch {
+      this.cachedBranches = [];
     }
+
+    this.renderBranchDropdownContent();
+
+    const searchInput = this.branchDropdownEl.querySelector('#git-branch-filter-input') as HTMLInputElement;
+    searchInput?.focus();
+  }
+
+  public closeBranchDropdown() {
+    this.isBranchDropdownOpen = false;
+    this.isCreatingBranch = false;
+    this.branchBarEl.classList.remove('open');
+    this.branchDropdownEl.style.display = 'none';
+  }
+
+  private renderBranchDropdownSkeleton() {
+    this.branchDropdownEl.innerHTML = `
+      <div class="git-branch-dropdown-search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="git-branch-filter-input" id="git-branch-filter-input" placeholder="Find or create a branch..." spellcheck="false" />
+      </div>
+      <div class="git-branch-list" id="git-branch-list">
+        <div class="git-branch-loading">Loading branches...</div>
+      </div>
+    `;
+  }
+
+  private renderBranchDropdownContent() {
+    this.branchDropdownEl.innerHTML = `
+      <div class="git-branch-dropdown-search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="git-branch-filter-input" id="git-branch-filter-input" placeholder="Find or create a branch..." spellcheck="false" value="${this.escapeHtml(this.branchSearchQuery)}" />
+      </div>
+      <div class="git-branch-list" id="git-branch-list"></div>
+      <div class="git-branch-dropdown-footer">
+        <div class="git-branch-add-row" id="git-branch-add-row" style="${this.isCreatingBranch ? 'display: none;' : ''}">
+          <button class="git-branch-add-btn" id="btn-add-new-branch">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Add a new branch</span>
+          </button>
+        </div>
+        <div class="git-branch-create-box" id="git-branch-create-box" style="${this.isCreatingBranch ? '' : 'display: none;'}">
+          <div class="git-branch-create-label">Create new branch:</div>
+          <input type="text" class="git-new-branch-input" id="git-new-branch-input" placeholder="branch-name" spellcheck="false" />
+          <div class="git-branch-create-actions">
+            <button class="btn btn-secondary btn-xs" id="btn-cancel-new-branch">Cancel</button>
+            <button class="btn btn-primary btn-xs" id="btn-confirm-new-branch">Create & Switch</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const listEl = this.branchDropdownEl.querySelector('#git-branch-list') as HTMLElement;
+    this.populateBranchList(listEl);
+
+    const searchInput = this.branchDropdownEl.querySelector('#git-branch-filter-input') as HTMLInputElement;
+    searchInput.addEventListener('input', () => {
+      this.branchSearchQuery = searchInput.value;
+      this.populateBranchList(listEl);
+    });
+
+    searchInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const trimmed = searchInput.value.trim();
+        if (!trimmed) return;
+        const exact = this.cachedBranches.find(b => b.name.toLowerCase() === trimmed.toLowerCase());
+        if (exact) {
+          this.closeBranchDropdown();
+          await this.handleBranchSwitch(exact.name, false);
+        } else {
+          this.closeBranchDropdown();
+          await this.handleBranchSwitch(trimmed, true);
+        }
+      }
+    });
+
+    const addBtn = this.branchDropdownEl.querySelector('#btn-add-new-branch') as HTMLButtonElement;
+    const addRow = this.branchDropdownEl.querySelector('#git-branch-add-row') as HTMLElement;
+    const createBox = this.branchDropdownEl.querySelector('#git-branch-create-box') as HTMLElement;
+    const newBranchInput = this.branchDropdownEl.querySelector('#git-new-branch-input') as HTMLInputElement;
+    const cancelBtn = this.branchDropdownEl.querySelector('#btn-cancel-new-branch') as HTMLButtonElement;
+    const confirmBtn = this.branchDropdownEl.querySelector('#btn-confirm-new-branch') as HTMLButtonElement;
+
+    addBtn.addEventListener('click', () => {
+      this.isCreatingBranch = true;
+      addRow.style.display = 'none';
+      createBox.style.display = 'flex';
+      if (this.branchSearchQuery.trim()) {
+        newBranchInput.value = this.branchSearchQuery.trim().replace(/\s+/g, '-');
+      }
+      newBranchInput.focus();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      this.isCreatingBranch = false;
+      addRow.style.display = 'flex';
+      createBox.style.display = 'none';
+      newBranchInput.value = '';
+    });
+
+    const submitCreateBranch = async () => {
+      const branchName = newBranchInput.value.trim().replace(/\s+/g, '-');
+      if (!branchName) {
+        newBranchInput.focus();
+        return;
+      }
+      const exists = this.cachedBranches.some(b => b.name.toLowerCase() === branchName.toLowerCase());
+      this.closeBranchDropdown();
+      await this.handleBranchSwitch(branchName, !exists);
+    };
+
+    confirmBtn.addEventListener('click', submitCreateBranch);
+    newBranchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitCreateBranch();
+      } else if (e.key === 'Escape') {
+        this.isCreatingBranch = false;
+        addRow.style.display = 'flex';
+        createBox.style.display = 'none';
+      }
+    });
+  }
+
+  private populateBranchList(listEl: HTMLElement) {
+    listEl.innerHTML = '';
+    const q = this.branchSearchQuery.toLowerCase().trim();
+    const filtered = this.cachedBranches.filter(b => b.name.toLowerCase().includes(q));
+
+    if (filtered.length === 0) {
+      const emptyEl = document.createElement('div');
+      emptyEl.className = 'git-branch-empty';
+      emptyEl.textContent = q ? `No branch matching "${q}"` : 'No branches found';
+      listEl.appendChild(emptyEl);
+      return;
+    }
+
+    for (const branch of filtered) {
+      const item = document.createElement('div');
+      item.className = `git-branch-item ${branch.isCurrent ? 'is-current' : ''}`;
+      item.title = branch.name;
+      item.innerHTML = `
+        <div class="git-branch-item-left">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+          <span class="git-branch-item-name">${this.escapeHtml(branch.name)}</span>
+        </div>
+        ${branch.isCurrent ? `<span class="git-branch-current-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>` : ''}
+      `;
+
+      item.addEventListener('click', async () => {
+        this.closeBranchDropdown();
+        if (branch.isCurrent) return;
+        await this.handleBranchSwitch(branch.name, false);
+      });
+
+      listEl.appendChild(item);
+    }
+  }
+
+  public async handleBranchSwitch(targetBranch: string, isNewBranch: boolean = false) {
+    const cleanTarget = targetBranch.trim().replace(/\s+/g, '-');
+    if (!cleanTarget) return;
+
+    const currentBranch = gitService.getCurrentBranch() || 'main';
+    if (!isNewBranch && cleanTarget === currentBranch) {
+      return;
+    }
+
+    const hasChanges = gitService.hasUncommittedChanges();
+    if (!hasChanges) {
+      this.statusMessage.textContent = isNewBranch
+        ? `Creating and checking out ${cleanTarget}...`
+        : `Switching to ${cleanTarget}...`;
+
+      const res = isNewBranch
+        ? await gitService.createAndCheckoutBranch(cleanTarget)
+        : await gitService.checkoutBranch(cleanTarget);
+
+      if (res.success) {
+        this.statusMessage.textContent = `Switched to ${cleanTarget}`;
+      } else {
+        this.statusMessage.textContent = `Error switching branch: ${res.error}`;
+        alert(`Failed to switch branch: ${res.error}`);
+      }
+      return;
+    }
+
+    // Dirty working tree - open safety modal
+    const uncommittedFiles = gitService.getUncommittedFiles();
+    gitBranchSafetyModal.show({
+      targetBranch: cleanTarget,
+      currentBranch,
+      isNewBranch,
+      uncommittedFiles,
+      onBringChanges: async () => {
+        this.statusMessage.textContent = `Bringing changes to ${cleanTarget}...`;
+        const res = await gitService.switchBranchWithHandling(cleanTarget, 'bring', isNewBranch);
+        if (res.success) {
+          if (res.hadConflict) {
+            this.statusMessage.textContent = `Switched to ${cleanTarget} with conflicts.`;
+            alert(`Switched to branch "${cleanTarget}", but uncommitted changes conflicted with the branch state.\nMerge conflicts have been marked in your files for resolution.`);
+          } else {
+            this.statusMessage.textContent = `Switched to ${cleanTarget} and brought changes over.`;
+          }
+        } else {
+          this.statusMessage.textContent = `Error: ${res.error}`;
+          alert(`Failed to switch branch: ${res.error}`);
+        }
+      },
+      onStashChanges: async () => {
+        this.statusMessage.textContent = `Stashing changes and switching to ${cleanTarget}...`;
+        const res = await gitService.switchBranchWithHandling(cleanTarget, 'stash', isNewBranch);
+        if (res.success) {
+          this.statusMessage.textContent = `Changes stashed. Switched to ${cleanTarget}.`;
+        } else {
+          this.statusMessage.textContent = `Error: ${res.error}`;
+          alert(`Failed to switch branch: ${res.error}`);
+        }
+      },
+      onDiscardChanges: async () => {
+        this.statusMessage.textContent = `Discarding local changes and switching to ${cleanTarget}...`;
+        const res = await gitService.switchBranchWithHandling(cleanTarget, 'discard', isNewBranch);
+        if (res.success) {
+          this.statusMessage.textContent = `Discarded changes. Switched to ${cleanTarget}.`;
+        } else {
+          this.statusMessage.textContent = `Error: ${res.error}`;
+          alert(`Failed to switch branch: ${res.error}`);
+        }
+      },
+      onCancel: () => {
+        this.statusMessage.textContent = 'Branch switch cancelled.';
+      }
+    });
+  }
+
+  async promptCheckout() {
+    this.openBranchDropdown();
+  }
+
+  async promptCreateBranch() {
+    await this.openBranchDropdown();
+    this.isCreatingBranch = true;
+    const addRow = this.branchDropdownEl.querySelector('#git-branch-add-row') as HTMLElement;
+    const createBox = this.branchDropdownEl.querySelector('#git-branch-create-box') as HTMLElement;
+    const newBranchInput = this.branchDropdownEl.querySelector('#git-new-branch-input') as HTMLInputElement;
+    if (addRow) addRow.style.display = 'none';
+    if (createBox) createBox.style.display = 'flex';
+    newBranchInput?.focus();
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   async promptCreateBranchFrom() {
