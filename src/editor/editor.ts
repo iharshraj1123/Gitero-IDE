@@ -600,6 +600,38 @@ export class EditorManager {
     return this.view ? this.view.state.doc.toString() : '';
   }
 
+  getCursorPosition(): CursorPosition {
+    if (!this.view) return { line: 1, col: 1 };
+    const head = this.view.state.selection.main.head;
+    const line = this.view.state.doc.lineAt(head);
+    return {
+      line: line.number,
+      col: head - line.from + 1
+    };
+  }
+
+  setCursorPosition(line: number, col: number) {
+    if (!this.view) return;
+    const doc = this.view.state.doc;
+    const targetLine = Math.min(Math.max(1, line), doc.lines);
+    const lineObj = doc.line(targetLine);
+    const targetCol = Math.min(Math.max(1, col), lineObj.length + 1);
+    const pos = lineObj.from + targetCol - 1;
+    this.view.dispatch({
+      selection: { anchor: pos, head: pos },
+      scrollIntoView: true
+    });
+  }
+
+  reloadActiveDocument(freshContent: string, preserveCursor: boolean = true) {
+    if (!this.view || !this.currentFilePath) return;
+    const cur = preserveCursor ? this.getCursorPosition() : null;
+    this.loadDocument(freshContent, this.currentFilePath);
+    if (cur) {
+      this.setCursorPosition(cur.line, cur.col);
+    }
+  }
+
   setContent(content: string) {
     if (!this.view) return;
     this.view.dispatch({

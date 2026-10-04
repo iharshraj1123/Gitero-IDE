@@ -5,9 +5,11 @@ import { lspClient } from '../services/lsp/lspClient';
 
 export class TabBarComponent {
   private container: HTMLElement;
+  private onConflictClick?: (tab: EditorTab) => void;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, options?: { onConflictClick?: (tab: EditorTab) => void }) {
     this.container = container;
+    this.onConflictClick = options?.onConflictClick;
     this.setupWheelScroll();
 
     editorState.onChange((tabs, activeTab) => {
@@ -44,8 +46,15 @@ export class TabBarComponent {
       const isActive = activeTab && activeTab.id === tab.id;
       const diagSummary = lspClient.getFileDiagnosticSummary(tab.path);
       const diagCls = diagSummary.errors > 0 ? 'tab-has-error' : (diagSummary.warnings > 0 ? 'tab-has-warning' : '');
-      tabEl.className = `editor-tab ${isActive ? 'active' : ''} ${tab.isDirty ? 'dirty' : ''} ${diagCls}`.trim();
-      tabEl.title = tab.path;
+      const isConflict = !!tab.hasExternalConflict;
+      const isDeleted = !!tab.isDeletedOnDisk;
+      const conflictCls = isConflict ? 'tab-has-conflict' : (isDeleted ? 'tab-deleted-on-disk' : '');
+      tabEl.className = `editor-tab ${isActive ? 'active' : ''} ${tab.isDirty ? 'dirty' : ''} ${diagCls} ${conflictCls}`.trim();
+
+      let tooltip = tab.path;
+      if (isConflict) tooltip += ' (Conflict: modified on disk externally)';
+      else if (isDeleted) tooltip += ' (Deleted on disk - save to restore)';
+      tabEl.title = tooltip;
 
       const icon = document.createElement('span');
       icon.className = 'tab-icon';
@@ -62,27 +71,41 @@ export class TabBarComponent {
       const closeBtn = document.createElement('button');
       closeBtn.className = 'tab-close';
       closeBtn.setAttribute('aria-label', `Close ${tab.name}`);
-      closeBtn.innerHTML = tab.isDirty ? '<span class="dirty-indicator">●</span>' : '<span class="close-x">×</span>';
+
+      const conflictIndicatorSvg = `<span class="conflict-indicator" title="Conflict: modified externally"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#d29922" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>`;
+
+      if (isConflict) {
+        closeBtn.innerHTML = conflictIndicatorSvg;
+      } else if (tab.isDirty) {
+        closeBtn.innerHTML = '<span class="dirty-indicator">●</span>';
+      } else {
+        closeBtn.innerHTML = '<span class="close-x">×</span>';
+      }
 
       closeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         editorState.closeTab(tab.id);
       });
 
-      // Show close-x on hover even when dirty
+      // Show close-x on hover even when dirty or conflicted
       tabEl.addEventListener('mouseenter', () => {
-        if (tab.isDirty) {
+        if (tab.isDirty || tab.hasExternalConflict) {
           closeBtn.innerHTML = '<span class="close-x">×</span>';
         }
       });
       tabEl.addEventListener('mouseleave', () => {
-        if (tab.isDirty) {
+        if (tab.hasExternalConflict) {
+          closeBtn.innerHTML = conflictIndicatorSvg;
+        } else if (tab.isDirty) {
           closeBtn.innerHTML = '<span class="dirty-indicator">●</span>';
         }
       });
 
       tabEl.addEventListener('click', () => {
         editorState.selectTab(tab.id);
+        if (tab.hasExternalConflict && this.onConflictClick) {
+          this.onConflictClick(tab);
+        }
       });
 
       // Middle click to close

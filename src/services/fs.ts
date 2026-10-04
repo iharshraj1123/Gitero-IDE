@@ -16,18 +16,65 @@ const mockFiles: Record<string, string> = {
   'style.css': '/* Gitero Custom Styles */\nbody {\n  font-family: system-ui, sans-serif;\n}\n'
 };
 
+export interface WatchFileEvent {
+  id?: number;
+  action?: string;
+  dir?: string;
+  filename?: string;
+  fullPath?: string;
+}
+
 export class FileSystemService {
   private currentWorkspace: string | null = null;
   private activeWatcherId: number | null = null;
   private watcherListeners: Set<() => void> = new Set();
+  private fileEventListeners: Set<(event: WatchFileEvent) => void> = new Set();
   private watcherDebounceTimer: any = null;
   private workspaceFilesCache: { path: string; files: string[]; timestamp: number } | null = null;
+  private lastInternalWriteTimes: Map<string, number> = new Map();
 
   constructor() {
     this.currentWorkspace = localStorage.getItem('gitero_workspace_path') || null;
     this.setupWatcherListener();
     if (this.currentWorkspace) {
       this.watchWorkspace(this.currentWorkspace);
+    }
+  }
+
+  recordInternalWrite(filePath: string) {
+    const norm = filePath.replace(/\\/g, '/').toLowerCase();
+    this.lastInternalWriteTimes.set(norm, Date.now());
+  }
+
+  isRecentInternalWrite(filePath: string, thresholdMs: number = 2000): boolean {
+    const norm = filePath.replace(/\\/g, '/').toLowerCase();
+    const time = this.lastInternalWriteTimes.get(norm);
+    if (!time) return false;
+    return (Date.now() - time) < thresholdMs;
+  }
+
+  async getFileStats(filePath: string): Promise<{ size: number; modifiedAt: number } | null> {
+    if (isNative()) {
+      try {
+        const stats = await window.Neutralino.filesystem.getStats(filePath);
+        if (stats) {
+          return {
+            size: typeof stats.size === 'number' ? stats.size : 0,
+            modifiedAt: typeof stats.modifiedAt === 'number' ? stats.modifiedAt : Date.now()
+          };
+        }
+        return null;
+      } catch (err) {
+        return null;
+      }
+    } else {
+      if (mockFiles[filePath] !== undefined) {
+        return {
+          size: mockFiles[filePath].length,
+          modifiedAt: 1
+        };
+      }
+      return null;
     }
   }
 
@@ -49,10 +96,8 @@ export class FileSystemService {
           if (
             combined.includes('/.git/') ||
             combined.endsWith('/.git') ||
-            combined.includes('/.git') ||
             combined.includes('/node_modules/') ||
             combined.endsWith('/node_modules') ||
-            combined.includes('/node_modules') ||
             combined.includes('/dist/') ||
             combined.endsWith('/dist') ||
             combined.includes('/target/') ||
@@ -66,6 +111,28 @@ export class FileSystemService {
           ) {
             return;
           }
+
+          let fullPath = '';
+          if (detail.dir && detail.filename) {
+            const sep = detail.dir.includes('/') ? '/' : '\\';
+            fullPath = detail.dir.endsWith(sep) ? `${detail.dir}${detail.filename}` : `${detail.dir}${sep}${detail.filename}`;
+          }
+
+          const fileEvent: WatchFileEvent = {
+            id: detail.id,
+            action: detail.action,
+            dir: detail.dir,
+            filename: detail.filename,
+            fullPath
+          };
+
+          this.fileEventListeners.forEach(fn => {
+            try {
+              fn(fileEvent);
+            } catch (err) {
+              console.error('[fsService] File event error:', err);
+            }
+          });
         }
         this.notifyWorkspaceChanged();
       });
@@ -101,6 +168,13 @@ export class FileSystemService {
     this.watcherListeners.add(listener);
     return () => {
       this.watcherListeners.delete(listener);
+    };
+  }
+
+  onFileEvent(listener: (event: WatchFileEvent) => void): () => void {
+    this.fileEventListeners.add(listener);
+    return () => {
+      this.fileEventListeners.delete(listener);
     };
   }
 
@@ -279,6 +353,7 @@ export class FileSystemService {
   }
 
   async writeFile(filePath: string, content: string): Promise<void> {
+    this.recordInternalWrite(filePath);
     if (isNative()) {
       try {
         const norm = filePath.toLowerCase().replace(/\//g, '\\');
@@ -286,12 +361,14 @@ export class FileSystemService {
           ? '\uFEFF' + content
           : content;
         await window.Neutralino.filesystem.writeFile(filePath, finalContent);
+        this.recordInternalWrite(filePath);
       } catch (err) {
         console.error('Error writing file:', err);
         throw err;
       }
     } else {
       mockFiles[filePath] = content;
+      this.recordInternalWrite(filePath);
     }
   }
 

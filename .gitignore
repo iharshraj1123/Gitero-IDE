@@ -17,3 +17,6 @@ Thumbs.db
 test*.*
 
 testing/*
+
+# Local index metadata
+.codegraph/

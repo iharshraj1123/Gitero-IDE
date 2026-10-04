@@ -30,6 +30,7 @@ import { lspClient } from './services/lsp/lspClient';
 import { NotificationToastComponent } from './ui/notificationToast';
 import { NotificationCenterComponent } from './ui/notificationCenter';
 import { notificationService } from './services/notification';
+import { FileConflictModalComponent } from './ui/fileConflictModal';
 import { checkMissingLsp } from './services/lsp/lspDetector';
 import { DISPLAY_VERSION } from './version';
 import { initExternalLinkHandler, openExternal } from './services/externalLinkService';
@@ -489,8 +490,192 @@ async function bootstrap() {
     }
   });
 
-  // 7. Initialize Tab Bar
-  new TabBarComponent(tabBarContainer);
+  // 7. Initialize Conflict Resolution Modal & Tab Bar
+  const conflictModal = new FileConflictModalComponent();
+
+  // Helper to open conflict modal for a tab
+  function promptConflictModal(tab: EditorTab, diskContent: string) {
+    const isCurrentActive = editorState.getActiveTab()?.id === tab.id;
+    const currentLocalContent = isCurrentActive
+      ? editorManager.getContent()
+      : tab.content;
+
+    conflictModal.open({
+      tab,
+      diskContent,
+      localContent: currentLocalContent,
+      onOverwrite: async () => {
+        const toSave = (editorState.getActiveTab()?.id === tab.id)
+          ? editorManager.getContent()
+          : tab.content;
+        fsService.recordInternalWrite(tab.path);
+        await fsService.writeFile(tab.path, toSave);
+        const s = await fsService.getFileStats(tab.path);
+        editorState.markSaved(tab.id, toSave, s?.modifiedAt || Date.now());
+        editorManager.notifyDidSave();
+        statusBar.showMessage(`Saved ${tab.name} (overwrote disk version)`);
+        gitService.refresh();
+      },
+      onRevert: async () => {
+        if (editorState.getActiveTab()?.id === tab.id) {
+          editorManager.reloadActiveDocument(diskContent);
+        }
+        const s = await fsService.getFileStats(tab.path);
+        editorState.markSaved(tab.id, diskContent, s?.modifiedAt || Date.now());
+        statusBar.showMessage(`Reverted ${tab.name} to disk version`);
+        gitService.refresh();
+      }
+    });
+  }
+
+  // Check an individual tab for external modifications on disk
+  async function checkTabForExternalChanges(tab: EditorTab, forceCheck: boolean = false): Promise<boolean> {
+    if (
+      !isNative() ||
+      !tab.path ||
+      tab.path.startsWith('Untitled-') ||
+      tab.viewMode === 'image' ||
+      tab.viewMode === 'binary' ||
+      tab.viewMode === 'git-graph'
+    ) {
+      return false;
+    }
+
+    if (!forceCheck && fsService.isRecentInternalWrite(tab.path)) {
+      return false;
+    }
+
+    try {
+      const stats = await fsService.getFileStats(tab.path);
+      if (!stats) {
+        // File no longer exists on disk
+        if (!tab.isDeletedOnDisk) {
+          editorState.setDeletedOnDisk(tab.id, true);
+          notificationService.show({
+            type: 'warning',
+            title: 'File Deleted on Disk',
+            message: `"${tab.name}" was removed externally. Your editor buffer is preserved; save (Ctrl+S) to recreate it.`,
+            durationMs: 8000
+          });
+        }
+        return true;
+      }
+
+      if (tab.isDeletedOnDisk) {
+        editorState.setDeletedOnDisk(tab.id, false);
+      }
+
+      // Check modification timestamp
+      if (!forceCheck && tab.lastModifiedDiskTime && stats.modifiedAt <= tab.lastModifiedDiskTime + 500) {
+        return false;
+      }
+
+      const diskContent = await fsService.readFile(tab.path);
+      const activeTab = editorState.getActiveTab();
+      const isCurrentActive = activeTab && activeTab.id === tab.id;
+      const currentBufferContent = isCurrentActive ? editorManager.getContent() : tab.content;
+
+      if (diskContent === currentBufferContent) {
+        tab.lastModifiedDiskTime = stats.modifiedAt;
+        if (tab.hasExternalConflict) {
+          editorState.setExternalConflict(tab.id, false);
+        }
+        return false;
+      }
+
+      // Disk content is different!
+      if (!tab.isDirty) {
+        // Clean tab: SILENT AUTO-RELOAD
+        editorState.reloadTabContent(tab.id, diskContent, stats.modifiedAt);
+        if (isCurrentActive) {
+          editorManager.reloadActiveDocument(diskContent);
+          statusBar.showMessage(`Reloaded ${tab.name} (modified on disk)`);
+          gitService.refresh();
+        } else {
+          const langInfo = detectLanguage(tab.path);
+          lspClient.notifyDidChange(tab.path, langInfo.languageId || 'plaintext', 1, diskContent);
+        }
+        return true;
+      } else {
+        // Dirty tab: CONFLICT GUARD ACTIVATED
+        editorState.setExternalConflict(tab.id, true);
+        notificationService.show({
+          type: 'warning',
+          title: 'File Conflict Detected',
+          message: `"${tab.name}" was modified on disk while you have unsaved changes.`,
+          durationMs: 0,
+          actions: [
+            {
+              label: 'Compare',
+              primary: true,
+              onClick: () => promptConflictModal(tab, diskContent)
+            },
+            {
+              label: 'Revert to Disk',
+              onClick: async () => {
+                if (editorState.getActiveTab()?.id === tab.id) {
+                  editorManager.reloadActiveDocument(diskContent);
+                }
+                editorState.markSaved(tab.id, diskContent, stats.modifiedAt);
+                statusBar.showMessage(`Reverted ${tab.name} to disk version`);
+                gitService.refresh();
+              }
+            },
+            {
+              label: 'Overwrite',
+              onClick: async () => {
+                const toSave = isCurrentActive ? editorManager.getContent() : tab.content;
+                fsService.recordInternalWrite(tab.path);
+                await fsService.writeFile(tab.path, toSave);
+                const s = await fsService.getFileStats(tab.path);
+                editorState.markSaved(tab.id, toSave, s?.modifiedAt || Date.now());
+                editorManager.notifyDidSave();
+                statusBar.showMessage(`Saved ${tab.name} (overwrote disk version)`);
+                gitService.refresh();
+              }
+            }
+          ]
+        });
+        return true;
+      }
+    } catch (e) {
+      console.warn('[Gitero IDE] Error checking tab external changes:', e);
+      return false;
+    }
+  }
+
+  async function checkAllTabsForExternalChanges(forceCheck: boolean = false) {
+    for (const tab of editorState.getTabs()) {
+      await checkTabForExternalChanges(tab, forceCheck);
+    }
+  }
+
+  // File watcher event listener for immediate push notification
+  fsService.onFileEvent(async (evt) => {
+    if (!evt.fullPath && !evt.filename) return;
+    const targetPath = (evt.fullPath || evt.filename || '').replace(/\\/g, '/').toLowerCase();
+    for (const tab of editorState.getTabs()) {
+      const tabNorm = tab.path.replace(/\\/g, '/').toLowerCase();
+      if (tabNorm === targetPath || tabNorm.endsWith('/' + targetPath) || targetPath.endsWith('/' + tabNorm)) {
+        await checkTabForExternalChanges(tab);
+      }
+    }
+  });
+
+  // Window focus listener for pull fallback (e.g. after AI agent edits or git branch switch)
+  window.addEventListener('focus', () => {
+    checkAllTabsForExternalChanges();
+  });
+
+  new TabBarComponent(tabBarContainer, {
+    onConflictClick: (tab) => {
+      fsService.readFile(tab.path).then((diskContent) => {
+        promptConflictModal(tab, diskContent);
+      }).catch((err) => {
+        console.warn('Could not read disk content for conflict modal:', err);
+      });
+    }
+  });
 
   // Formatting on save helper
   function formatContentForSave(rawContent: string): string {
@@ -520,6 +705,10 @@ async function bootstrap() {
     autoSaveTimer = setTimeout(async () => {
       const activeTab = editorState.getActiveTab();
       if (activeTab && activeTab.isDirty && !activeTab.path.startsWith('Untitled-')) {
+        if (activeTab.hasExternalConflict) {
+          // Suspend auto-save when external disk conflict is detected
+          return;
+        }
         try {
           let content = editorManager.getContent();
           const formatted = formatContentForSave(content);
@@ -527,8 +716,10 @@ async function bootstrap() {
             editorManager.setContent(formatted);
             content = formatted;
           }
+          fsService.recordInternalWrite(activeTab.path);
           await fsService.writeFile(activeTab.path, content);
-          editorState.markSaved(activeTab.id, content);
+          const freshStats = await fsService.getFileStats(activeTab.path);
+          editorState.markSaved(activeTab.id, content, freshStats?.modifiedAt || Date.now());
           editorManager.notifyDidSave();
           statusBar.showMessage(`Auto-saved ${activeTab.name}`);
           gitService.refresh();
@@ -558,8 +749,25 @@ async function bootstrap() {
         editorManager.setContent(formatted);
         currentContent = formatted;
       }
+
+      // Pre-save safety conflict check
+      const diskStats = await fsService.getFileStats(activeTab.path);
+      if (
+        activeTab.hasExternalConflict ||
+        (diskStats && activeTab.lastModifiedDiskTime && diskStats.modifiedAt > activeTab.lastModifiedDiskTime + 800)
+      ) {
+        const diskContent = await fsService.readFile(activeTab.path).catch(() => null);
+        if (diskContent !== null && diskContent !== currentContent) {
+          editorState.setExternalConflict(activeTab.id, true);
+          promptConflictModal(activeTab, diskContent);
+          return;
+        }
+      }
+
+      fsService.recordInternalWrite(activeTab.path);
       await fsService.writeFile(activeTab.path, currentContent);
-      editorState.markSaved(activeTab.id, currentContent);
+      const freshStats = await fsService.getFileStats(activeTab.path);
+      editorState.markSaved(activeTab.id, currentContent, freshStats?.modifiedAt || Date.now());
       editorManager.notifyDidSave();
       statusBar.showMessage(`Saved ${activeTab.name}`);
       gitService.refresh();
@@ -583,11 +791,14 @@ async function bootstrap() {
     if (!newPath) return;
 
     try {
+      fsService.recordInternalWrite(newPath);
       await fsService.writeFile(newPath, currentContent);
+      const freshStats = await fsService.getFileStats(newPath);
       if (activeTab) {
         editorState.renameTab(activeTab.id, newPath, currentContent);
+        editorState.markSaved(newPath, currentContent, freshStats?.modifiedAt || Date.now());
       } else {
-        editorState.openFile(newPath, currentContent);
+        editorState.openFile(newPath, currentContent, { modifiedAt: freshStats?.modifiedAt || Date.now() });
       }
       editorManager.notifyDidSave();
       const newName = newPath.split(/[/\\]/).pop() || newPath;
@@ -944,6 +1155,7 @@ async function bootstrap() {
         if (currentLoadedTabId !== activeTab.id) {
           currentLoadedTabId = activeTab.id;
           editorManager.loadDocument(activeTab.content, activeTab.path);
+          checkTabForExternalChanges(activeTab);
         }
       }
     } else {
@@ -954,6 +1166,7 @@ async function bootstrap() {
       if (currentLoadedTabId !== activeTab.id) {
         currentLoadedTabId = activeTab.id;
         editorManager.loadDocument(activeTab.content, activeTab.path);
+        checkTabForExternalChanges(activeTab);
         const activeLangInfo = detectLanguage(activeTab.path);
         checkMissingLsp(activeTab.path, activeLangInfo.languageId || activeLangInfo.name, (ext, lang) => {
           settingsModal.openWithAddServer(ext, lang);
@@ -1250,7 +1463,8 @@ async function bootstrap() {
     if (activeTab && isNative() && activeTab.viewMode !== 'image' && activeTab.viewMode !== 'binary' && activeTab.viewMode !== 'git-graph') {
       try {
         const fresh = await fsService.readFile(activeTab.path);
-        editorState.markSaved(activeTab.id, fresh);
+        const stats = await fsService.getFileStats(activeTab.path);
+        editorState.markSaved(activeTab.id, fresh, stats?.modifiedAt || Date.now());
         editorManager.loadDocument(fresh, activeTab.path);
       } catch (err) {
         console.warn('Could not refresh active tab from disk:', err);

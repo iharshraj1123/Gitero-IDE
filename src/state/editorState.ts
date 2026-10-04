@@ -10,6 +10,9 @@ export interface EditorTab {
   language: string;
   cursor: { line: number; col: number };
   viewMode?: 'raw' | 'rendered' | 'image' | 'binary' | 'git-graph';
+  lastModifiedDiskTime?: number;
+  hasExternalConflict?: boolean;
+  isDeletedOnDisk?: boolean;
 }
 
 export interface StateChangeListener {
@@ -91,6 +94,9 @@ export class EditorStateManager {
             ...t,
             originalContent: t.content,
             isDirty: false,
+            hasExternalConflict: false,
+            isDeletedOnDisk: false,
+            lastModifiedDiskTime: t.lastModifiedDiskTime || Date.now(),
             viewMode: t.viewMode || 'raw'
           }));
           const savedActive = localStorage.getItem(activeKey) || (!this.currentWorkspace ? localStorage.getItem('gitero_active_tab') : null);
@@ -125,7 +131,8 @@ export class EditorStateManager {
         content: t.content,
         language: t.language,
         cursor: t.cursor,
-        viewMode: t.viewMode
+        viewMode: t.viewMode,
+        lastModifiedDiskTime: t.lastModifiedDiskTime
       }));
       const tabsKey = this.getWorkspaceStorageKey(this.currentWorkspace);
       const activeKey = this.getWorkspaceActiveTabKey(this.currentWorkspace);
@@ -157,12 +164,19 @@ export class EditorStateManager {
     return this.tabs.find(t => t.id === this.activeTabId) || null;
   }
 
-  openFile(filePath: string, content: string, options?: { viewMode?: 'raw' | 'rendered' }): EditorTab {
+  openFile(filePath: string, content: string, options?: { viewMode?: 'raw' | 'rendered'; modifiedAt?: number }): EditorTab {
     const isMd = /\.md$/i.test(filePath) || /\.markdown$/i.test(filePath);
     const existing = this.tabs.find(t => t.id === filePath);
     if (existing) {
       if (options?.viewMode) {
         existing.viewMode = options.viewMode;
+      }
+      if (!existing.isDirty && content !== existing.content) {
+        existing.content = content;
+        existing.originalContent = content;
+        existing.lastModifiedDiskTime = options?.modifiedAt || Date.now();
+        existing.hasExternalConflict = false;
+        existing.isDeletedOnDisk = false;
       }
       this.activeTabId = filePath;
       this.notify();
@@ -182,7 +196,10 @@ export class EditorStateManager {
       isDirty: false,
       language: lang,
       cursor: { line: 1, col: 1 },
-      viewMode: isMd ? viewMode : 'raw'
+      viewMode: isMd ? viewMode : 'raw',
+      lastModifiedDiskTime: options?.modifiedAt || Date.now(),
+      hasExternalConflict: false,
+      isDeletedOnDisk: false
     };
 
     this.tabs.push(newTab);
@@ -386,13 +403,49 @@ export class EditorStateManager {
     }
   }
 
-  markSaved(id: string, savedContent: string) {
+  markSaved(id: string, savedContent: string, modifiedAt?: number) {
     const tab = this.tabs.find(t => t.id === id);
     if (tab) {
       tab.content = savedContent;
       tab.originalContent = savedContent;
       tab.isDirty = false;
+      tab.hasExternalConflict = false;
+      tab.isDeletedOnDisk = false;
+      tab.lastModifiedDiskTime = modifiedAt || Date.now();
       this.persist();
+      this.notify();
+    }
+  }
+
+  reloadTabContent(id: string, freshContent: string, modifiedAt?: number) {
+    const tab = this.tabs.find(t => t.id === id);
+    if (tab) {
+      tab.content = freshContent;
+      tab.originalContent = freshContent;
+      tab.isDirty = false;
+      tab.hasExternalConflict = false;
+      tab.isDeletedOnDisk = false;
+      tab.lastModifiedDiskTime = modifiedAt || Date.now();
+      this.persist();
+      this.notify();
+    }
+  }
+
+  setExternalConflict(id: string, hasConflict: boolean) {
+    const tab = this.tabs.find(t => t.id === id);
+    if (tab && tab.hasExternalConflict !== hasConflict) {
+      tab.hasExternalConflict = hasConflict;
+      this.notify();
+    }
+  }
+
+  setDeletedOnDisk(id: string, isDeleted: boolean) {
+    const tab = this.tabs.find(t => t.id === id);
+    if (tab && tab.isDeletedOnDisk !== isDeleted) {
+      tab.isDeletedOnDisk = isDeleted;
+      if (isDeleted) {
+        tab.isDirty = true;
+      }
       this.notify();
     }
   }
