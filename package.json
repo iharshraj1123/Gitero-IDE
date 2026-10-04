@@ -11,6 +11,8 @@
     "version": "node scripts/sync-version.js",
     "build:hotkey": "cmd /c src-native\\explorer-hotkey\\build.bat",
     "neu:build": "npx @neutralinojs/neu build",
+    "verify:bundle": "node scripts/verify-bundle.mjs",
+    "release": "node scripts/release.mjs",
     "start": "neu run",
     "installer": "npm run build && npm run build:hotkey && npx @neutralinojs/neu build && (iscc installer/gitero.iss 2>nul || \"C:\\Users\\ihars\\AppData\\Local\\Programs\\Inno Setup 6\\iscc.exe\" installer/gitero.iss)",
     "preview": "vite preview",

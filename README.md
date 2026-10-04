@@ -217,8 +217,10 @@ Gitero IDE
 | `npm run dev` | Starts Vite local dev server with hot-reload |
 | `npm start` | Launches native desktop app via Neutralino CLI |
 | `npm run build` | Compiles TypeScript and bundles frontend assets to `dist/` |
+| `npm run verify:bundle` | Verifies baked commit SHA in bundle matches git HEAD |
 | `npm run build:hotkey` | Compiles Windows Explorer `Ctrl+.` companion (`bin/gitero_explorer_hotkey.exe`) |
 | `npm run neu:build` | Packages `dist/` into production `dist/gitero/resources.neu` |
+| `npm run release` | Atomic commit-first release: bumps, commits, tags, builds, verifies, packages, and publishes (`npm run release <version> [-- --installer]`) |
 | `npm run installer` | Full build: compiles frontend, companion, packages resources, and produces Inno Setup installer |
 
 ---

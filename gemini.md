@@ -81,9 +81,27 @@
 | `npm start` | Run the native desktop app with Neutralino CLI |
 | `npm run build` | Compile TypeScript and bundle frontend to `dist/` (auto-syncs version) |
 | `npm run sync:version` | Manually synchronize version from `package.json` to `neutralino.config.json` & Inno Setup |
+| `npm run verify:bundle` | Verify baked commit SHA in bundle matches git HEAD |
 | `npm run build:hotkey` | Compile Windows Explorer `Ctrl+.` background companion (`gitero_explorer_hotkey.exe`) |
 | `npm run neu:build` | Package `dist/` into `dist/gitero/resources.neu` |
+| `npm run release` | Atomic release: commit-first bump, tag, bundle build, SHA verify, neu package, and publish (`npm run release <version> [-- --installer]`) |
 | `npm run installer` | Complete build: compile frontend, hotkey companion, bundle `resources.neu`, and generate installer (Run ONLY when explicitly instructed by user) |
+
+---
+
+## Automated Release Pipeline (`scripts/release.mjs`)
+
+* **Command**: `npm run release <version> [-- --installer]`
+* **Commit-First Architecture**: Enforces atomic chronological order:
+  1. Validates clean working tree on active branch.
+  2. Bumps `package.json` and synchronizes all configs/docs.
+  3. Commits version bump to git and pushes to remote first (guarantees release commit exists at `HEAD`).
+  4. Tags `v<version>` and pushes tag.
+  5. Compiles frontend bundle (`tsc && vite build`) so Vite bakes the exact release commit SHA.
+  6. Runs `scripts/verify-bundle.mjs` to assert the baked SHA matches `HEAD`.
+  7. Builds Neutralino `resources.neu` package.
+  8. (Optional `--installer`) Compiles hotkey companion and Inno Setup installer.
+  9. Publishes release on GitHub with assets and updates rolling `continuous-<branch>`.
 
 ---
 
