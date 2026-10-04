@@ -99,14 +99,36 @@ export class UpdaterService {
 
   constructor() {
     this.currentBranch = preferencesService.get('updater.channel') || localStorage.getItem('gitero_update_branch') || 'release';
-    const storedSha = localStorage.getItem('gitero_current_sha');
-    if (!storedSha || storedSha === '791a8ec') {
+    
+    // Prioritize compile-time bundle commit SHA baked in by Vite
+    if (GIT_COMMIT_SHA && GIT_COMMIT_SHA !== 'HEAD') {
       this.currentSha = GIT_COMMIT_SHA;
       localStorage.setItem('gitero_current_sha', GIT_COMMIT_SHA);
     } else {
-      this.currentSha = storedSha;
+      const storedSha = localStorage.getItem('gitero_current_sha');
+      if (storedSha && storedSha !== '791a8ec' && storedSha !== 'factory') {
+        this.currentSha = storedSha;
+      } else {
+        this.currentSha = 'HEAD';
+      }
     }
     this.ensureInitialHistory();
+  }
+
+  /**
+   * Resynchronize state from persistent storage after platform bootstrap
+   */
+  syncFromStorage() {
+    this.currentBranch = preferencesService.get('updater.channel') || localStorage.getItem('gitero_update_branch') || 'release';
+    if (GIT_COMMIT_SHA && GIT_COMMIT_SHA !== 'HEAD') {
+      this.currentSha = GIT_COMMIT_SHA;
+      localStorage.setItem('gitero_current_sha', GIT_COMMIT_SHA);
+    } else {
+      const storedSha = localStorage.getItem('gitero_current_sha');
+      if (storedSha && storedSha !== '791a8ec' && storedSha !== 'factory') {
+        this.currentSha = storedSha;
+      }
+    }
   }
 
   getCurrentVersion(): string {
@@ -118,7 +140,13 @@ export class UpdaterService {
   }
 
   getCurrentSha(): string {
-    return this.currentSha;
+    if (this.currentSha && this.currentSha !== 'HEAD') {
+      return this.currentSha;
+    }
+    if (GIT_COMMIT_SHA && GIT_COMMIT_SHA !== 'HEAD') {
+      return GIT_COMMIT_SHA;
+    }
+    return 'HEAD';
   }
 
   setTargetBranch(branch: string) {
@@ -388,7 +416,8 @@ export class UpdaterService {
     // 2. Target is a specific git branch (e.g. 'main', 'dev')
     // Decoupled from GitHub Releases!
     const latestCommit = await this.fetchLatestCommit(targetChannel);
-    const isAvailable = latestCommit.shortSha.toLowerCase() !== this.currentSha.toLowerCase();
+    const activeSha = this.getCurrentSha();
+    const isAvailable = latestCommit.shortSha.toLowerCase() !== activeSha.toLowerCase();
 
     // Query package.json on that branch to determine its active version
     let branchVersion = DISPLAY_VERSION;
@@ -425,7 +454,7 @@ export class UpdaterService {
       isUpdateAvailable: isAvailable,
       currentVersion: DISPLAY_VERSION,
       latestVersion: branchVersion,
-      currentSha: this.currentSha,
+      currentSha: activeSha,
       latestSha: latestCommit.shortSha,
       channel: targetChannel,
       latestRelease: undefined,
@@ -544,6 +573,7 @@ export class UpdaterService {
       type: 'update'
     });
 
+    this.currentSha = targetVersion;
     localStorage.setItem('gitero_current_sha', targetVersion);
     localStorage.setItem('gitero_installed_version', targetVersion);
 

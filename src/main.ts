@@ -35,6 +35,7 @@ import { diff3Merge } from './services/diff3Merge';
 import { checkMissingLsp } from './services/lsp/lspDetector';
 import { DISPLAY_VERSION } from './version';
 import { initExternalLinkHandler, openExternal } from './services/externalLinkService';
+import { updaterService } from './services/updater';
 
 async function bootstrap() {
   console.log('[Gitero IDE] Bootstrapping...');
@@ -52,6 +53,7 @@ async function bootstrap() {
   }
   await persistentStorage.init();
   preferencesService.reload();
+  updaterService.syncFromStorage();
   const initialWs = fsService.reloadWorkspaceFromStorage();
   if (initialWs) {
     editorState.setWorkspace(initialWs);
