@@ -70,17 +70,37 @@ export class FileTreeComponent {
         this.render();
       }
     });
+
+    // Auto-refresh file tree when external changes occur in the workspace
+    fsService.onWorkspaceChanged(() => {
+      this.refresh({ silent: true });
+    });
   }
 
-  async loadWorkspace(dirPath: string) {
-    this.container.innerHTML = `<div class="sidebar-loading">Scanning files...</div>`;
+  public async refresh(options?: { silent?: boolean }): Promise<void> {
+    const ws = fsService.getWorkspace();
+    if (!ws) return;
+    if (this.activeInlineCreator) return;
+    await this.loadWorkspace(ws, { silent: options?.silent ?? true });
+  }
+
+  async loadWorkspace(dirPath: string, options?: { silent?: boolean }) {
+    if (this.activeInlineCreator) return;
+    const isSilent = options?.silent === true;
+    if (!isSilent) {
+      this.container.innerHTML = `<div class="sidebar-loading">Scanning files...</div>`;
+    }
+    const previousScrollTop = this.container.scrollTop;
     try {
       this.loadExpandedDirectories(dirPath);
       this.rootNodes = await fsService.readDirectory(dirPath);
       await this.restoreExpandedChildren(this.rootNodes);
       this.render();
+      this.container.scrollTop = previousScrollTop;
     } catch (err) {
-      this.container.innerHTML = `<div class="sidebar-empty">Failed to load directory</div>`;
+      if (!isSilent) {
+        this.container.innerHTML = `<div class="sidebar-empty">Failed to load directory</div>`;
+      }
     }
   }
 

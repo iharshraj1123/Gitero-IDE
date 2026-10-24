@@ -30,6 +30,7 @@ export class FileSystemService {
   private watcherListeners: Set<() => void> = new Set();
   private fileEventListeners: Set<(event: WatchFileEvent) => void> = new Set();
   private watcherDebounceTimer: any = null;
+  private isWatcherListenerSetup = false;
   private workspaceFilesCache: { path: string; files: string[]; timestamp: number } | null = null;
   private lastInternalWriteTimes: Map<string, number> = new Map();
 
@@ -79,63 +80,69 @@ export class FileSystemService {
   }
 
   private setupWatcherListener() {
+    if (this.isWatcherListenerSetup) return;
     if (typeof window !== 'undefined' && window.Neutralino?.events) {
-      window.Neutralino.events.on('watchFile', (evt?: any) => {
-        const detail = evt?.detail || evt;
-        if (detail && typeof detail === 'object') {
-          // If a watcher ID is present, ensure it matches our active workspace watcher
-          if (this.activeWatcherId !== null && detail.id !== undefined && detail.id !== this.activeWatcherId) {
-            return;
-          }
-
-          const dir = (detail.dir || '').replace(/\\/g, '/').toLowerCase();
-          const filename = (detail.filename || '').replace(/\\/g, '/').toLowerCase();
-          const combined = `${dir}/${filename}`;
-
-          // Ignore Git internals, package managers, build artifacts, temporary caches, and system storage
-          if (
-            combined.includes('/.git/') ||
-            combined.endsWith('/.git') ||
-            combined.includes('/node_modules/') ||
-            combined.endsWith('/node_modules') ||
-            combined.includes('/dist/') ||
-            combined.endsWith('/dist') ||
-            combined.includes('/target/') ||
-            combined.endsWith('/target') ||
-            combined.includes('/.storage/') ||
-            combined.includes('/.vite/') ||
-            combined.includes('/installer-output/') ||
-            filename === 'neutralino.log' ||
-            filename.endsWith('.tmp') ||
-            filename.endsWith('.lock')
-          ) {
-            return;
-          }
-
-          let fullPath = '';
-          if (detail.dir && detail.filename) {
-            const sep = detail.dir.includes('/') ? '/' : '\\';
-            fullPath = detail.dir.endsWith(sep) ? `${detail.dir}${detail.filename}` : `${detail.dir}${sep}${detail.filename}`;
-          }
-
-          const fileEvent: WatchFileEvent = {
-            id: detail.id,
-            action: detail.action,
-            dir: detail.dir,
-            filename: detail.filename,
-            fullPath
-          };
-
-          this.fileEventListeners.forEach(fn => {
-            try {
-              fn(fileEvent);
-            } catch (err) {
-              console.error('[fsService] File event error:', err);
+      try {
+        window.Neutralino.events.on('watchFile', (evt?: any) => {
+          const detail = evt?.detail || evt;
+          if (detail && typeof detail === 'object') {
+            // If a watcher ID is present, ensure it matches our active workspace watcher
+            if (this.activeWatcherId !== null && detail.id !== undefined && Number(detail.id) !== this.activeWatcherId) {
+              return;
             }
-          });
-        }
-        this.notifyWorkspaceChanged();
-      });
+
+            const dir = (detail.dir || '').replace(/\\/g, '/').toLowerCase();
+            const filename = (detail.filename || '').replace(/\\/g, '/').toLowerCase();
+            const combined = `${dir}/${filename}`;
+
+            // Ignore Git internals, package managers, build artifacts, temporary caches, and system storage
+            if (
+              combined.includes('/.git/') ||
+              combined.endsWith('/.git') ||
+              combined.includes('/node_modules/') ||
+              combined.endsWith('/node_modules') ||
+              combined.includes('/dist/') ||
+              combined.endsWith('/dist') ||
+              combined.includes('/target/') ||
+              combined.endsWith('/target') ||
+              combined.includes('/.storage/') ||
+              combined.includes('/.vite/') ||
+              combined.includes('/installer-output/') ||
+              filename === 'neutralino.log' ||
+              filename.endsWith('.tmp') ||
+              filename.endsWith('.lock')
+            ) {
+              return;
+            }
+
+            let fullPath = '';
+            if (detail.dir && detail.filename) {
+              const sep = detail.dir.includes('/') ? '/' : '\\';
+              fullPath = detail.dir.endsWith(sep) ? `${detail.dir}${detail.filename}` : `${detail.dir}${sep}${detail.filename}`;
+            }
+
+            const fileEvent: WatchFileEvent = {
+              id: detail.id,
+              action: detail.action,
+              dir: detail.dir,
+              filename: detail.filename,
+              fullPath
+            };
+
+            this.fileEventListeners.forEach(fn => {
+              try {
+                fn(fileEvent);
+              } catch (err) {
+                console.error('[fsService] File event error:', err);
+              }
+            });
+          }
+          this.notifyWorkspaceChanged();
+        });
+        this.isWatcherListenerSetup = true;
+      } catch (err) {
+        console.warn('[fsService] Failed to attach watchFile listener:', err);
+      }
     }
   }
 
@@ -194,12 +201,16 @@ export class FileSystemService {
 
   async watchWorkspace(dirPath: string): Promise<void> {
     if (!isNative()) return;
+    this.setupWatcherListener();
     await this.stopWorkspaceWatcher();
 
     try {
       const watcher = await window.Neutralino.filesystem.createWatcher(dirPath);
-      if (watcher && typeof watcher.id === 'number') {
-        this.activeWatcherId = watcher.id;
+      const watcherId = typeof watcher === 'number'
+        ? watcher
+        : (watcher && typeof (watcher as any).id === 'number' ? (watcher as any).id : null);
+      if (typeof watcherId === 'number') {
+        this.activeWatcherId = watcherId;
         console.log(`[fsService] Workspace watcher registered with ID ${this.activeWatcherId}`);
       }
     } catch (err) {

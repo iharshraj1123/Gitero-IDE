@@ -1158,6 +1158,21 @@ async function bootstrap() {
     }
   });
 
+  // Synchronize file tree, Git status & Git panel whenever workspace changes or window regains focus
+  fsService.onWorkspaceChanged(() => {
+    gitService.refresh();
+    gitPanel.refresh();
+  });
+
+  window.addEventListener('focus', () => {
+    const ws = fsService.getWorkspace();
+    if (ws) {
+      fileTree.refresh({ silent: true });
+      gitService.refresh();
+      gitPanel.refresh();
+    }
+  });
+
   // 11. Listen to Editor State changes (active tab, dirty indicators, etc.)
   let currentLoadedTabId: string | null = null;
 
