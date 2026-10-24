@@ -1,8 +1,104 @@
 import { marked } from 'marked';
+import markedKatex from 'marked-katex-extension';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { isExternalUrl, openExternal } from '../services/externalLinkService';
 
 export interface MarkdownViewerOptions {
   onOpenFile?: (path: string) => void;
+}
+
+let markedExtensionsConfigured = false;
+
+function ensureMarkedExtensionsConfigured(): void {
+  if (markedExtensionsConfigured) return;
+  markedExtensionsConfigured = true;
+
+  // 1. Official marked-katex-extension for inline ($...$) and block ($$...$$) math
+  marked.use(
+    markedKatex({
+      throwOnError: false
+    })
+  );
+
+  // 2. Custom extensions for \( ... \) inline, \[ ... \] display, and ```math / ```katex code blocks
+  const inlineLatexParenRule = /^\\\(([\s\S]+?)\\\)/;
+  const blockLatexBracketRule = /^\\\[([\s\S]+?)\\\]/;
+
+  marked.use({
+    extensions: [
+      {
+        name: 'inlineLatexParen',
+        level: 'inline',
+        start(src: string) {
+          return src.indexOf('\\(');
+        },
+        tokenizer(src: string) {
+          const match = src.match(inlineLatexParenRule);
+          if (match) {
+            return {
+              type: 'inlineLatexParen',
+              raw: match[0],
+              text: match[1].trim()
+            };
+          }
+        },
+        renderer(token: any) {
+          try {
+            return katex.renderToString(token.text, {
+              displayMode: false,
+              throwOnError: false
+            });
+          } catch {
+            return token.raw;
+          }
+        }
+      },
+      {
+        name: 'blockLatexBracket',
+        level: 'block',
+        start(src: string) {
+          return src.indexOf('\\[');
+        },
+        tokenizer(src: string) {
+          const match = src.match(blockLatexBracketRule);
+          if (match) {
+            return {
+              type: 'blockLatexBracket',
+              raw: match[0],
+              text: match[1].trim()
+            };
+          }
+        },
+        renderer(token: any) {
+          try {
+            return `<div class="katex-display-block">${katex.renderToString(token.text, {
+              displayMode: true,
+              throwOnError: false
+            })}</div>\n`;
+          } catch {
+            return token.raw;
+          }
+        }
+      }
+    ],
+    renderer: {
+      code(token: any) {
+        const lang = (token.lang || '').trim().toLowerCase();
+        if (lang === 'math' || lang === 'katex') {
+          try {
+            return `<div class="katex-display-block">${katex.renderToString(token.text, {
+              displayMode: true,
+              throwOnError: false
+            })}</div>\n`;
+          } catch (e) {
+            return `<div class="katex-error">${e}</div>\n`;
+          }
+        }
+        return false;
+      }
+    }
+  });
 }
 
 export class MarkdownViewerComponent {
@@ -13,6 +109,7 @@ export class MarkdownViewerComponent {
   constructor(container: HTMLElement, options?: MarkdownViewerOptions) {
     this.container = container;
     this.options = options;
+    ensureMarkedExtensionsConfigured();
     this.setupListeners();
   }
 
