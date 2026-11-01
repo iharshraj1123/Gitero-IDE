@@ -6,11 +6,14 @@ import { lspClient } from '../services/lsp/lspClient';
 export class TabBarComponent {
   private container: HTMLElement;
   private onConflictClick?: (tab: EditorTab) => void;
+  private draggedTabId: string | null = null;
+  private autoScrollInterval: number | null = null;
 
   constructor(container: HTMLElement, options?: { onConflictClick?: (tab: EditorTab) => void }) {
     this.container = container;
     this.onConflictClick = options?.onConflictClick;
     this.setupWheelScroll();
+    this.setupContainerDragOver();
 
     editorState.onChange((tabs, activeTab) => {
       this.render(tabs, activeTab);
@@ -31,10 +34,72 @@ export class TabBarComponent {
 
   private setupWheelScroll() {
     this.container.addEventListener('wheel', (e) => {
-      if (e.deltaY !== 0) {
+      if (e.deltaY !== 0 || e.deltaX !== 0) {
         e.preventDefault();
-        this.container.scrollLeft += e.deltaY;
+        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        this.container.scrollBy({ left: delta, behavior: 'auto' });
       }
+    }, { passive: false });
+  }
+
+  private setupContainerDragOver() {
+    this.container.addEventListener('dragover', (e) => {
+      if (!this.draggedTabId) return;
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
+
+      // Edge auto-scrolling when dragging near left or right boundaries
+      const rect = this.container.getBoundingClientRect();
+      const edgeThreshold = 48;
+      const mouseX = e.clientX;
+
+      if (mouseX < rect.left + edgeThreshold) {
+        const factor = Math.max(1, (rect.left + edgeThreshold - mouseX) / 8);
+        this.startAutoScroll(-factor * 6);
+      } else if (mouseX > rect.right - edgeThreshold) {
+        const factor = Math.max(1, (mouseX - (rect.right - edgeThreshold)) / 8);
+        this.startAutoScroll(factor * 6);
+      } else {
+        this.stopAutoScroll();
+      }
+    });
+
+    this.container.addEventListener('dragleave', (e) => {
+      // If leaving container entirely
+      const rect = this.container.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        this.stopAutoScroll();
+      }
+    });
+
+    this.container.addEventListener('drop', (e) => {
+      this.stopAutoScroll();
+      this.clearAllDropIndicators();
+    });
+  }
+
+  private startAutoScroll(speed: number) {
+    if (this.autoScrollInterval !== null) {
+      clearInterval(this.autoScrollInterval);
+    }
+    this.autoScrollInterval = window.setInterval(() => {
+      this.container.scrollLeft += speed;
+    }, 16);
+  }
+
+  private stopAutoScroll() {
+    if (this.autoScrollInterval !== null) {
+      clearInterval(this.autoScrollInterval);
+      this.autoScrollInterval = null;
+    }
+  }
+
+  private clearAllDropIndicators() {
+    const tabs = this.container.querySelectorAll('.editor-tab');
+    tabs.forEach(t => {
+      t.classList.remove('drop-target-before', 'drop-target-after', 'tab-dragging');
     });
   }
 
@@ -50,6 +115,8 @@ export class TabBarComponent {
       const isDeleted = !!tab.isDeletedOnDisk;
       const conflictCls = isConflict ? 'tab-has-conflict' : (isDeleted ? 'tab-deleted-on-disk' : '');
       tabEl.className = `editor-tab ${isActive ? 'active' : ''} ${tab.isDirty ? 'dirty' : ''} ${diagCls} ${conflictCls}`.trim();
+      tabEl.draggable = true;
+      tabEl.dataset.tabId = tab.id;
 
       let tooltip = tab.path;
       if (isConflict) tooltip += ' (Conflict: modified on disk externally)';
@@ -116,11 +183,74 @@ export class TabBarComponent {
         }
       });
 
+      // Drag & Drop event handlers for mouse reordering
+      tabEl.addEventListener('dragstart', (e) => {
+        this.draggedTabId = tab.id;
+        tabEl.classList.add('tab-dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', tab.id);
+        }
+      });
+
+      tabEl.addEventListener('dragend', () => {
+        this.draggedTabId = null;
+        this.stopAutoScroll();
+        this.clearAllDropIndicators();
+      });
+
+      tabEl.addEventListener('dragover', (e) => {
+        if (!this.draggedTabId || this.draggedTabId === tab.id) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'move';
+        }
+
+        const rect = tabEl.getBoundingClientRect();
+        const midPoint = rect.left + rect.width / 2;
+        const isAfter = e.clientX > midPoint;
+
+        tabEl.classList.toggle('drop-target-before', !isAfter);
+        tabEl.classList.toggle('drop-target-after', isAfter);
+      });
+
+      tabEl.addEventListener('dragleave', (e) => {
+        // Only clear if actually leaving tabEl
+        const related = e.relatedTarget as Node | null;
+        if (!related || !tabEl.contains(related)) {
+          tabEl.classList.remove('drop-target-before', 'drop-target-after');
+        }
+      });
+
+      tabEl.addEventListener('drop', (e) => {
+        if (!this.draggedTabId || this.draggedTabId === tab.id) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = tabEl.getBoundingClientRect();
+        const midPoint = rect.left + rect.width / 2;
+        const isAfter = e.clientX > midPoint;
+
+        const sourceId = this.draggedTabId;
+        this.draggedTabId = null;
+        this.stopAutoScroll();
+        this.clearAllDropIndicators();
+
+        editorState.moveTabById(sourceId, tab.id, isAfter);
+      });
+
       tabEl.appendChild(icon);
       tabEl.appendChild(title);
       tabEl.appendChild(closeBtn);
 
       this.container.appendChild(tabEl);
+    }
+
+    // Scroll active tab smoothly into view if partially hidden
+    const activeEl = this.container.querySelector('.editor-tab.active') as HTMLElement | null;
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     }
 
     const newTabBtn = document.createElement('button');

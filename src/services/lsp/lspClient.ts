@@ -586,6 +586,9 @@ export class LspClient {
         ? this.currentWorkspaceRoot
         : (filePath ? filePath.substring(0, Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'))) : null);
 
+      const isJvmServer = config.id === 'java' || config.id === 'kotlin' || config.id === 'xml';
+      const initTimeoutMs = isJvmServer ? 120000 : 60000;
+
       const initResult = await connection.request('initialize', {
         processId: null,
         rootUri,
@@ -678,7 +681,7 @@ export class LspClient {
         },
         workspaceFolders: rootUri ? [{ uri: rootUri, name: 'Workspace' }] : null,
         initializationOptions: initOptions
-      }, 60000);
+      }, initTimeoutMs);
 
       await connection.notify('initialized', {});
       session.capabilities = initResult?.capabilities;
@@ -764,9 +767,14 @@ export class LspClient {
           .join(' ')
           .trim();
 
+        const isTimeout = errMsg.toLowerCase().includes('timed out');
+        const timeoutDetail = isTimeout
+          ? 'Initialization timed out while indexing project dependencies. Click Restart to retry now that dependencies may be cached.'
+          : '';
+
         const displayDetail = cleanStderr
           ? (cleanStderr.length > 250 ? cleanStderr.substring(0, 247) + '...' : cleanStderr)
-          : (startupExitCode !== null ? `Process exited early with code ${startupExitCode}.` : errMsg);
+          : timeoutDetail || (startupExitCode !== null ? `Process exited early with code ${startupExitCode}.` : errMsg);
 
         const actions: any[] = [];
         if (config.installCommand) {

@@ -1002,10 +1002,26 @@ html.init-sidebar-collapsed .sidebar-resizer {
   overflow-x: auto;
   overflow-y: hidden;
   border-bottom: 1px solid var(--tab-border);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--tab-border, #3b4261) 80%, transparent) transparent;
+  scroll-behavior: smooth;
 }
 
 .tab-bar-container::-webkit-scrollbar {
-  display: none;
+  height: 3px;
+}
+
+.tab-bar-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-bar-container::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--tab-border, #3b4261) 80%, transparent);
+  border-radius: 3px;
+}
+
+.tab-bar-container::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color, #7aa2f7);
 }
 
 .editor-tab {
@@ -1013,15 +1029,48 @@ html.init-sidebar-collapsed .sidebar-resizer {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  min-width: 120px;
-  max-width: 220px;
+  min-width: 90px;
+  max-width: 200px;
+  flex: 0 1 auto;
   height: 100%;
   background-color: var(--tab-inactive-bg);
   color: var(--fg-muted);
   border-right: 1px solid var(--tab-border);
   cursor: pointer;
   position: relative;
-  transition: all 0.15s ease;
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.editor-tab.tab-dragging {
+  opacity: 0.35;
+  background-color: var(--bg-hover);
+}
+
+.editor-tab.drop-target-before::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background-color: var(--accent-color, #7aa2f7);
+  box-shadow: 0 0 6px var(--accent-color, #7aa2f7);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.editor-tab.drop-target-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 3px;
+  background-color: var(--accent-color, #7aa2f7);
+  box-shadow: 0 0 6px var(--accent-color, #7aa2f7);
+  z-index: 10;
+  pointer-events: none;
 }
 
 .editor-tab:hover {

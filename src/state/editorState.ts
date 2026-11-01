@@ -491,6 +491,39 @@ export class EditorStateManager {
     return active.viewMode;
   }
 
+  moveTab(fromIndex: number, toIndex: number): boolean {
+    if (fromIndex < 0 || fromIndex >= this.tabs.length) return false;
+    if (toIndex < 0 || toIndex >= this.tabs.length) return false;
+    if (fromIndex === toIndex) return false;
+
+    const [movedTab] = this.tabs.splice(fromIndex, 1);
+    this.tabs.splice(toIndex, 0, movedTab);
+    this.persist();
+    this.notify();
+    return true;
+  }
+
+  moveTabById(tabId: string, targetTabId: string, insertAfter: boolean = false): boolean {
+    const fromIdx = this.tabs.findIndex(t => t.id === tabId);
+    let toIdx = this.tabs.findIndex(t => t.id === targetTabId);
+    if (fromIdx === -1 || toIdx === -1) return false;
+
+    if (insertAfter) {
+      if (fromIdx < toIdx) {
+        // target index will shift left once we remove fromIdx
+      } else {
+        toIdx += 1;
+      }
+    } else {
+      if (fromIdx < toIdx) {
+        toIdx -= 1;
+      }
+    }
+
+    toIdx = Math.max(0, Math.min(this.tabs.length - 1, toIdx));
+    return this.moveTab(fromIdx, toIdx);
+  }
+
   onChange(listener: StateChangeListener) {
     this.listeners.push(listener);
   }
